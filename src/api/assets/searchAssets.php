@@ -9,13 +9,9 @@ $DBLIB->join("assetCategoriesGroups", "assetCategoriesGroups.assetCategoriesGrou
 $DBLIB->where("assets_deleted", 0);
 $DBLIB->where("(assets.assets_endDate IS NULL OR assets.assets_endDate >= CURRENT_TIMESTAMP())");
 if (isset($_POST['term'])) {
-    $DBLIB->where("(
-        manufacturers_name LIKE '%" . $bCMS->sanitizeStringMYSQL($_POST['term']) . "%' OR
-		assetTypes_description LIKE '%" . $bCMS->sanitizeStringMYSQL($_POST['term']) . "%' OR
-		assets_notes LIKE '%" . $bCMS->sanitizeStringMYSQL($_POST['term']) . "%' OR
-		assets_tag LIKE '%" . $bCMS->sanitizeStringMYSQL($_POST['term']) . "' OR
-        assetTypes_name LIKE '%" . $bCMS->sanitizeStringMYSQL($_POST['term']) . "%'
-    )");
+    $searchTerm = "%" . $_POST['term'] . "%";
+    $tagSearchTerm = "%" . $_POST['term'];
+    $DBLIB->where("(manufacturers_name LIKE ? OR assetTypes_description LIKE ? OR assets_notes LIKE ? OR assets_tag LIKE ? OR assetTypes_name LIKE ?)", [$searchTerm, $searchTerm, $searchTerm, $tagSearchTerm, $searchTerm]);
 } else $DBLIB->orderBy("assetTypes_name", "ASC");
 $assets = $DBLIB->get("assets", 15, [
 	"assets.assets_id",
@@ -113,7 +109,7 @@ finish(true, null, $assetsReturn);
  *         description="whether to include asset barcodes",
  *         required="false", 
  *         @OA\Schema(
- *             type="boolean"), 
+ *             type="string"),
  *         ),
  *     
  * )
