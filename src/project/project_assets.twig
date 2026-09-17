@@ -66,7 +66,7 @@
         <div class="tab-content" id="asset-list-tabs-tabContent">
             <div class="tab-pane fade show active p-3" id="asset-list-tabs-home" role="tabpanel" aria-labelledby="asset-list-tabs-home-tab">
                 <p style="font-style: italic;">To view assets assigned to this project, select a business above</p>
-                <p>{{ (FINANCIALS.assetsAssigned|length + FINANCIALS.assetsAssignedSUB|length) }} Asset{{ (FINANCIALS.assetsAssigned|length + FINANCIALS.assetsAssignedSUB|length) != 1 ? 's' }} assigned to {{ project.projects_name }} ({{FINANCIALS.mass|mass }})</p>
+                <p>{{ FINANCIALS.assetsAssignedQuantity }} Asset{{ FINANCIALS.assetsAssignedQuantity != 1 ? 's' }} assigned to {{ project.projects_name }} ({{FINANCIALS.mass|mass }})</p>
                 {% if project.projectsTypes_config_finance == 1 %}
                     <p>Project duration set as {{ FINANCIALS['priceMaths']["weeks"] }} week{{ FINANCIALS['priceMaths']["weeks"] != 1 ? 's' : '' }} and {{ FINANCIALS['priceMaths']["days"] }} day{{ FINANCIALS['priceMaths']["days"] != 1 ? 's' : ''}} for asset pricing purposes.
                     {% if "PROJECTS:EDIT:DATES"|instancePermissions %}
@@ -248,6 +248,28 @@
         });
         {% endif %}
         {% if "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN"|instancePermissions %}
+        $(".setAssetAssignmentQuantity").click(function () {
+            //Unserialized assets are taken by the unit, so how many this project holds can be changed without unassigning it
+            var assignment = $(this).data("assetassignmentid");
+            bootbox.prompt({
+                title: "Units Required",
+                message: "How many units of this asset does this project need? The business holds " + $(this).data("held") + " of them in total.",
+                inputType: 'number',
+                value: $(this).data("quantity"),
+                min: 1,
+                step: 1,
+                callback: function (result) {
+                    if (result) {
+                        ajaxcall("projects/assets/setQuantity.php", {
+                            "assetsAssignments_id": assignment,
+                            "assetsAssignments_quantity": result
+                        }, function (data) {
+                            location.reload();
+                        });
+                    }
+                }
+            });
+        });
         $("#setAssetAssignmentDelete").click(function () {
             var selected = getSelected();
             if (selected.length > 0) {

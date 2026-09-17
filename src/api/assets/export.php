@@ -33,7 +33,7 @@ $DBLIB->join("manufacturers", "manufacturers.manufacturers_id=assetTypes.manufac
 $DBLIB->join("assetCategories", "assetCategories.assetCategories_id=assetTypes.assetCategories_id", "LEFT");
 $DBLIB->join("assetCategoriesGroups", "assetCategoriesGroups.assetCategoriesGroups_id=assetCategories.assetCategoriesGroups_id", "LEFT");
 $assets = $DBLIB->get('assets', null, [
-    "assets.assets_id", "assets.assets_tag", "assets.assets_mass", "assets.assets_dayRate", "assets.assets_weekRate", "assets.assets_value", "assets.assets_notes", "assets.asset_definableFields_1", "assets.asset_definableFields_2", "assets.asset_definableFields_3", "assets.asset_definableFields_4", "assets.asset_definableFields_5", "assets.asset_definableFields_6", "assets.asset_definableFields_7", "assets.asset_definableFields_8", "assets.asset_definableFields_9", "assets.asset_definableFields_10", "assetTypes.assetTypes_name", "assetTypes.assetTypes_mass", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate", "assetTypes.assetTypes_value", "assetTypes_definableFields", "manufacturers.manufacturers_name", "assetCategories.assetCategories_name", "assetCategoriesGroups.assetCategoriesGroups_name"
+    "assets.assets_id", "assets.assets_tag", "assets.assets_quantity", "assets.assets_mass", "assets.assets_dayRate", "assets.assets_weekRate", "assets.assets_value", "assets.assets_notes", "assets.asset_definableFields_1", "assets.asset_definableFields_2", "assets.asset_definableFields_3", "assets.asset_definableFields_4", "assets.asset_definableFields_5", "assets.asset_definableFields_6", "assets.asset_definableFields_7", "assets.asset_definableFields_8", "assets.asset_definableFields_9", "assets.asset_definableFields_10", "assetTypes.assetTypes_name", "assetTypes.assetTypes_mass", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate", "assetTypes.assetTypes_value", "assetTypes_definableFields", "manufacturers.manufacturers_name", "assetCategories.assetCategories_name", "assetCategoriesGroups.assetCategoriesGroups_name"
 ]);
 //Get first asset added to give a created date
 $DBLIB->where("assets.instances_id", $AUTH->data['instance']['instances_id']);
@@ -64,7 +64,8 @@ foreach ($assets as $asset) {
         $moneyFormatter->format(new Money($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate'], new Currency($AUTH->data['instance']['instances_config_currency']))),
         $moneyFormatter->format(new Money($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value'], new Currency($AUTH->data['instance']['instances_config_currency']))),
         $assetLocation,
-        $asset['assets_notes']
+        $asset['assets_notes'],
+        (intval($asset['assets_quantity']) > 0 ? intval($asset['assets_quantity']) : 1)
     ];
     for ($x = 1; $x <= 10; $x++) {
         array_push($array, $asset['definableFields'][$x - 1] . ($asset['definableFields'][$x - 1] != null ? ": " : ""), $asset['asset_definableFields_' . $x]);
@@ -72,7 +73,7 @@ foreach ($assets as $asset) {
     $spreadsheetRows[] = $array;
 }
 
-$headerRow = ["Asset Code", "Category", "Name", "Manufacturer", "Mass (kg)", "Day Rate", "Week Rate", "Value", "Location", "Notes"];
+$headerRow = ["Asset Code", "Category", "Name", "Manufacturer", "Mass (kg)", "Day Rate", "Week Rate", "Value", "Location", "Notes", "Quantity"];
 for ($x = 1; $x <= 10; $x++) {
     array_push($headerRow, "Definable Field " . $x . " Name", "Definable Field " . $x . " Value");
 }
@@ -107,7 +108,7 @@ if (isset($_POST['csv'])) {
 
     //Header
     $sheet->fromArray($headerRow, NULL, 'A1');
-    $sheet->getStyle("A1:AD1")->getFont()->setBold(true);
+    $sheet->getStyle("A1:AE1")->getFont()->setBold(true);
     $sheet->freezePane('B2');
     //Number Formats
     $sheet->getStyle('E2:E' . (count($assets) + 1))

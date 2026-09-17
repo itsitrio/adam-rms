@@ -1,7 +1,7 @@
 {% if type['assets']|length > 1 %}{# If there's just one item then just display it on its own #}
 <tr class="categoryFilter categoryFilter{{ categoryid }} showHideFilter" data-filter="typeFilter{{ type['assets'][0].assetTypes_id }}">
     <td><input type="checkbox" class="assetAssignmentCheckboxType" data-instanceid="{{ instanceid }}"  data-typeid="{{ type['assets'][0].assetTypes_id }}" /></td>
-    <td colspan="3">{{ type['assets']|length }}x <b>{{ type['assets'][0].manufacturers_id != 1 ? type['assets'][0].manufacturers_name ~ " - " : "" }}{{ type['assets'][0].assetTypes_name }}</b>
+    <td colspan="3">{{ type['totals']['quantity'] }}x <b>{{ type['assets'][0].manufacturers_id != 1 ? type['assets'][0].manufacturers_name ~ " - " : "" }}{{ type['assets'][0].assetTypes_name }}</b>
     </td>
     <td>
         {{ type['totals']['status'] }}
@@ -27,6 +27,13 @@
     <td colspan="{{ assetAssignment.assetsAssignments_comment ? '1' : (assetAssignment.assetTypes_definableFields_ARRAY|length > 0 ? '2' : '3') }}">
         {% if type['assets']|length == 1 %}
             <b>{{ assetAssignment.manufacturers_id != 1 ? assetAssignment.manufacturers_name ~ " - " : "" }}{{ assetAssignment.assetTypes_name }}</b>
+        {% endif %}
+        {% if assetAssignment.assetsAssignments_quantity > 1 or assetAssignment.assets_unserialized %}
+            {% if "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN"|instancePermissions %}
+                <button class="badge badge-primary setAssetAssignmentQuantity" style="border:0;" title="Units of this unserialized asset taken by this project - click to change" data-assetassignmentid="{{ assetAssignment.assetsAssignments_id }}" data-quantity="{{ assetAssignment.assetsAssignments_quantity }}" data-held="{{ assetAssignment.assets_quantity }}">{{ assetAssignment.assetsAssignments_quantity }}x</button>
+            {% else %}
+                <span class="badge badge-primary" title="Units of this unserialized asset taken by this project">{{ assetAssignment.assetsAssignments_quantity }}x</span>
+            {% endif %}
         {% endif %}
         <a target="_blank" href="{{ CONFIG.ROOTURL }}/asset.php?id={{assetAssignment.assetTypes_id}}&asset={{assetAssignment.assets_id}}&instance={{ instanceid }}">{{ assetAssignment.assets_tag|aTag }}</a>
         {% for flag in assetAssignment.flagsblocks.FLAG %}
@@ -67,7 +74,7 @@
             <span class="badge badge-secondary" title="{% if assetAssignment.latestScan.assetsBarcodesScans_barcodeWasScanned == "1" %}Barcode was scanned by{% else %}Barcode was not scanned, location set manually by{% endif %} {{ assetAssignment.latestScan.users_name1 ~ " " ~ assetAssignment.latestScan.users_name2 }}  {{ assetAssignment.latestScan.assetsBarcodesScans_timestamp|date("d/M/Y G:i:s") }}. {{ assetAssignment.latestScan.assetsBarcodesScans_validation }}"><i class="fas fa-info"></i></span>
         {% endif %}
     </td>
-    <td>{{ assetAssignment.assets_mass != null ? assetAssignment.assets_mass|mass : (assetAssignment.assetTypes_mass != null and assetAssignment.assetTypes_mass != 0 ? assetAssignment.assetTypes_mass|mass : "") }}</td>
+    <td>{{ assetAssignment.mass > 0 ? assetAssignment.mass|mass : "" }}</td>
     {% if project.projectsTypes_config_finance == 1 %}
         <td>{{ assetAssignment.price|money }}{{ assetAssignment.assetsAssignments_customPrice > 0 ? '&nbsp;<span class="badge badge-info" title="Custom price set"><i class="fas fa-coins"></i></span>' :'' }}</td>
         <td>{{ assetAssignment.discountPrice|money }}{{  assetAssignment.assetsAssignments_discount > 0 ? " ("~assetAssignment.assetsAssignments_discount ~ "%)" : "" }}</td>

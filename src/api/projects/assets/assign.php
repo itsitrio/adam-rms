@@ -18,7 +18,12 @@ $projectFinanceHelper = new projectFinance();
 $projectFinanceCacher = new projectFinanceCacher($project['projects_id']);
 $priceMaths = $projectFinanceHelper->durationMaths($project['projects_id']);
 
-$assetRequiredFields = ["assetTypes_name","assets_tag","assets_id","assets_dayRate","assets_weekRate","assetTypes_dayRate","assetTypes_weekRate","assetTypes_mass","assetTypes_value","assets_value","assets_mass","assets_assetGroups"];
+$assetRequiredFields = ["assetTypes_name","assets_tag","assets_id","assets_dayRate","assets_weekRate","assetTypes_dayRate","assetTypes_weekRate","assetTypes_mass","assetTypes_value","assets_value","assets_mass","assets_assetGroups","assets_unserialized","assets_quantity"];
+
+//How many units of each asset to take. Only unserialized assets can give more than one
+$quantityWanted = (isset($_POST['assetsAssignments_quantity']) ? intval($_POST['assetsAssignments_quantity']) : 1);
+if ($quantityWanted < 1) finish(false,["message"=>"Quantity must be at least one"]);
+if ($quantityWanted > 1 and !isset($_POST['assets_id'])) finish(false,["message"=>"A quantity can only be given when assigning a single asset"]);
 
 if (isset($_POST['assetGroups_id'])) {
     $DBLIB->where("(users_userid IS NULL OR users_userid = '" . $AUTH->data['users_userid'] . "')");
@@ -66,18 +71,24 @@ foreach ($assetIDs as $asset) {
 $assetsFailed = [];
 $assetsProcessing = [];
 foreach ($assetsToProcess as $asset) {
-    $DBLIB->where("assets_id", $asset['assets_id']);
-    $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
-    $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
-    $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
-    $DBLIB->where("projects.projects_deleted", 0);
-    $DBLIB->where("(projects.projects_id = '" . $project['projects_id'] . "' OR projectsStatuses.projectsStatuses_assetsReleased = 0)");
-    $DBLIB->where("((projects_dates_deliver_start >= '" . $project["projects_dates_deliver_start"] . "' AND projects_dates_deliver_start <= '" . $project["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $project["projects_dates_deliver_start"] . "' AND projects_dates_deliver_end <= '" . $project["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $project["projects_dates_deliver_end"] . "' AND projects_dates_deliver_start <= '" . $project["projects_dates_deliver_start"] . "'))");
-    $assignment = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id"]);
-    $flagsBlocks = assetFlagsAndBlocks($asset['assets_id']);
-    if ($assignment or $flagsBlocks['COUNT']['BLOCK']>0) { //Can't assign anything with a block on it
-        //It's got a clash so we can't assign it
-        if (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id']) finish(false,["message"=>"Asset wanted not available"]); //Fail because the one we were supposed to assign hasn't worked
+    //Linked assets come along one unit at a time however many units of the asset they hang off were taken
+    $quantity = (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id'] ? $quantityWanted : 1);
+    if ($quantity > 1 and $asset['assets_unserialized'] != 1) finish(false,["message"=>"Only unserialized assets can be assigned in quantities - assign another asset of this type instead"]);
+    $availability = assetAvailableQuantity($asset, $project["projects_dates_deliver_start"], $project["projects_dates_deliver_end"], $project['projects_id']);
+    //An asset gets one assignment per project, so more units of something the project already has are a change to that assignment rather than a new one
+    $alreadyOnProject = false;
+    foreach ($availability['assignments'] as $clashingAssignment) {
+        if ($clashingAssignment['projects_id'] == $project['projects_id']) $alreadyOnProject = true;
+    }
+    if ($alreadyOnProject) {
+        if (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id']) finish(false,["message"=>($asset['assets_unserialized'] == 1 ? "This asset is already assigned to this project - change the quantity on that assignment instead" : "Asset wanted not available")]);
+        $assetsFailed[] = ["assets_id" => $asset['assets_id']];
+        $assetsProcessing[] = $asset;
+        continue;
+    }
+    $flagsBlocks = assetFlagsAndBlocks($asset['assets_id']); //Can't assign anything with a block on it, however many units it holds
+    if ($flagsBlocks['COUNT']['BLOCK'] > 0 or $availability['available'] < $quantity) {
+        if (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id']) finish(false,["message"=>($flagsBlocks['COUNT']['BLOCK'] == 0 and $availability['quantity'] > 1 ? "Only " . $availability['available'] . " of the " . $availability['quantity'] . " units held are available" : "Asset wanted not available")]); //Fail because the one we were supposed to assign hasn't worked
         $assetsFailed[] = ["assets_id" => $asset['assets_id']];
     } else {
         $insertData = [
@@ -85,18 +96,20 @@ foreach ($assetsToProcess as $asset) {
             "assets_id" => $asset['assets_id'],
             "assetsAssignments_deleted" => 0,
             "assetsAssignments_timestamp" => date('Y-m-d H:i:s'),
+            "assetsAssignments_quantity" => $quantity,
             "assetsAssignments_linkedTo" => ($asset['linkedto'] !== false ? $assetsProcessing[$asset['linkedto']]['insertedid'] : null),
             "assetsAssignments_discount" => ($asset['linkedto'] !== false ? $AUTH->data['instance']['instances_config_linkedDefaultDiscount'] : $project['projects_defaultDiscount'])
         ];
         $insert = $DBLIB->insert("assetsAssignments", $insertData);
         if ($insert) {
             //Calculate the maths changes needed for this assignment and add it to the project
-            $projectFinanceCacher->adjust('projectsFinanceCache_mass',($asset['assets_mass'] !== null ? $asset['assets_mass'] : $asset['assetTypes_mass']));
-            $projectFinanceCacher->adjust('projectsFinanceCache_value',new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])));
+            $projectFinanceCacher->adjust('projectsFinanceCache_mass',($asset['assets_mass'] !== null ? $asset['assets_mass'] : $asset['assetTypes_mass']) * $quantity);
+            $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity));
 
             $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
             $price = $price->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
             $price = $price->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+            $price = $price->multiply($quantity);
             $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price,false);
 
             //Thought a discount can't be set, there might be a default one from the project
@@ -110,7 +123,7 @@ foreach ($assetsToProcess as $asset) {
                     foreach ($bCMS->usersWatchingGroup($group) as $user) {
                         if ($user != $AUTH->data['users_userid'] and !in_array($user,$usersNotified)) {
                             array_push($usersNotified,$user);
-                            notify(18,$user, $AUTH->data['instance']['instances_id'], "Asset " . $bCMS->aTag($asset['assets_tag']) . " assigned to project", "Asset " . $bCMS->aTag($asset['assets_tag']) . " (" . $asset["assetTypes_name"] . ") has been added to the project " . $project['projects_name'] . " by " . $AUTH->data['users_name1'] . " " . $AUTH->data['users_name2']);
+                            notify(18,$user, $AUTH->data['instance']['instances_id'], "Asset " . $bCMS->aTag($asset['assets_tag']) . " assigned to project", ($quantity > 1 ? $quantity . " units of asset " : "Asset ") . $bCMS->aTag($asset['assets_tag']) . " (" . $asset["assetTypes_name"] . ") ha" . ($quantity > 1 ? "ve" : "s") . " been added to the project " . $project['projects_name'] . " by " . $AUTH->data['users_name1'] . " " . $AUTH->data['users_name2']);
                         }
                     }
                 }
@@ -172,6 +185,14 @@ Requires Instance Permission PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN
  *         name="assets_id",
  *         in="query",
  *         description="Asset ID",
+ *         required="false", 
+ *         @OA\Schema(
+ *             type="number"), 
+ *         ), 
+ *     @OA\Parameter(
+ *         name="assetsAssignments_quantity",
+ *         in="query",
+ *         description="Number of units to assign, for unserialized assets. Only valid alongside assets_id, and defaults to 1",
  *         required="false", 
  *         @OA\Schema(
  *             type="number"), 

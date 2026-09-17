@@ -30,6 +30,12 @@
                                 Asset is linked to asset <a href="{{ CONFIG.ROOTURL }}/asset.php?id={{ assets[0]['link']['assetTypes_id'] }}&instance={{ASSET_INSTANCE.instances_id}}&asset={{ assets[0]['link']['assets_id'] }}">{{ assets[0]['link']['assets_tag']|aTag }} ({{ assets[0]['link']['assetTypes_name'] }})</a>
                             </div>
                         {% endif %}
+                        {% if assets[0]['assets_unserialized'] %}
+                            <div class="callout callout-info">
+                                <h5><i class="fas fa-boxes"></i> Unserialized Asset</h5>
+                                This asset is held as {{ assets[0]['assets_quantity'] }} interchangeable unit{{ assets[0]['assets_quantity'] != 1 ? 's' : '' }} rather than as individually tracked items. Projects take as many units as they need, and the rest stay available.
+                            </div>
+                        {% endif %}
                         {% if assets[0]['assets_notes']|length > 0 %}
                             <p>{{ assets[0]['assets_notes']|nl2br }}</p>
                         {% endif %}
@@ -43,6 +49,11 @@
                                     </li>
                                 {% endif %}
                             {% endfor %}
+                            {% if assets[0]['assets_unserialized'] %}
+                                <li class="list-group-item">
+                                    <b>Quantity Held</b> <span class="float-right text-primary">{{ assets[0]['assets_quantity'] }}</span>
+                                </li>
+                            {% endif %}
                             <li class="list-group-item">
                                 <b>Mass</b> <span class="float-right text-primary">{{ (assets[0]['assets_mass'] ? assets[0]['assets_mass']|mass : (asset.assetTypes_mass != "" and asset.assetTypes_mass != 0 ? asset.assetTypes_mass|mass : '?')) }}</span>
                             </li>
@@ -230,7 +241,7 @@
                                             {% for thisasset in assets %}
                                             {% for assignment in thisasset.assignments %}
                                             {
-                                                title          : '{{ thisasset.assets_tag|aTag }}{% if USERDATA['instance']['calendarSettings'].showProjectStatus %} [{{ assignment.projectsStatuses_name|escape("js") }}]{% endif %} {{ assignment.projects_name }}',
+                                                title          : '{% if assignment.assetsAssignments_quantity > 1 %}{{ assignment.assetsAssignments_quantity }}x {% endif %}{{ thisasset.assets_tag|aTag }}{% if USERDATA['instance']['calendarSettings'].showProjectStatus %} [{{ assignment.projectsStatuses_name|escape("js") }}]{% endif %} {{ assignment.projects_name }}',
                                                 start          : '{{ assignment.projects_dates_deliver_start|date("Y-m-d\\TH:i:s") }}',
                                                 end            : '{{ assignment.projects_dates_deliver_end|date("Y-m-d\\TH:i:s") }}',
                                                 url            : '{{CONFIG.ROOTURL}}/project/?id={{ assignment.projects_id }}',
@@ -285,6 +296,16 @@
                                                     <div class="input-group">
                                                         <div class="input-group-prepend"><span class="input-group-text">Asset Notes</span></div>
                                                         <textarea class="form-control" rows="2" name="assets_notes" placeholder="">{{ assets[0]['assets_notes'] }}</textarea>
+                                                    </div>
+                                                    <div class="custom-control custom-checkbox" style="margin-bottom: 5px;">
+                                                        {# The hidden input means unticking the box sends a 0, rather than sending nothing at all #}
+                                                        <input type="hidden" name="assets_unserialized" value="0" />
+                                                        <input type="checkbox" class="custom-control-input" id="editAssetUnserialized" name="assets_unserialized" value="1" {{ assets[0]['assets_unserialized'] ? 'checked' }} />
+                                                        <label class="custom-control-label" for="editAssetUnserialized">Unserialized asset - held as a quantity of interchangeable units</label>
+                                                    </div>
+                                                    <div class="input-group" id="editAssetQuantityGroup" {% if not assets[0]['assets_unserialized'] %}style="display:none;"{% endif %}>
+                                                        <div class="input-group-prepend"><span class="input-group-text">Quantity Held</span></div>
+                                                        <input type="number" step="1" min="1" class="form-control" name="assets_quantity" id="editAssetQuantity" value="{{ assets[0]['assets_quantity'] ?: 1 }}" />
                                                     </div>
                                                     <div class="input-group">
                                                         <div class="input-group-prepend">
@@ -904,6 +925,7 @@
                                         <th>{{ field }}</th>
                                     {% endfor %}
                                     <th>Notes</th>
+                                    <th title="Number of units held - unserialized assets hold more than one"><i class="fas fa-boxes"></i></th>
                                     <th>Value</th>
                                     <th>Cost/day</th>
                                     <th>Cost/week</th>
@@ -919,6 +941,7 @@
                                             <td>{{ thisasset['asset_definableFields_' ~ loop.index] }}</td>
                                         {% endfor %}
                                         <td>{{ thisasset['assets_notes']|nl2br }}</td>
+                                        <td>{{ thisasset.assets_unserialized ? (thisasset.assets_quantity ~ 'x') : '' }}</td>
                                         <td>
                                             {{ (thisasset.assets_value ?: asset.assetTypes_value)|money(ASSET_INSTANCE['instances_config_currency']) }}
                                         </td>
@@ -1624,6 +1647,14 @@
                 });
                 {% endif %}
                 {% if "ASSETS:EDIT"|instancePermissions %}
+                $('#editAssetUnserialized').on('change', function() {
+                    //Only unserialized assets hold more than one unit, so the quantity is theirs alone
+                    if ($(this).is(':checked')) $("#editAssetQuantityGroup").show();
+                    else {
+                        $("#editAssetQuantityGroup").hide();
+                        $("#editAssetQuantity").val(1);
+                    }
+                });
                 $('#saveAssetSettingsButton').on('click', function() {
                     var formData = $("#editAssetDetailsForm").serializeArray();
                     formData.push({"name": "assets_id", "value": "{{assets[0]['assets_id']}}"});

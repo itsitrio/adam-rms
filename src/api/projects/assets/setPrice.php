@@ -26,6 +26,8 @@ $priceMaths = $projectFinanceHelper->durationMaths($project['projects_id']);
 $projectFinanceCacher = new projectFinanceCacher($project['projects_id']);
 
 foreach ($assignmentsSetDiscount["assignments"] as $assignment) {
+    //A custom price is per unit, like the day and week rates it replaces
+    $quantity = (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
     $DBLIB->where("assetsAssignments_id", $assignment['assetsAssignments_id']);
     if (!$DBLIB->update("assetsAssignments", ["assetsAssignments_customPrice" => $_POST['assetsAssignments_customPrice']])) finish(false);
     else {
@@ -38,6 +40,7 @@ foreach ($assignmentsSetDiscount["assignments"] as $assignment) {
             $oldPrice = $oldPrice->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
             $oldPrice = $oldPrice->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
         }
+        $oldPrice = $oldPrice->multiply($quantity);
         //Remove the old price
         $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $oldPrice,true);
 
@@ -49,6 +52,7 @@ foreach ($assignmentsSetDiscount["assignments"] as $assignment) {
             $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
             $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
         }
+        $price = $price->multiply($quantity);
         //Add the new price
         $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, false);
 

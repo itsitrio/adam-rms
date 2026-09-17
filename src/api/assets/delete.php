@@ -28,22 +28,25 @@ else {
     $DBLIB->where("assets_id",$asset['assets_id']);
     $DBLIB->where("assetsAssignments_deleted",0);
     $DBLIB->join("projects","assetsAssignments.projects_id=projects.projects_id","LEFT");
-    $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount']);
+    $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity']);
     foreach ($assetAssignments as $assignment) {
         $projectFinanceHelper = new projectFinance();
         $priceMaths = $projectFinanceHelper->durationMaths($assignment['projects_id']);
         $projectFinanceCacher = new projectFinanceCacher($assignment['projects_id']);
+        //Everything an assignment contributes is per unit, so back out as many as it took
+        $quantity = (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
 
         //Remove current mass and value
-        $projectFinanceCacher->adjust('projectsFinanceCache_mass',($asset['assets_mass'] !== null ? $asset['assets_mass'] : $asset['assetTypes_mass']),true);
-        $projectFinanceCacher->adjust('projectsFinanceCache_value',new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])),true);
+        $projectFinanceCacher->adjust('projectsFinanceCache_mass',($asset['assets_mass'] !== null ? $asset['assets_mass'] : $asset['assetTypes_mass']) * $quantity,true);
+        $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),true);
 
         if ($assignment['assetsAssignments_customPrice'] > 0) {
-            $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency'])), true);
+            $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', (new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity), true);
         } else {
             $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
             $oldPrice = $oldPrice->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
             $oldPrice = $oldPrice->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+            $oldPrice = $oldPrice->multiply($quantity);
             $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $oldPrice,true);
             if ($assignment['assetsAssignments_discount'] > 0) {
                 //If there was already a discount, remove it

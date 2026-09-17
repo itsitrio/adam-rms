@@ -49,8 +49,10 @@ foreach ($assignmentsRemove["assignments"] as $assignment) {
     if (!$DBLIB->update("assetsAssignments", ["assetsAssignments_deleted" => 1])) finish(false);
     else {
         $bCMS->auditLog("UNASSIGN-ASSET", "assetsAssignments", $assignment['assetsAssignments_id'], $AUTH->data['users_userid'], null, $assignment['projects_id']);
-        $projectFinanceCacher->adjust('projectsFinanceCache_mass', ($assignment['assets_mass'] !== null ? $assignment['assets_mass'] : $assignment['assetTypes_mass']), true);
-        $projectFinanceCacher->adjust('projectsFinanceCache_value', new Money(($assignment['assets_value'] !== null ? $assignment['assets_value'] : $assignment['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])), true);
+        //Prices, masses and values are all held per unit, so back out as many as the assignment took
+        $quantity = (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
+        $projectFinanceCacher->adjust('projectsFinanceCache_mass', ($assignment['assets_mass'] !== null ? $assignment['assets_mass'] : $assignment['assetTypes_mass']) * $quantity, true);
+        $projectFinanceCacher->adjust('projectsFinanceCache_value', (new Money(($assignment['assets_value'] !== null ? $assignment['assets_value'] : $assignment['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity), true);
 
 
         if ($assignment['assetsAssignments_customPrice'] > 0) {
@@ -60,6 +62,7 @@ foreach ($assignmentsRemove["assignments"] as $assignment) {
             $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
             $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
         }
+        $price = $price->multiply($quantity);
         $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, true);
         if ($assignment['assetsAssignments_discount'] > 0) $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $price->subtract($price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))), true);
 
@@ -69,7 +72,7 @@ foreach ($assignmentsRemove["assignments"] as $assignment) {
                 foreach ($bCMS->usersWatchingGroup($group) as $user) {
                     if ($user != $AUTH->data['users_userid'] and !in_array($user, $usersNotified)) {
                         array_push($usersNotified, $user);
-                        notify(19, $user, $AUTH->data['instance']['instances_id'], "Asset " . $bCMS->aTag($assignment['assets_tag']) . " removed from project", "Asset " . $bCMS->aTag($assignment['assets_tag']) . " (" . $assignment["assetTypes_name"] . ") has been removed from the project " . $project['projects_name'] . " by " . $AUTH->data['users_name1'] . " " . $AUTH->data['users_name2']);
+                        notify(19, $user, $AUTH->data['instance']['instances_id'], "Asset " . $bCMS->aTag($assignment['assets_tag']) . " removed from project", ($quantity > 1 ? $quantity . " units of asset " : "Asset ") . $bCMS->aTag($assignment['assets_tag']) . " (" . $assignment["assetTypes_name"] . ") ha" . ($quantity > 1 ? "ve" : "s") . " been removed from the project " . $project['projects_name'] . " by " . $AUTH->data['users_name1'] . " " . $AUTH->data['users_name2']);
                     }
                 }
             }

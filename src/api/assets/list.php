@@ -51,8 +51,9 @@ foreach ($assets as $asset) {
     $DBLIB->where("assets_deleted", 0);
     if (!isset($_POST['all'])) $DBLIB->where("(assets.assets_linkedTo IS NULL)");
     $DBLIB->orderBy("assets.assets_tag", "ASC");
-    $assetTags = $DBLIB->get("assets", null, ["assets_id", "assets_notes","assets_tag","asset_definableFields_1","asset_definableFields_2","asset_definableFields_3","asset_definableFields_4","asset_definableFields_5","asset_definableFields_6","asset_definableFields_7","asset_definableFields_8","asset_definableFields_9","asset_definableFields_10","assets_dayRate","assets_weekRate","assets_value","assets_mass"]);
+    $assetTags = $DBLIB->get("assets", null, ["assets_id", "assets_notes","assets_tag","asset_definableFields_1","asset_definableFields_2","asset_definableFields_3","asset_definableFields_4","asset_definableFields_5","asset_definableFields_6","asset_definableFields_7","asset_definableFields_8","asset_definableFields_9","asset_definableFields_10","assets_dayRate","assets_weekRate","assets_value","assets_mass","assets_unserialized","assets_quantity"]);
     $asset['count'] = count($assetTags);
+    $asset['quantity'] = 0; //Unserialized assets are one row holding many units, so the number of rows isn't the number of units
     $asset['fields'] = explode(",", $asset['assetTypes_definableFields']);
     $asset['tags'] = [];
     foreach ($assetTags as $tag) {
@@ -61,6 +62,8 @@ foreach ($assets as $asset) {
         $tag['assets_value_format'] = apiMoney($tag['assets_value']);
         $tag['assets_dayRate_format'] = apiMoney($tag['assets_dayRate']);
         $tag['assets_weekRate_format'] = apiMoney($tag['assets_weekRate']);
+        $tag['assets_quantity'] = (intval($tag['assets_quantity']) > 0 ? intval($tag['assets_quantity']) : 1);
+        $asset['quantity'] += $tag['assets_quantity'];
 
         if (!isset($_POST['abridgedList']) or $_POST['abridgedList'] == false) {
             $tag['flagsblocks'] = assetFlagsAndBlocks($tag['assets_id']);
