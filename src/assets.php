@@ -220,11 +220,20 @@ foreach ($assets as $asset) {
     foreach ($assetTags as $tag) {
         $tag['assets_quantity'] = (intval($tag['assets_quantity']) > 0 ? intval($tag['assets_quantity']) : 1);
         $tag['availableQuantity'] = $tag['assets_quantity'];
+        //Whether the project being searched for already holds this asset, and the first clash that isn't
+        //its own. An unserialized asset can clash with several projects and still have units to spare, so
+        //these are kept apart from availableQuantity rather than inferred from the first clash found.
+        $tag['assignedToSearchedProject'] = false;
+        $tag['assignedElsewhere'] = false;
         if ($dateStart and $dateEnd) {
             //Check availability. A project being searched for counts its own assignments, so what it already holds doesn't look free
             $availability = assetAvailableQuantity($tag, date("Y-m-d H:i:s", $dateStart), date("Y-m-d H:i:s", $dateEnd), $RETURN['PROJECT']['ID'] ? $RETURN['PROJECT']['ID'] : null);
             $tag['assignment'] = $availability['assignments'];
             $tag['availableQuantity'] = $availability['available'];
+            foreach ($availability['assignments'] as $clashingAssignment) {
+                if ($RETURN['PROJECT']['ID'] and $clashingAssignment['projects_id'] == $RETURN['PROJECT']['ID']) $tag['assignedToSearchedProject'] = true;
+                elseif ($tag['assignedElsewhere'] === false) $tag['assignedElsewhere'] = $clashingAssignment;
+            }
         }
         $tag['flagsblocks'] = assetFlagsAndBlocks($tag['assets_id']);
         if ($tag['flagsblocks']['COUNT']['BLOCK'] > 0) $tag['availableQuantity'] = 0;
