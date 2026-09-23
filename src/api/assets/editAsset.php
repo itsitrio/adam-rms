@@ -21,14 +21,56 @@ foreach ($_POST['formData'] as $item) {
 if (strlen($array['assets_id']) < 1) finish(false, ["code" => "PARAM-ERROR", "message"=> "No data for action"]);
 $currencies = new ISOCurrencies();
 $moneyParser = new DecimalMoneyParser($currencies);
-$array['assets_value'] = ($array['assets_value'] == null ? null : $moneyParser->parse($array['assets_value'], $AUTH->data['instance']['instances_config_currency'])->getAmount());
-$array['assets_dayRate'] = ($array['assets_dayRate'] == null ? null : $moneyParser->parse($array['assets_dayRate'], $AUTH->data['instance']['instances_config_currency'])->getAmount());
-$array['assets_weekRate'] = ($array['assets_weekRate'] == null ? null : $moneyParser->parse($array['assets_weekRate'], $AUTH->data['instance']['instances_config_currency'])->getAmount());
+//Several different forms post here, each sending only its own fields, so only parse an override the
+//request actually sent. Creating the key regardless would put a null into the update below and clear
+//a stored override that nobody asked to change. A field that was sent empty is already null by now,
+//and still means "clear this override".
+foreach (['assets_value', 'assets_dayRate', 'assets_weekRate'] as $moneyField) {
+    if (!array_key_exists($moneyField, $array)) continue;
+    $array[$moneyField] = ($array[$moneyField] == null ? null : $moneyParser->parse($array[$moneyField], $AUTH->data['instance']['instances_config_currency'])->getAmount());
+}
 
 $DBLIB->where("assets_id", $array['assets_id']);
 $DBLIB->where("assets.instances_id",$AUTH->data['instance']["instances_id"]);
 $DBLIB->join("assetTypes","assets.assetTypes_id=assetTypes.assetTypes_id","LEFT");
-$asset = $DBLIB->getone("assets", ['assets.assets_dayRate','assets.assets_tag','assets.assets_weekRate','assets.assets_mass','assets.assets_value','assetTypes.assetTypes_mass','assetTypes.assetTypes_value',"assetTypes.assetTypes_dayRate","assetTypes.assetTypes_weekRate"]);
+$asset = $DBLIB->getone("assets", ['assets.assets_id','assets.assetTypes_id','assets.assets_dayRate','assets.assets_tag','assets.assets_weekRate','assets.assets_mass','assets.assets_value','assets.assets_unserialized','assets.assets_quantity','assetTypes.assetTypes_mass','assetTypes.assetTypes_value',"assetTypes.assetTypes_dayRate","assetTypes.assetTypes_weekRate"]);
+if (!$asset) finish(false, ["code" => "PARAM-ERROR", "message" => "Could not find asset"]);
+
+//An asset without its own overrides is worth whatever its type is worth, so moving it to another type
+//changes what it contributes to every project it's on and the new type's figures are needed below.
+//Scoped the way the type picker scopes itself, so an asset can't be moved onto another business's type.
+$newAssetType = false;
+if (array_key_exists('assetTypes_id', $array) and intval($array['assetTypes_id']) !== intval($asset['assetTypes_id'])) {
+    $DBLIB->where("(assetTypes.instances_id IS NULL OR assetTypes.instances_id = '" . $AUTH->data['instance']['instances_id'] . "')");
+    $DBLIB->where("assetTypes.assetTypes_id", intval($array['assetTypes_id']));
+    $newAssetType = $DBLIB->getone("assetTypes", ['assetTypes.assetTypes_mass','assetTypes.assetTypes_value','assetTypes.assetTypes_dayRate','assetTypes.assetTypes_weekRate']);
+    if (!$newAssetType) finish(false, ["code" => "LIST-ASSETTYPES-FAIL", "message" => "Could not find the asset type to move this asset to"]);
+}
+
+//Only unserialized assets hold more than a single unit, so turning serialization back on resets the stock to one
+if (isset($array['assets_unserialized'])) $array['assets_unserialized'] = (($array['assets_unserialized'] == 1 or $array['assets_unserialized'] === "true" or $array['assets_unserialized'] === "on") ? 1 : 0);
+$unserialized = (isset($array['assets_unserialized']) ? $array['assets_unserialized'] : $asset['assets_unserialized']);
+if (isset($array['assets_quantity']) or isset($array['assets_unserialized'])) {
+    if ($unserialized == 1) {
+        $array['assets_quantity'] = (isset($array['assets_quantity']) ? intval($array['assets_quantity']) : intval($asset['assets_quantity']));
+        if ($array['assets_quantity'] < 1) finish(false, ["code" => "PARAM-ERROR", "message" => "An unserialized asset must hold at least one unit"]);
+    } else $array['assets_quantity'] = 1;
+    //Stock can't drop below what's already committed to projects, or those projects would be short
+    if ($array['assets_quantity'] < intval($asset['assets_quantity'])) {
+        $DBLIB->where("assetsAssignments.assets_id", $asset['assets_id']);
+        $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
+        $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
+        $DBLIB->where("projects.projects_deleted", 0);
+        $DBLIB->where("(projects.projects_dates_deliver_end IS NULL OR projects.projects_dates_deliver_end >= '" . date('Y-m-d H:i:s') . "')");
+        $assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity"]);
+        $committed = [];
+        foreach ($assignments as $assignment) {
+            if (!isset($committed[$assignment['projects_id']])) $committed[$assignment['projects_id']] = 0;
+            $committed[$assignment['projects_id']] += (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
+        }
+        if (count($committed) > 0 and $array['assets_quantity'] < max($committed)) finish(false, ["code" => "PARAM-ERROR", "message" => "This asset already has " . max($committed) . " units assigned to a current project - remove them from that project before reducing the quantity held"]);
+    }
+}
 
 if (isset($array['assets_tag']) and $array['assets_tag'] != $asset['assets_tag']) {
     $DBLIB->where("assets.instances_id",$AUTH->data['instance']['instances_id']);
@@ -40,48 +82,78 @@ if (isset($array['assets_tag']) and $array['assets_tag'] != $asset['assets_tag']
 
 $DBLIB->where("assets_id", $array['assets_id']);
 $DBLIB->where("assets.instances_id",$AUTH->data['instance']["instances_id"]);
-$result = $DBLIB->update("assets", array_intersect_key($array, array_flip(['assets_linkedTo', 'assetTypes_id', 'assets_notes', 'assets_tag', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_value', 'assets_dayRate', 'assets_weekRate', 'assets_mass', 'assets_storageLocation'])));
+$result = $DBLIB->update("assets", array_intersect_key($array, array_flip(['assets_linkedTo', 'assetTypes_id', 'assets_notes', 'assets_tag', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_value', 'assets_dayRate', 'assets_weekRate', 'assets_mass', 'assets_storageLocation', 'assets_unserialized', 'assets_quantity'])));
 if (!$result) finish(false, ["code" => "UPDATE-FAIL", "message"=> "Could not update asset"]);
 else {
-    $DBLIB->where("assets_id",$array['assets_id']);
-    $DBLIB->where("assetsAssignments_deleted",0);
-    $DBLIB->join("projects","assetsAssignments.projects_id=projects.projects_id","LEFT");
-    $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount']);
-    foreach ($assetAssignments as $assignment) {
-        $projectFinanceHelper = new projectFinance();
-        $priceMaths = $projectFinanceHelper->durationMaths($assignment['projects_id']);
-        $projectFinanceCacher = new projectFinanceCacher($assignment['projects_id']);
-
-        //Remove current mass and value
-        $projectFinanceCacher->adjust('projectsFinanceCache_mass',($asset['assets_mass'] !== null ? $asset['assets_mass'] : $asset['assetTypes_mass']),true);
-        $projectFinanceCacher->adjust('projectsFinanceCache_value',new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])),true);
-
-        //Add new mass and value
-        $projectFinanceCacher->adjust('projectsFinanceCache_mass',($array['assets_mass'] !== null ? $array['assets_mass'] : $asset['assetTypes_mass']),false);
-        $projectFinanceCacher->adjust('projectsFinanceCache_value',new Money(($array['assets_value'] !== null ? $array['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])),false);
-
-        if ($assignment['assetsAssignments_customPrice'] > 0) {
-            //Old price stands so ignore it
-        } else {
-            $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-            $oldPrice = $oldPrice->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-            $oldPrice = $oldPrice->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
-            //Price is now manually calculated
-            $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-            $price = $price->add((new Money(($array['assets_dayRate'] !== null ? $array['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-            $price = $price->add((new Money(($array['assets_weekRate'] !== null ? $array['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
-
-            //Remove the old price
-            $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $oldPrice,true);
-            $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price,false);
-
-            if ($assignment['assetsAssignments_discount'] > 0) {
-                //If there was already a discount, remove it, then add it again
-                $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $oldPrice->subtract($oldPrice->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))),true);
-                $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $price->subtract($price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))), false);
-            }
+    //What an asset contributes to a project's cached finances is its own override where it has one and
+    //its type's figure where it hasn't, so both an edited override and a move to another type can shift
+    //those figures. $newAsset is the asset as it now stands: the stored row, with whatever this request
+    //actually sent laid over it, alongside the type it now belongs to. Anything the request left out
+    //keeps its stored value, rather than being read as an override that's just been cleared.
+    $newAsset = $asset;
+    foreach (['assets_mass', 'assets_value', 'assets_dayRate', 'assets_weekRate'] as $financeField) {
+        if (array_key_exists($financeField, $array)) $newAsset[$financeField] = $array[$financeField];
+    }
+    if ($newAssetType) {
+        foreach (['assetTypes_mass', 'assetTypes_value', 'assetTypes_dayRate', 'assetTypes_weekRate'] as $typeField) {
+            $newAsset[$typeField] = $newAssetType[$typeField];
         }
-        $projectFinanceCacher->save();
+    }
+    //Walk the assignments only where a figure has actually moved. Adjusting a project's cache by a
+    //difference of zero rewrites it for nothing, and floating point mass isn't guaranteed to round back
+    //to exactly where it started.
+    $assetFigure = function ($row, $figure) {
+        return ($row['assets_' . $figure] !== null ? $row['assets_' . $figure] : $row['assetTypes_' . $figure]);
+    };
+    $financeChanged = false;
+    foreach (['mass', 'value', 'dayRate', 'weekRate'] as $figure) {
+        if ($assetFigure($asset, $figure) != $assetFigure($newAsset, $figure)) $financeChanged = true;
+    }
+    if ($financeChanged) {
+        $DBLIB->where("assets_id",$array['assets_id']);
+        $DBLIB->where("assetsAssignments_deleted",0);
+        $DBLIB->join("projects","assetsAssignments.projects_id=projects.projects_id","LEFT");
+        $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity']);
+        foreach ($assetAssignments as $assignment) {
+            $projectFinanceHelper = new projectFinance();
+            $priceMaths = $projectFinanceHelper->durationMaths($assignment['projects_id']);
+            $projectFinanceCacher = new projectFinanceCacher($assignment['projects_id']);
+            //Everything an assignment contributes is per unit, so scales with the number of units taken
+            $quantity = (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
+
+            //Remove current mass and value
+            $projectFinanceCacher->adjust('projectsFinanceCache_mass',($asset['assets_mass'] !== null ? $asset['assets_mass'] : $asset['assetTypes_mass']) * $quantity,true);
+            $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),true);
+
+            //Add new mass and value
+            $projectFinanceCacher->adjust('projectsFinanceCache_mass',($newAsset['assets_mass'] !== null ? $newAsset['assets_mass'] : $newAsset['assetTypes_mass']) * $quantity,false);
+            $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($newAsset['assets_value'] !== null ? $newAsset['assets_value'] : $newAsset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),false);
+
+            if ($assignment['assetsAssignments_customPrice'] > 0) {
+                //Old price stands so ignore it
+            } else {
+                $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
+                $oldPrice = $oldPrice->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+                $oldPrice = $oldPrice->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+                $oldPrice = $oldPrice->multiply($quantity);
+                //Price is now manually calculated
+                $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
+                $price = $price->add((new Money(($newAsset['assets_dayRate'] !== null ? $newAsset['assets_dayRate'] : $newAsset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+                $price = $price->add((new Money(($newAsset['assets_weekRate'] !== null ? $newAsset['assets_weekRate'] : $newAsset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+                $price = $price->multiply($quantity);
+
+                //Remove the old price
+                $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $oldPrice,true);
+                $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price,false);
+
+                if ($assignment['assetsAssignments_discount'] > 0) {
+                    //If there was already a discount, remove it, then add it again
+                    $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $oldPrice->subtract($oldPrice->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))),true);
+                    $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $price->subtract($price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))), false);
+                }
+            }
+            $projectFinanceCacher->save();
+        }
     }
     $bCMS->auditLog("EDIT-ASSET", "assets", json_encode($array), $AUTH->data['users_userid'],null, $array['assets_id']);
     finish(true);
@@ -241,6 +313,16 @@ Requires Instance Permission ASSETS:EDIT
  *                 property="assets_storageLocation", 
  *                 type="string", 
  *                 description="undefined",
+ *             ),
+ *              @OA\Property(
+ *                 property="assets_unserialized", 
+ *                 type="boolean", 
+ *                 description="Whether the asset is unserialized - held as a quantity of interchangeable units rather than as a single tracked item",
+ *             ),
+ *              @OA\Property(
+ *                 property="assets_quantity", 
+ *                 type="integer", 
+ *                 description="Number of units held, for unserialized assets. Cannot be lower than the number of units already assigned to a current project",
  *             ),
  *         ),
  *     ), 

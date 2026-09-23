@@ -144,6 +144,55 @@ function assetFlagsAndBlocks($assetid)
     }
     return $return;
 }
+/**
+ * Work out how many units of an asset are free to assign between two dates.
+ *
+ * A serialized asset is one row holding one unit, so this returns 1 when it's free and 0 when
+ * it clashes - exactly what the old "is there a clashing assignment?" check did. An unserialized
+ * asset holds a quantity of interchangeable units instead, so what's free is its stock less
+ * everything already committed to projects overlapping these dates.
+ *
+ * This counts assignments only - a caller choosing assets to put on a project also needs to check
+ * assetFlagsAndBlocks() for maintenance jobs blocking the asset.
+ *
+ * @param array $asset The asset, including at least assets_id and assets_quantity
+ * @param string $deliverStart Start of the period to check, as a MySQL datetime
+ * @param string $deliverEnd End of the period to check, as a MySQL datetime
+ * @param int|null $projectsId A project whose own assignments count towards the total even if its
+ *                             status releases assets - the project the units are wanted for
+ * @param int|null $ignoreAssignmentsId An assignment to leave out of the total, used when changing
+ *                                      an existing assignment rather than making a new one
+ * @return array ["quantity" => units held, "assigned" => units committed, "available" => units free,
+ *               "assignments" => the clashing assignments found]
+ */
+function assetAvailableQuantity($asset, $deliverStart, $deliverEnd, $projectsId = null, $ignoreAssignmentsId = null)
+{
+    global $DBLIB;
+    $quantity = (isset($asset['assets_quantity']) ? intval($asset['assets_quantity']) : 1);
+    if ($quantity < 1) $quantity = 1; //Pre-migration rows, and anything that's somehow been zeroed, hold one unit
+
+    $DBLIB->where("assetsAssignments.assets_id", $asset['assets_id']);
+    $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
+    if ($ignoreAssignmentsId !== null) $DBLIB->where("assetsAssignments.assetsAssignments_id", $ignoreAssignmentsId, "!=");
+    $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
+    $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
+    $DBLIB->where("projects.projects_deleted", 0);
+    if ($projectsId !== null) $DBLIB->where("(projects.projects_id = '" . intval($projectsId) . "' OR projectsStatuses.projectsStatuses_assetsReleased = 0)");
+    else $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
+    $DBLIB->where("((projects_dates_deliver_start >= '" . $deliverStart . "' AND projects_dates_deliver_start <= '" . $deliverEnd . "') OR (projects_dates_deliver_end >= '" . $deliverStart . "' AND projects_dates_deliver_end <= '" . $deliverEnd . "') OR (projects_dates_deliver_end >= '" . $deliverEnd . "' AND projects_dates_deliver_start <= '" . $deliverStart . "'))");
+    $assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assetsAssignments_id", "assetsAssignments.assetsAssignments_quantity", "assetsAssignments.projects_id", "projects.projects_name"]);
+
+    $assigned = 0;
+    foreach ($assignments as $assignment) {
+        $assigned += (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
+    }
+    return [
+        "quantity" => $quantity,
+        "assigned" => $assigned,
+        "available" => max(0, $quantity - $assigned),
+        "assignments" => $assignments,
+    ];
+}
 function assetLatestScan($assetid)
 {
     if ($assetid == null)

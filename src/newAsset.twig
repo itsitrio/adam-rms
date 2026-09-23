@@ -174,6 +174,17 @@
                     <div class="input-group-prepend"><span class="input-group-text definableFieldsLabel" data-fieldcount="10"></span></div>
                     <input type="text" class="definableFieldsInput form-control" name="asset_definableFields_10"  data-fieldcount="10" />
                 </div>
+                <div class="form-group" id="assetUnserializedDiv">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="assetUnserialized" name="assets_unserialized" value="1" />
+                        <label class="custom-control-label" for="assetUnserialized">Unserialized asset</label>
+                    </div>
+                    <small class="form-text text-muted">Unserialized assets are held as a quantity of interchangeable units - gel frames or cable ties, say - rather than as one asset per item. Projects take however many units they need, and the rest stay available to everyone else.</small>
+                </div>
+                <div class="input-group" id="assetQuantityDiv" style="display:none;">
+                    <div class="input-group-prepend"><span class="input-group-text">Quantity Held</span></div>
+                    <input type="number" step="1" min="1" class="form-control" name="assets_quantity" id="assetQuantity" value="1" />
+                </div>
                 <div class="form-group" id="assetGroupsDiv">
                     <label>Asset Groups</label>
                     <select class="form-control" id="assetGroups" multiple></select>
@@ -205,6 +216,7 @@
             $(".definableFieldsGroup").hide();
             $("#assetGroupsDiv").hide();
             $("#assetTagDiv").hide();
+            $("#assetUnserializedDiv").hide();
 
             $("#manufacturer").select2({
                 theme: "bootstrap4",
@@ -255,6 +267,7 @@
                 $("#assetNotes").show();
                 $("#assetGroupsDiv").show();
                 $("#assetTagDiv").show();
+                $("#assetUnserializedDiv").show();
                 $("#saveButton").text("Save");
                 counter = 1;
                 ajaxcall("assets/getAssetTypeData.php", {"term": this.value}, function (data) {
@@ -279,6 +292,10 @@
                 $("#assetNotes").hide();
                 $("#assetGroupsDiv").hide();
                 $("#assetTagDiv").hide();
+                $("#assetUnserializedDiv").hide();
+                $("#assetQuantityDiv").hide();
+                $("#assetUnserialized").prop("checked", false);
+                $("#assetQuantity").val(1);
                 $(".definableFieldsInput").val("");
                 $([0,1,2,3,4,5,6,7,8,9]).each(function (count, value) {
                     count = count+1;
@@ -287,6 +304,15 @@
                 })
             });
 
+
+            $('#assetUnserialized').on('change', function() {
+                //Only unserialized assets hold more than one unit, so the quantity is theirs alone
+                if ($(this).is(':checked')) $("#assetQuantityDiv").show();
+                else {
+                    $("#assetQuantityDiv").hide();
+                    $("#assetQuantity").val(1);
+                }
+            });
 
             const Toast = Swal.mixin({
                 toast: true,

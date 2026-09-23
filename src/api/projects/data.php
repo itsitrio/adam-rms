@@ -95,14 +95,19 @@ function projectFinancials($project) {
 
     $return['assetsAssigned'] = [];
     $return['assetsAssignedSUB'] = [];
+    $return['assetsAssignedQuantity'] = 0; //Units assigned, which isn't the number of assignments once unserialized assets are involved
     $return['mass'] = 0.0; //TODO evaluate whether using floats for mass is a good idea....
     $return['value'] = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
     $return['prices'] = ["subTotal" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])), "discounts" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])), "total" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']))];
 
     $return['priceMaths'] = $projectFinanceHelper->durationMaths($project['projects_id']);
     foreach ($assets as $asset) {
-        $return['mass'] += ($asset['assets_mass'] == null ? $asset['assetTypes_mass'] : $asset['assets_mass']);
-        $asset['value'] = new Money(($asset['assets_value'] != null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency']));
+        //An assignment can take several units of an unserialized asset, and each of them weighs, costs and is worth the same
+        $asset['assetsAssignments_quantity'] = (intval($asset['assetsAssignments_quantity']) > 0 ? intval($asset['assetsAssignments_quantity']) : 1);
+        $return['assetsAssignedQuantity'] += $asset['assetsAssignments_quantity'];
+        $asset['mass'] = ($asset['assets_mass'] == null ? $asset['assetTypes_mass'] : $asset['assets_mass']) * $asset['assetsAssignments_quantity'];
+        $return['mass'] += $asset['mass'];
+        $asset['value'] = (new Money(($asset['assets_value'] != null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($asset['assetsAssignments_quantity']);
         $return['value'] = $return['value']->add($asset['value']);
 
         if ($asset['assetsAssignments_customPrice'] == null) {
@@ -111,6 +116,7 @@ function projectFinancials($project) {
             $asset['price'] = $asset['price']->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['days']));
             $asset['price'] = $asset['price']->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['weeks']));
         } else $asset['price'] = new Money($asset['assetsAssignments_customPrice'],new Currency($AUTH->data['instance']['instances_config_currency']));
+        $asset['price'] = $asset['price']->multiply($asset['assetsAssignments_quantity']);
 
         $return['prices']['subTotal'] = $asset['price']->add($return['prices']['subTotal']);
 
@@ -124,7 +130,7 @@ function projectFinancials($project) {
         $asset['formattedValue'] = $moneyFormatter->format($asset['value']);
         $asset['formattedPrice'] = $moneyFormatter->format($asset['price']);
         $asset['formattedDiscountPrice'] = $moneyFormatter->format($asset['discountPrice']);
-        $asset['formattedMass'] = number_format(($asset['assets_mass'] == null ? $asset['assetTypes_mass'] : $asset['assets_mass']), 2, '.', '') . "kg";
+        $asset['formattedMass'] = number_format($asset['mass'], 2, '.', '') . "kg";
 
         $asset['flagsblocks'] = assetFlagsAndBlocks($asset['assets_id']);
 
@@ -142,13 +148,14 @@ function projectFinancials($project) {
         }
     }
     foreach ($return['assetsAssigned'] as $key => $type) {
-        if (!isset($return['assetsAssigned'][$key]['totals'])) $return['assetsAssigned'][$key]['totals'] = ["status" => null,"discountPrice"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"price"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"mass"=>0.0];
+        if (!isset($return['assetsAssigned'][$key]['totals'])) $return['assetsAssigned'][$key]['totals'] = ["status" => null,"quantity"=>0,"discountPrice"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"price"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"mass"=>0.0];
         foreach ($type['assets'] as $asset) {
             if ($return['assetsAssigned'][$key]['totals']['status'] == null) $return['assetsAssigned'][$key]['totals']['status'] = $asset['assetsAssignmentsStatus_name'];
             elseif ($return['assetsAssigned'][$key]['totals']['status'] != $asset['assetsAssignmentsStatus_name']) $return['assetsAssigned'][$key]['totals']['status'] = false; //They aren't all the same
             $return['assetsAssigned'][$key]['totals']['discountPrice'] = $return['assetsAssigned'][$key]['totals']['discountPrice']->add($asset['discountPrice']);
             $return['assetsAssigned'][$key]['totals']['price'] = $return['assetsAssigned'][$key]['totals']['price']->add($asset['price']);
-            $return['assetsAssigned'][$key]['totals']['mass'] += ($asset['assets_mass'] == null ? $asset['assetTypes_mass'] : $asset['assets_mass']);
+            $return['assetsAssigned'][$key]['totals']['quantity'] += $asset['assetsAssignments_quantity'];
+            $return['assetsAssigned'][$key]['totals']['mass'] += $asset['mass'];
         }
         //formatted Totals
         $return['assetsAssigned'][$key]['totals']['formattedDiscountPrice'] = $moneyFormatter->format($return['assetsAssigned'][$key]['totals']['discountPrice']);
@@ -161,13 +168,14 @@ function projectFinancials($project) {
             $return['assetsAssignedSUB'][$instanceid]['instance'] = $DBLIB->getone("instances",["instances_id","instances_name"]);
         }
         foreach ($return['assetsAssignedSUB'][$instanceid]['assets'] as $key => $type) {
-            if (!isset($return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals'])) $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals'] = ["status" => null,"discountPrice"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"price"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"mass"=>0.0];
+            if (!isset($return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals'])) $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals'] = ["status" => null,"quantity"=>0,"discountPrice"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"price"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"mass"=>0.0];
             foreach ($type['assets'] as $asset) {
                 if ($return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['status'] == null) $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['status'] = $asset['assetsAssignmentsStatus_name'];
                 elseif ($return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['status'] != $asset['assetsAssignmentsStatus_name']) $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['status'] = false; //They aren't all the same
                 $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['discountPrice'] = $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['discountPrice']->add($asset['discountPrice']);
                 $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['price'] = $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['price']->add($asset['price']);
-                $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['mass'] += ($asset['assets_mass'] == null ? $asset['assetTypes_mass'] : $asset['assets_mass']);
+                $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['quantity'] += $asset['assetsAssignments_quantity'];
+                $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['mass'] += $asset['mass'];
             }
             //Formatted totals
             $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['formattedDiscountPrice'] = $moneyFormatter->format($return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['discountPrice']);

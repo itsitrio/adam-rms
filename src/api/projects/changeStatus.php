@@ -27,24 +27,26 @@ function changeStatus($projectID, $status) {
         //We're taking the project from a state where its assets had been released to a state where its assets are now locked down
         $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
         $DBLIB->where("assetsAssignments.projects_id", $project['projects_id']);
-        $assets = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assetsAssignments.assetsAssignments_id"]);
+        $DBLIB->join("assets","assetsAssignments.assets_id=assets.assets_id", "LEFT");
+        $DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
+        $assets = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assetsAssignments.assetsAssignments_id", "assetsAssignments.assetsAssignments_quantity", "assets.assets_unserialized", "assets.assets_quantity", "assets.assets_tag", "assetTypes.assetTypes_name"]);
         if ($assets) {
             $unavailableAssets = [];
             foreach ($assets as $asset) {
-                $DBLIB->where("assetsAssignments.assets_id", $asset['assets_id']);
-                $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
-                $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
-                $DBLIB->join("assets","assetsAssignments.assets_id=assets.assets_id", "LEFT");
-                $DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
-                $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
-                $DBLIB->where("projects.projects_deleted", 0);
-                $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
-                $DBLIB->where("projects.projects_id", $project['projects_id'], "!=");
-                $DBLIB->where("((projects_dates_deliver_start >= '" . $project["projects_dates_deliver_start"]  . "' AND projects_dates_deliver_start <= '" . $project["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $project["projects_dates_deliver_start"] . "' AND projects_dates_deliver_end <= '" . $project["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $project["projects_dates_deliver_end"] . "' AND projects_dates_deliver_start <= '" . $project["projects_dates_deliver_start"] . "'))");
-                $assignment = $DBLIB->getone("assetsAssignments", null, ["assetsAssignments.assetsAssignments_id", "assetsAssignments.assets_id","assetsAssignments.projects_id", "assetTypes.assetTypes_name", "projects.projects_name", "assets.assets_tag"]);
-                if ($assignment) {
-                    $assignment['old_assetsAssignments_id'] = $asset['assetsAssignments_id'];
-                    $unavailableAssets[] = $assignment;
+                //This project's own claim is what's being locked down, so leave it out and see whether what's left still covers the units it needs
+                $quantity = (intval($asset['assetsAssignments_quantity']) > 0 ? intval($asset['assetsAssignments_quantity']) : 1);
+                $availability = assetAvailableQuantity($asset, $project["projects_dates_deliver_start"], $project["projects_dates_deliver_end"], null, $asset['assetsAssignments_id']);
+                if ($availability['available'] < $quantity) {
+                    $clash = (count($availability['assignments']) > 0 ? $availability['assignments'][0] : []);
+                    $unavailableAssets[] = [
+                        "assetsAssignments_id" => (isset($clash['assetsAssignments_id']) ? $clash['assetsAssignments_id'] : null),
+                        "assets_id" => $asset['assets_id'],
+                        "projects_id" => (isset($clash['projects_id']) ? $clash['projects_id'] : null),
+                        "assetTypes_name" => $asset['assetTypes_name'],
+                        "projects_name" => (isset($clash['projects_name']) ? $clash['projects_name'] : ""),
+                        "assets_tag" => $asset['assets_tag'],
+                        "old_assetsAssignments_id" => $asset['assetsAssignments_id']
+                    ];
                 }
             }
             if (count($unavailableAssets) > 0) {

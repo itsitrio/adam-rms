@@ -206,31 +206,40 @@ foreach ($assets as $asset) {
         if ($thisWhere) $DBLIB->where($thisWhere . ")",$thisValues);
     }
     $DBLIB->orderBy("assets.assets_tag", "ASC");
-    $assetTags = $DBLIB->get("assets", null, ["assets_id", "assets_notes", "assets_tag", "asset_definableFields_1", "asset_definableFields_2", "asset_definableFields_3", "asset_definableFields_4", "asset_definableFields_5", "asset_definableFields_6", "asset_definableFields_7", "asset_definableFields_8", "asset_definableFields_9", "asset_definableFields_10", "assets_dayRate", "assets_weekRate", "assets_value", "assets_mass", "assets_endDate"]);
+    $assetTags = $DBLIB->get("assets", null, ["assets_id", "assets_notes", "assets_tag", "asset_definableFields_1", "asset_definableFields_2", "asset_definableFields_3", "asset_definableFields_4", "asset_definableFields_5", "asset_definableFields_6", "asset_definableFields_7", "asset_definableFields_8", "asset_definableFields_9", "asset_definableFields_10", "assets_dayRate", "assets_weekRate", "assets_value", "assets_mass", "assets_endDate", "assets_unserialized", "assets_quantity"]);
     if (!$assetTags) continue;
     $asset['count'] = count($assetTags);
     $asset['countBlocked'] = 0;
     $asset['countAvailable'] = 0;
+    //An unserialized asset is one row holding many units, so the units owned aren't the rows counted
+    $asset['quantity'] = 0;
+    $asset['quantityAvailable'] = 0;
     $asset['fields'] = explode(",", $asset['assetTypes_definableFields']);
     $asset['thumbnail'] = $bCMS->s3List(2, $asset['assetTypes_id'],'s3files_meta_uploaded','ASC',1);
     $asset['tags'] = [];
     foreach ($assetTags as $tag) {
+        $tag['assets_quantity'] = (intval($tag['assets_quantity']) > 0 ? intval($tag['assets_quantity']) : 1);
+        $tag['availableQuantity'] = $tag['assets_quantity'];
+        //Whether the project being searched for already holds this asset, and the first clash that isn't
+        //its own. An unserialized asset can clash with several projects and still have units to spare, so
+        //these are kept apart from availableQuantity rather than inferred from the first clash found.
+        $tag['assignedToSearchedProject'] = false;
+        $tag['assignedElsewhere'] = false;
         if ($dateStart and $dateEnd) {
-            //Check availability
-            $DBLIB->where("assets_id", $tag['assets_id']);
-            $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
-            $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
-            $DBLIB->where("projects.projects_deleted", 0);
-            $DBLIB->where("((projects_dates_deliver_start >= '" . date ("Y-m-d H:i:s",$dateStart)  . "' AND projects_dates_deliver_start <= '" . date ("Y-m-d H:i:s",$dateEnd) . "') OR (projects_dates_deliver_end >= '" . date ("Y-m-d H:i:s",$dateStart) . "' AND projects_dates_deliver_end <= '" . date ("Y-m-d H:i:s",$dateEnd) . "') OR (projects_dates_deliver_end >= '" . date ("Y-m-d H:i:s",$dateEnd) . "' AND projects_dates_deliver_start <= '" . date ("Y-m-d H:i:s",$dateStart) . "'))");
-            $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
-            if ($RETURN['PROJECT']['ID']) {
-                // If a project is being searched for specifically then we need to check if the asset is assigned to that project or if it is assigned to another project
-                $DBLIB->where("(projectsStatuses.projectsStatuses_assetsReleased = 0 OR projects.projects_id = '" . $RETURN['PROJECT']['ID'] . "')");
-            } else $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
-            $tag['assignment'] = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assetsAssignments_id", "assetsAssignments.projects_id", "projects.projects_name"]);
+            //Check availability. A project being searched for counts its own assignments, so what it already holds doesn't look free
+            $availability = assetAvailableQuantity($tag, date("Y-m-d H:i:s", $dateStart), date("Y-m-d H:i:s", $dateEnd), $RETURN['PROJECT']['ID'] ? $RETURN['PROJECT']['ID'] : null);
+            $tag['assignment'] = $availability['assignments'];
+            $tag['availableQuantity'] = $availability['available'];
+            foreach ($availability['assignments'] as $clashingAssignment) {
+                if ($RETURN['PROJECT']['ID'] and $clashingAssignment['projects_id'] == $RETURN['PROJECT']['ID']) $tag['assignedToSearchedProject'] = true;
+                elseif ($tag['assignedElsewhere'] === false) $tag['assignedElsewhere'] = $clashingAssignment;
+            }
         }
         $tag['flagsblocks'] = assetFlagsAndBlocks($tag['assets_id']);
-        if ($tag['assignment'] or $tag['flagsblocks']['COUNT']['BLOCK'] > 0) $asset['countBlocked']++;
+        if ($tag['flagsblocks']['COUNT']['BLOCK'] > 0) $tag['availableQuantity'] = 0;
+        $asset['quantity'] += $tag['assets_quantity'];
+        $asset['quantityAvailable'] += $tag['availableQuantity'];
+        if ($tag['availableQuantity'] < 1) $asset['countBlocked']++;
         $asset['tags'][] = $tag;
     }
     $asset['countAvailable'] = $asset['count'] - $asset['countBlocked'];

@@ -223,7 +223,7 @@
                                                 <span class="fa-li"><i class="fas fa-money-bill-wave"></i></span> {{ asset.assetTypes_value|money(SEARCH.INSTANCE['instances_config_currency']) }}<br/>
                                                 {{ asset.assetTypes_dayRate|money(SEARCH.INSTANCE['instances_config_currency']) }}/day<br/>{{ asset.assetTypes_weekRate|money(SEARCH.INSTANCE['instances_config_currency']) }}/week
                                             </li>
-                                            <li class="small" title="Number owned"><span class="fa-li"><i class="fas fa-boxes"></i></span> {{asset.count}}</li>
+                                            <li class="small" title="Number of units owned"><span class="fa-li"><i class="fas fa-boxes"></i></span> {{ asset.quantity }}{% if searchResults.PROJECT.DATESTART and searchResults.PROJECT.DATEEND %} <span class="text-muted">({{ asset.quantityAvailable }} available)</span>{% endif %}</li>
                                         {% endif %}
                                         {% if searchResults.SEARCH.INSTANCE_ID != USERDATA.instance.instances_id %}
                                             {% for instance in USERDATA.instances %}
@@ -243,11 +243,12 @@
                                                     {% if asset.tags[0].assets_endDate != null and asset.tags[0].assets_endDate < searchResults.PROJECT['DATEEND'] %}
                                                         <button title="Asset to be archived" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
                                                     {% elseif asset.tags[0].flagsblocks.COUNT.BLOCK < 1 %}
-                                                        <button title="Remove from project" {% if (not asset.tags[0].assignment) or searchResults.PROJECT.ID != asset.tags[0].assignment[0].projects_id %}style="display:none;"{% endif %} class="btn btn-sm btn-warning removeFromBasketAssetButton" data-assetid="{{ asset.tags[0]['assets_id'] }}"><i class="fa fa-shopping-basket"></i></button>
-                                                    {% if asset.tags[0].assignment and searchResults.PROJECT.ID != asset.tags[0].assignment[0].projects_id %}
-                                                            <button title="Assigned to {{ asset.tags[0].assignment[0]['projects_name'] }}" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
+                                                        <button title="Remove from project" {% if not asset.tags[0].assignedToSearchedProject %}style="display:none;"{% endif %} class="btn btn-sm btn-warning removeFromBasketAssetButton" data-assetid="{{ asset.tags[0]['assets_id'] }}"><i class="fa fa-shopping-basket"></i></button>
+                                                        {# An unserialized asset can be on another project and still have units spare, so what's left decides whether it can be added #}
+                                                        {% if not asset.tags[0].assignedToSearchedProject and asset.tags[0].availableQuantity < 1 and asset.tags[0].assignedElsewhere %}
+                                                            <button title="Assigned to {{ asset.tags[0].assignedElsewhere['projects_name'] }}" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
                                                         {% endif %}
-                                                        <button title="Add to project" {% if asset.tags[0].assignment %} style="display:none;"{% endif %} class="btn btn-sm btn-success addToBasketAssetButton" data-assetid="{{ asset.tags[0]['assets_id'] }}"><i class="fa fa-shopping-basket"></i></button>
+                                                        <button title="Add to project{% if asset.tags[0].assets_unserialized %} ({{ asset.tags[0].availableQuantity }} of {{ asset.tags[0].assets_quantity }} units available){% endif %}" {% if asset.tags[0].assignedToSearchedProject or asset.tags[0].availableQuantity < 1 %}style="display:none;"{% endif %} class="btn btn-sm btn-success addToBasketAssetButton" data-assetid="{{ asset.tags[0]['assets_id'] }}" data-unserialized="{{ asset.tags[0].assets_unserialized ? 1 : 0 }}" data-available="{{ asset.tags[0].availableQuantity }}"><i class="fa fa-shopping-basket"></i></button>
                                                     {% else %}
                                                         <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
                                                     {% endif %}
@@ -269,6 +270,7 @@
                                                                                 <th>{{ field }}</th>
                                                                             {% endfor %}
                                                                             <th>Notes</th>
+                                                                            <th title="Units held"><i class="fas fa-boxes"></i></th>
                                                                             <th>Cost/day</th>
                                                                             <th>Cost/week</th>
                                                                             <th style="width:1%"><i class="fas fa-flag"></i></th>
@@ -283,6 +285,7 @@
                                                                                     <td>{{ thisasset['asset_definableFields_' ~ loop.index] }}</td>
                                                                                 {% endfor %}
                                                                                 <td>{{ thisasset['assets_notes']|nl2br }}</td>
+                                                                                <td>{{ thisasset.assets_unserialized ? (thisasset.availableQuantity ~ '/' ~ thisasset.assets_quantity) : '' }}</td>
                                                                                 <td>
                                                                                     {{ (thisasset.assets_dayRate ?: asset.assetTypes_dayRate)|money(SEARCH.INSTANCE['instances_config_currency']) }}
                                                                                 </td>
@@ -297,11 +300,12 @@
                                                                                         {% if thisasset.assets_endDate != null and thisasset.assets_endDate < searchResults.PROJECT['DATEEND'] %}
                                                                                             <button title="Asset to be removed" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
                                                                                         {% elseif thisasset.flagsblocks.COUNT.BLOCK < 1 %}
-                                                                                            <button title="Remove from project" {% if (not thisasset.assignment) or searchResults.PROJECT.ID != thisasset.assignment[0].projects_id %}style="display:none;"{% endif %} class="btn btn-sm btn-warning removeFromBasketAssetButton" data-assetid="{{ thisasset['assets_id'] }}" data-assetTypeId="{{ asset.assetTypes_id }}"><i class="fa fa-shopping-basket"></i></button>
-                                                                                            {%  if thisasset.assignment and searchResults.PROJECT.ID != thisasset.assignment[0].projects_id %}
-                                                                                                <button title="Assigned to {{ thisasset.assignment[0]['projects_name'] }}" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
+                                                                                            <button title="Remove from project" {% if not thisasset.assignedToSearchedProject %}style="display:none;"{% endif %} class="btn btn-sm btn-warning removeFromBasketAssetButton" data-assetid="{{ thisasset['assets_id'] }}" data-assetTypeId="{{ asset.assetTypes_id }}"><i class="fa fa-shopping-basket"></i></button>
+                                                                                            {# An unserialized asset can be on another project and still have units spare, so what's left decides whether it can be added #}
+                                                                                            {%  if not thisasset.assignedToSearchedProject and thisasset.availableQuantity < 1 and thisasset.assignedElsewhere %}
+                                                                                                <button title="Assigned to {{ thisasset.assignedElsewhere['projects_name'] }}" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
                                                                                             {% endif %}
-                                                                                            <button title="Add to project" {% if thisasset.assignment %} style="display:none;"{% endif %} class="btn btn-sm btn-success addToBasketAssetButton" data-assetid="{{ thisasset['assets_id'] }}" data-assetTypeId="{{ asset.assetTypes_id }}"><i class="fa fa-shopping-basket"></i></button>
+                                                                                            <button title="Add to project{% if thisasset.assets_unserialized %} ({{ thisasset.availableQuantity }} of {{ thisasset.assets_quantity }} units available){% endif %}" {% if thisasset.assignedToSearchedProject or thisasset.availableQuantity < 1 %}style="display:none;"{% endif %} class="btn btn-sm btn-success addToBasketAssetButton" data-assetid="{{ thisasset['assets_id'] }}" data-assetTypeId="{{ asset.assetTypes_id }}" data-unserialized="{{ thisasset.assets_unserialized ? 1 : 0 }}" data-available="{{ thisasset.availableQuantity }}"><i class="fa fa-shopping-basket"></i></button>
                                                                                         {% else %}
                                                                                             <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
                                                                                         {% endif %}
@@ -321,10 +325,11 @@
                                                     {% if asset.tags[0].assets_endDate != null and asset.tags[0].assets_endDate < searchResults.PROJECT['DATEEND'] %}
                                                         <button title="Asset to be archived" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
                                                     {% elseif asset.tags[0].flagsblocks.COUNT.BLOCK < 1 %}
-                                                        {% if asset.tags[0].assignment %}
-                                                            <button title="Assigned to {{ asset.tags[0].assignment[0]['projects_name'] }}" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
+                                                        {# Units still spare count as available, even where another project already holds some #}
+                                                        {% if asset.tags[0].availableQuantity < 1 %}
+                                                            <button title="Assigned to {{ asset.tags[0].assignedElsewhere ? asset.tags[0].assignedElsewhere['projects_name'] : 'another project' }}" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
                                                         {% else %}
-                                                            <button title="Available" class="btn btn-sm btn-success" disabled><i class="fa fa-check"></i></button>
+                                                            <button title="Available{% if asset.tags[0].assets_unserialized %} - {{ asset.tags[0].availableQuantity }} of {{ asset.tags[0].assets_quantity }} units{% endif %}" class="btn btn-sm btn-success" disabled><i class="fa fa-check"></i></button>
                                                         {% endif %}
                                                     {% else %}
                                                         <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
@@ -347,6 +352,7 @@
                                                                                 <th>{{ field }}</th>
                                                                             {% endfor %}
                                                                             <th>Notes</th>
+                                                                            <th title="Units held"><i class="fas fa-boxes"></i></th>
                                                                             <th>Cost/day</th>
                                                                             <th>Cost/week</th>
                                                                             <th style="width:1%"><i class="fas fa-flag"></i></th>
@@ -359,6 +365,7 @@
                                                                                     <td>{{ thisasset['asset_definableFields_' ~ loop.index] }}</td>
                                                                                 {% endfor %}
                                                                                 <td>{{ thisasset['assets_notes']|nl2br }}</td>
+                                                                                <td>{{ thisasset.assets_unserialized ? (thisasset.availableQuantity ~ '/' ~ thisasset.assets_quantity) : '' }}</td>
                                                                                 <td>
                                                                                     {{ (thisasset.assets_dayRate ?: asset.assetTypes_dayRate)|money(SEARCH.INSTANCE['instances_config_currency']) }}
                                                                                 </td>
@@ -373,10 +380,11 @@
                                                                                         {% if thisasset.assets_endDate != null and thisasset.assets_endDate < searchResults.PROJECT['DATEEND'] %}
                                                                                             <button title="Asset to be removed" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
                                                                                         {% elseif thisasset.flagsblocks.COUNT.BLOCK < 1 %}
-                                                                                            {%  if thisasset.assignment %}
-                                                                                                <button title="Assigned to {{ thisasset.assignment[0]['projects_name'] }}" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
+                                                                                            {# Units still spare count as available, even where another project already holds some #}
+                                                                                            {%  if thisasset.availableQuantity < 1 %}
+                                                                                                <button title="Assigned to {{ thisasset.assignedElsewhere ? thisasset.assignedElsewhere['projects_name'] : 'another project' }}" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
                                                                                             {% else %}
-                                                                                            <button title="Available" class="btn btn-sm btn-success" disabled><i class="fa fa-check"></i></button>
+                                                                                                <button title="Available{% if thisasset.assets_unserialized %} - {{ thisasset.availableQuantity }} of {{ thisasset.assets_quantity }} units{% endif %}" class="btn btn-sm btn-success" disabled><i class="fa fa-check"></i></button>
                                                                                             {% endif %}
                                                                                         {% else %}
                                                                                             <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
@@ -615,9 +623,10 @@ $(document).ready(function () {
         autoplaySpeed: 2000,
     });
     {% if searchResults.PROJECT.ID != null and "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN"|instancePermissions %}
-    $(".addToBasketAssetButton").click(function () {
-        var assetId=$(this).data("assetid");
-        ajaxcall("projects/assets/assign.php", {"assets_id":$(this).data("assetid"),"projects_id":"{{ searchResults.SEARCH.PROJECT_ID }}"}, function (data) {
+    function addAssetToBasket(assetId, quantity) {
+        var request = {"assets_id": assetId, "projects_id": "{{ searchResults.SEARCH.PROJECT_ID }}"};
+        if (quantity) request["assetsAssignments_quantity"] = quantity;
+        ajaxcall("projects/assets/assign.php", request, function (data) {
             $(".addToBasketAssetButton[data-assetid=" + assetId + "]").hide();
             $(".removeFromBasketAssetButton[data-assetid=" + assetId + "]").show();
             Toast.fire({
@@ -625,6 +634,24 @@ $(document).ready(function () {
                 title: 'Added to {{ searchResults.PROJECT.NAME }}'
             });
         });
+    }
+    $(".addToBasketAssetButton").click(function () {
+        var assetId = $(this).data("assetid");
+        //Unserialized assets are held as a quantity, so ask how many units the project needs
+        if ($(this).data("unserialized") == 1) {
+            var available = $(this).data("available");
+            bootbox.prompt({
+                title: "How many units do you need? (" + available + " available)",
+                inputType: 'number',
+                value: '1',
+                min: 1,
+                max: available,
+                callback: function (result) {
+                    if (result === null) return;
+                    addAssetToBasket(assetId, result);
+                }
+            });
+        } else addAssetToBasket(assetId, false);
     });
     $(".addToBasketAssetTypeButton").click(function () {
         const thisButton = $(this);

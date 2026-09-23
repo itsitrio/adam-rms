@@ -33,21 +33,15 @@ $DBLIB->where("assets.instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("assets.assetTypes_id", $currentAsset["assetTypes_id"]);
 $DBLIB->where ("(assets.assets_endDate IS NULL OR assets.assets_endDate >= '" . date ("Y-m-d H:i:s") . "')");
 $DBLIB->where('assets.assets_deleted', 0);
-$assetToSwap = $DBLIB->getone("assets", "assets_id");
+$assetToSwap = $DBLIB->getone("assets", ["assets_id", "assets_quantity"]);
 if (!$assetToSwap) finish(false);
 
-$DBLIB->where("assetsAssignments.assets_id", $assetToSwap['assets_id']);
-$DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
-$DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
-$DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
-$DBLIB->where("projects.projects_deleted", 0);
-$DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
-$DBLIB->where("((projects_dates_deliver_start >= '" . $currentAsset["projects_dates_deliver_start"] . "' AND projects_dates_deliver_start <= '" . $currentAsset["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $currentAsset["projects_dates_deliver_start"] . "' AND projects_dates_deliver_end <= '" . $currentAsset["projects_dates_deliver_end"] . "') OR (projects_dates_deliver_end >= '" . $currentAsset["projects_dates_deliver_end"] . "' AND projects_dates_deliver_start <= '" . $currentAsset["projects_dates_deliver_start"] . "'))");
-$assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id"]);
-
+//The replacement has to be able to cover every unit the assignment took
+$quantity = (intval($currentAsset['assetsAssignments_quantity']) > 0 ? intval($currentAsset['assetsAssignments_quantity']) : 1);
+$availability = assetAvailableQuantity($assetToSwap, $currentAsset["projects_dates_deliver_start"], $currentAsset["projects_dates_deliver_end"]);
 $flagsBlocks = assetFlagsAndBlocks($_POST['assets_id']);
 
-if (count($assignments) < 1 and $flagsBlocks['COUNT']['BLOCK'] < 1) {
+if ($availability['available'] >= $quantity and $flagsBlocks['COUNT']['BLOCK'] < 1) {
     $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
     $assignment = $DBLIB->update("assetsAssignments", ["assets_id" => $_POST['assets_id']],1);
     finish(true);

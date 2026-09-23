@@ -16,6 +16,13 @@ $DBLIB->where("assetTypes_id", $array['assetTypes_id']);
 $asset = $DBLIB->getone("assetTypes");
 if (!$asset) finish(false, ["code" => "LIST-ASSETTYPES-FAIL", "message" => "Could not find asset type"]);
 
+//Unserialized assets hold a quantity of interchangeable units, serialized assets are always a single unit
+$array['assets_unserialized'] = ((isset($array['assets_unserialized']) and ($array['assets_unserialized'] == 1 or $array['assets_unserialized'] === "true" or $array['assets_unserialized'] === "on")) ? 1 : 0);
+if ($array['assets_unserialized'] == 1) {
+    $array['assets_quantity'] = (isset($array['assets_quantity']) ? intval($array['assets_quantity']) : 1);
+    if ($array['assets_quantity'] < 1) finish(false, ["code" => "PARAM-ERROR", "message" => "An unserialized asset must hold at least one unit"]);
+} else $array['assets_quantity'] = 1;
+
 if (isset($array['assets_tag']) and $array['assets_tag'] != null) {
     $DBLIB->where("assets.instances_id", $AUTH->data['instance']['instances_id']);
     $DBLIB->where("assets.assets_tag", $array['assets_tag']);
@@ -24,7 +31,7 @@ if (isset($array['assets_tag']) and $array['assets_tag'] != null) {
     if ($duplicateAssetTag > 0) finish(false, ["code" => "INSERT-FAIL", "message" => "Sorry that tag you chose was a duplicate - please choose another one"]);
 } else $array['assets_tag'] = generateNewTag();
 
-$result = $DBLIB->insert("assets", array_intersect_key($array, array_flip(['assets_tag', 'assetTypes_id', 'assets_notes', 'instances_id', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_assetGroups'])));
+$result = $DBLIB->insert("assets", array_intersect_key($array, array_flip(['assets_tag', 'assetTypes_id', 'assets_notes', 'instances_id', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_assetGroups', 'assets_unserialized', 'assets_quantity'])));
 
 if (!$result) finish(false, ["code" => "INSERT-FAIL", "message" => "Could not insert asset"]);
 
@@ -144,6 +151,16 @@ Requires Instance Permission 17 ASSETS:CREATE
  *                 property="assets_assetGroups", 
  *                 type="string", 
  *                 description="undefined",
+ *             ),
+ *             @OA\Property(
+ *                 property="assets_unserialized", 
+ *                 type="boolean", 
+ *                 description="Whether the asset is unserialized - held as a quantity of interchangeable units rather than as a single tracked item",
+ *             ),
+ *             @OA\Property(
+ *                 property="assets_quantity", 
+ *                 type="integer", 
+ *                 description="Number of units held, for unserialized assets. Ignored (and stored as 1) for serialized assets",
  *             ),
  *             @OA\Property(
  *                 property="asset_definableFields_1", 

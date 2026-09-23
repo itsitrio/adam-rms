@@ -20,6 +20,8 @@ $priceMaths = $projectFinanceHelper->durationMaths($project['projects_id']);
 $projectFinanceCacher = new projectFinanceCacher($project['projects_id']);
 
 foreach ($assignmentsSetDiscount["assignments"] as $assignment) {
+    //Prices are per unit, so the discount applies to the whole assignment's worth of them
+    $quantity = (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
     $DBLIB->where("assetsAssignments_id", $assignment['assetsAssignments_id']);
     if (!$DBLIB->update("assetsAssignments", ["assetsAssignments_discount" => $_POST['assetsAssignments_discount']])) finish(false);
     else {
@@ -32,6 +34,7 @@ foreach ($assignmentsSetDiscount["assignments"] as $assignment) {
             $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
             $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
         }
+        $price = $price->multiply($quantity);
 
         if ($assignment['assetsAssignments_discount'] > 0) {
             //If there was already a discount, remove it

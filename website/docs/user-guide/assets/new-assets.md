@@ -40,5 +40,7 @@ Each asset can have additional information:
 
 You can add multiple assets at once, and the tags will be added sequentially.
 
+Stock that isn't worth tracking item by item — gel frames, cable ties, sandbags — can instead be added as a single [unserialized asset](./unserialized-assets) holding a quantity of interchangeable units.
+
 ![New Asset Interface](/img/tutorial/assets/assets-new-xlr.png "Add a new XLR asset to Demo Hire Services")
 *Add a new XLR Asset*

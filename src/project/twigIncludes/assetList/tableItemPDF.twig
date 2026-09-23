@@ -2,7 +2,7 @@
 [
     {% if GET['checkboxes'] %}'[  ]',{% endif %}
     { 
-        text: "{{ type['assets']|length }}x {{ type['assets'][0].manufacturers_id != 1 ? type['assets'][0].manufacturers_name|escape("js") ~ " - " : "" }}{{ type['assets'][0].assetTypes_name|escape("js") }}", 
+        text: "{{ type['totals']['quantity'] }}x {{ type['assets'][0].manufacturers_id != 1 ? type['assets'][0].manufacturers_name|escape("js") ~ " - " : "" }}{{ type['assets'][0].assetTypes_name|escape("js") }}", 
         style: { bold: true },
         colSpan: {{ GET['comments'] ? 3 : 2 }}
     },
@@ -25,7 +25,7 @@
     [
         {% if GET['checkboxes'] %}'[  ]',{% endif %}
         { 
-            text: "{% if type['assets']|length == 1 %}{{ assetAssignment.manufacturers_id != 1 ? assetAssignment.manufacturers_name|escape("js") ~ " - " : "" }}{{ assetAssignment.assetTypes_name|escape("js") }}{% else %}{% endif %}{% if GET['showAll'] %}{{ assetAssignment.assets_tag|aTag|escape("js") }}{% endif %} {% if GET['flagsBlocks'] %}{% for flag in assetAssignment.flagsblocks.FLAG %}[F]{% endfor %}{% for flag in assetAssignment.flagsblocks.BLOCK %}[B]{% endfor %}{% endif %}{% if assetAssignment.assetsAssignments_linkedTo %}[L]{% endif %}",
+            text: "{% if assetAssignment.assetsAssignments_quantity > 1 %}{{ assetAssignment.assetsAssignments_quantity }}x {% endif %}{% if type['assets']|length == 1 %}{{ assetAssignment.manufacturers_id != 1 ? assetAssignment.manufacturers_name|escape("js") ~ " - " : "" }}{{ assetAssignment.assetTypes_name|escape("js") }}{% else %}{% endif %}{% if GET['showAll'] %}{{ assetAssignment.assets_tag|aTag|escape("js") }}{% endif %} {% if GET['flagsBlocks'] %}{% for flag in assetAssignment.flagsblocks.FLAG %}[F]{% endfor %}{% for flag in assetAssignment.flagsblocks.BLOCK %}[B]{% endfor %}{% endif %}{% if assetAssignment.assetsAssignments_linkedTo %}[L]{% endif %}",
             colSpan: {{ (assetAssignment.assetsAssignments_comment and GET['comments'] ? 1 : assetAssignment.assetTypes_definableFields_ARRAY|length > 0 ? (GET['comments'] ? 2 : 1) : (GET['comments'] ? 3 : 2)) }}
         },
         {{ (assetAssignment.assetsAssignments_comment and GET['comments'] ? '' : assetAssignment.assetTypes_definableFields_ARRAY|length > 0 ? (GET['comments'] ? '{},' : '') : (GET['comments'] ? '{},{},' : '{},')) }}
@@ -48,7 +48,7 @@
         },
         {% endif %}
         {% if GET['masses'] %}
-            '{{ assetAssignment.assets_mass != null ? assetAssignment.assets_mass|mass : (assetAssignment.assetTypes_mass != null and assetAssignment.assetTypes_mass != 0 ? assetAssignment.assetTypes_mass|mass : "") }}',
+            '{{ assetAssignment.mass > 0 ? assetAssignment.mass|mass : "" }}',
         {% endif %}
         {% if project.projectsTypes_config_finance == 1 %}
             {% if GET['prices'] %}'{{ assetAssignment.price|money|escape("js") }}',{% endif %}
