@@ -17,15 +17,19 @@ if (isset($_POST['id'])) $_GET['id'] = $_POST['id'];
 if (!$AUTH->instancePermissionCheck("PROJECTS:VIEW") or !isset($_GET['id'])) finish(false);
 
 //The project itself
-$DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
-$DBLIB->where("projects.projects_deleted", 0);
-$DBLIB->where("projects.projects_id", $_GET['id']);
-$DBLIB->join("projectsTypes", "projects.projectsTypes_id=projectsTypes.projectsTypes_id", "LEFT");
-$DBLIB->join("clients", "projects.clients_id=clients.clients_id", "LEFT");
-$DBLIB->join("users", "projects.projects_manager=users.users_userid", "LEFT");
-$DBLIB->join("locations","locations.locations_id=projects.locations_id","LEFT");
-$DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
-$PAGEDATA['project'] = $DBLIB->getone("projects", ["projects.*", "projectsTypes.*", "clients.clients_id", "clients_name","clients_website","clients_email","clients_notes","clients_address","clients_phone","users.users_userid", "users.users_name1", "users.users_name2", "users.users_email","locations.locations_name","locations.locations_address","projectsStatuses.projectsStatuses_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour","projectsStatuses.projectsStatuses_backgroundColour","projectsStatuses.projectsStatuses_assetsReleased","projectsStatuses.projectsStatuses_description"]);
+function projectDetails($projectsId) {
+    global $DBLIB, $AUTH;
+    $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
+    $DBLIB->where("projects.projects_deleted", 0);
+    $DBLIB->where("projects.projects_id", $projectsId);
+    $DBLIB->join("projectsTypes", "projects.projectsTypes_id=projectsTypes.projectsTypes_id", "LEFT");
+    $DBLIB->join("clients", "projects.clients_id=clients.clients_id", "LEFT");
+    $DBLIB->join("users", "projects.projects_manager=users.users_userid", "LEFT");
+    $DBLIB->join("locations","locations.locations_id=projects.locations_id","LEFT");
+    $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
+    return $DBLIB->getone("projects", ["projects.*", "projectsTypes.*", "clients.clients_id", "clients_name","clients_website","clients_email","clients_notes","clients_address","clients_phone","users.users_userid", "users.users_name1", "users.users_name2", "users.users_email","locations.locations_name","locations.locations_address","projectsStatuses.projectsStatuses_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour","projectsStatuses.projectsStatuses_backgroundColour","projectsStatuses.projectsStatuses_assetsReleased","projectsStatuses.projectsStatuses_description"]);
+}
+$PAGEDATA['project'] = projectDetails($_GET['id']);
 if (!$PAGEDATA['project']) $PAGEDATA['USE_TWIG_404'] ? die($TWIG->render('404.twig', $PAGEDATA)) : die("404");
 
 //subprojects
@@ -36,6 +40,129 @@ $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.
 $PAGEDATA['project']['subProjects'] = $DBLIB->get("projects", null, ["projects.*", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour","projectsStatuses.projectsStatuses_backgroundColour"]);
 
 //Finances
+
+/**
+ * Lays a project's equipment out the way its quote shows it: the units allocated to each of the project's quote
+ * sections under that section's heading, and everything else under its asset category as before. Note lines are
+ * placed in their section, or at the end if they don't have one.
+ *
+ * Each entry is a copy of the assignment covering just the units shown there, so an assignment split across two
+ * sections appears in both. The last part of an assignment takes whatever's left of its price, so the parts
+ * always add up to the assignment's price.
+ */
+function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsAssignedSUB, $moneyFormatter) {
+    global $DBLIB, $AUTH;
+    $currency = new Currency($AUTH->data['instance']['instances_config_currency']);
+    $totals = function () use ($currency) {
+        return ["quantity" => 0, "price" => new Money(0, $currency), "discountPrice" => new Money(0, $currency), "mass" => 0.0];
+    };
+    $return = ["sections" => [], "unsectioned" => [], "unsectionedSUB" => [], "lines" => [], "linesTotal" => new Money(0, $currency)];
+    foreach ($sections as $section) {
+        $return['sections'][$section['projectsQuoteSections_id']] = $section + ["types" => [], "lines" => [], "totals" => $totals()];
+    }
+
+    foreach ($assets as $asset) {
+        //Split the assignment's units into the sections they've been allocated to, with anything left over going under its category
+        $remaining = $asset['assetsAssignments_quantity'];
+        $parts = [];
+        foreach ($asset['quoteAllocations'] as $allocation) {
+            $quantity = min(intval($allocation['projectsQuoteAllocations_quantity']), $remaining);
+            if ($quantity < 1) continue;
+            $parts[] = ["section" => $allocation['projectsQuoteSections_id'], "quantity" => $quantity];
+            $remaining -= $quantity;
+        }
+        if ($remaining > 0) $parts[] = ["section" => null, "quantity" => $remaining];
+
+        $priceSoFar = new Money(0, $currency);
+        $discountPriceSoFar = new Money(0, $currency);
+        foreach ($parts as $index => $part) {
+            $item = $asset;
+            $item['assetsAssignments_quantity'] = $part['quantity'];
+            if ($index == count($parts) - 1) {
+                $item['price'] = $asset['price']->subtract($priceSoFar);
+                $item['discountPrice'] = $asset['discountPrice']->subtract($discountPriceSoFar);
+            } else {
+                $item['price'] = $asset['unitPrice']->multiply($part['quantity']);
+                $item['discountPrice'] = ($asset['assetsAssignments_discount'] > 0 ? $item['price']->multiply(1 - ($asset['assetsAssignments_discount'] / 100)) : $item['price']);
+            }
+            $priceSoFar = $priceSoFar->add($item['price']);
+            $discountPriceSoFar = $discountPriceSoFar->add($item['discountPrice']);
+            $item['mass'] = $asset['mass'] / $asset['assetsAssignments_quantity'] * $part['quantity'];
+            $item['formattedPrice'] = $moneyFormatter->format($item['price']);
+            $item['formattedDiscountPrice'] = $moneyFormatter->format($item['discountPrice']);
+            $item['formattedMass'] = number_format($item['mass'], 2, '.', '') . "kg";
+
+            if ($part['section'] !== null) {
+                $return['sections'][$part['section']]['types'][$asset['assetTypes_id']]['assets'][] = $item;
+            } elseif ($asset['instances_id'] != $project['instances_id']) {
+                if (!isset($return['unsectionedSUB'][$asset['instances_id']])) $return['unsectionedSUB'][$asset['instances_id']] = ["instance" => $assetsAssignedSUB[$asset['instances_id']]['instance'], "assets" => []];
+                $return['unsectionedSUB'][$asset['instances_id']]['assets'][$asset['assetTypes_id']]['assets'][] = $item;
+            } else {
+                $return['unsectioned'][$asset['assetTypes_id']]['assets'][] = $item;
+            }
+        }
+    }
+
+    //Totals for each asset type, the same as the ones the project's asset list shows
+    $typeTotals = function ($types) use ($totals, $moneyFormatter) {
+        foreach ($types as $key => $type) {
+            $types[$key]['totals'] = $totals() + ["status" => null];
+            foreach ($type['assets'] as $item) {
+                if ($types[$key]['totals']['status'] === null) $types[$key]['totals']['status'] = $item['assetsAssignmentsStatus_name'];
+                elseif ($types[$key]['totals']['status'] != $item['assetsAssignmentsStatus_name']) $types[$key]['totals']['status'] = false;
+                $types[$key]['totals']['quantity'] += $item['assetsAssignments_quantity'];
+                $types[$key]['totals']['price'] = $types[$key]['totals']['price']->add($item['price']);
+                $types[$key]['totals']['discountPrice'] = $types[$key]['totals']['discountPrice']->add($item['discountPrice']);
+                $types[$key]['totals']['mass'] += $item['mass'];
+            }
+            $types[$key]['totals']['formattedPrice'] = $moneyFormatter->format($types[$key]['totals']['price']);
+            $types[$key]['totals']['formattedDiscountPrice'] = $moneyFormatter->format($types[$key]['totals']['discountPrice']);
+            $types[$key]['totals']['formattedMass'] = number_format($types[$key]['totals']['mass'], 2, '.', '') . "kg";
+        }
+        return $types;
+    };
+    $return['unsectioned'] = $typeTotals($return['unsectioned']);
+    foreach ($return['unsectionedSUB'] as $instanceId => $instance) {
+        $return['unsectionedSUB'][$instanceId]['assets'] = $typeTotals($instance['assets']);
+    }
+
+    //Note lines, which can carry a price
+    $DBLIB->where("projects_id", $project['projects_id']);
+    $DBLIB->where("projectsQuoteLines_deleted", 0);
+    $DBLIB->orderBy("projectsQuoteLines_rank", "ASC");
+    $DBLIB->orderBy("projectsQuoteLines_id", "ASC");
+    foreach ($DBLIB->get("projectsQuoteLines") as $line) {
+        $line['projectsQuoteLines_quantity'] = max(1, intval($line['projectsQuoteLines_quantity']));
+        $line['unitPrice'] = new Money($line['projectsQuoteLines_price'], $currency);
+        $line['price'] = $line['unitPrice']->multiply($line['projectsQuoteLines_quantity']);
+        $line['formattedUnitPrice'] = $moneyFormatter->format($line['unitPrice']);
+        $line['formattedPrice'] = $moneyFormatter->format($line['price']);
+        $return['linesTotal'] = $return['linesTotal']->add($line['price']);
+        if ($line['projectsQuoteSections_id'] !== null and isset($return['sections'][$line['projectsQuoteSections_id']])) {
+            $return['sections'][$line['projectsQuoteSections_id']]['lines'][] = $line;
+        } else $return['lines'][] = $line;
+    }
+
+    foreach ($return['sections'] as $sectionId => $section) {
+        $section['types'] = $typeTotals($section['types']);
+        foreach ($section['types'] as $type) {
+            $section['totals']['quantity'] += $type['totals']['quantity'];
+            $section['totals']['price'] = $section['totals']['price']->add($type['totals']['price']);
+            $section['totals']['discountPrice'] = $section['totals']['discountPrice']->add($type['totals']['discountPrice']);
+            $section['totals']['mass'] += $type['totals']['mass'];
+        }
+        foreach ($section['lines'] as $line) {
+            $section['totals']['price'] = $section['totals']['price']->add($line['price']);
+            $section['totals']['discountPrice'] = $section['totals']['discountPrice']->add($line['price']);
+        }
+        $section['totals']['formattedPrice'] = $moneyFormatter->format($section['totals']['price']);
+        $section['totals']['formattedDiscountPrice'] = $moneyFormatter->format($section['totals']['discountPrice']);
+        $return['sections'][$sectionId] = $section;
+    }
+    $return['sections'] = array_values($return['sections']);
+    $return['formattedLinesTotal'] = $moneyFormatter->format($return['linesTotal']);
+    return $return;
+}
 
 //Payments and also
 function projectFinancials($project) {
@@ -101,6 +228,25 @@ function projectFinancials($project) {
     $return['prices'] = ["subTotal" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])), "discounts" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])), "total" => new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']))];
 
     $return['priceMaths'] = $projectFinanceHelper->durationMaths($project['projects_id']);
+
+    //Quote sections - custom headings for the quote, and how many units of each assignment are shown under them
+    $DBLIB->where("projects_id", $project['projects_id']);
+    $DBLIB->where("projectsQuoteSections_deleted", 0);
+    $DBLIB->orderBy("projectsQuoteSections_rank", "ASC");
+    $DBLIB->orderBy("projectsQuoteSections_id", "ASC");
+    $quoteSections = $DBLIB->get("projectsQuoteSections", null, ["projectsQuoteSections_id", "projectsQuoteSections_name", "projectsQuoteSections_rank"]);
+    $quoteAllocations = [];
+    if (count($quoteSections) > 0) {
+        $DBLIB->where("projectsQuoteAllocations.projectsQuoteSections_id", array_column($quoteSections, "projectsQuoteSections_id"), "IN");
+        $DBLIB->join("projectsQuoteSections", "projectsQuoteAllocations.projectsQuoteSections_id=projectsQuoteSections.projectsQuoteSections_id", "LEFT");
+        $DBLIB->orderBy("projectsQuoteSections.projectsQuoteSections_rank", "ASC");
+        $DBLIB->orderBy("projectsQuoteSections.projectsQuoteSections_id", "ASC");
+        foreach ($DBLIB->get("projectsQuoteAllocations", null, ["projectsQuoteAllocations.*", "projectsQuoteSections.projectsQuoteSections_name"]) as $allocation) {
+            $quoteAllocations[$allocation['assetsAssignments_id']][] = $allocation;
+        }
+    }
+    $quoteAssets = [];
+
     foreach ($assets as $asset) {
         //An assignment can take several units of an unserialized asset, and each of them weighs, costs and is worth the same
         $asset['assetsAssignments_quantity'] = (intval($asset['assetsAssignments_quantity']) > 0 ? intval($asset['assetsAssignments_quantity']) : 1);
@@ -116,6 +262,7 @@ function projectFinancials($project) {
             $asset['price'] = $asset['price']->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['days']));
             $asset['price'] = $asset['price']->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['weeks']));
         } else $asset['price'] = new Money($asset['assetsAssignments_customPrice'],new Currency($AUTH->data['instance']['instances_config_currency']));
+        $asset['unitPrice'] = $asset['price'];
         $asset['price'] = $asset['price']->multiply($asset['assetsAssignments_quantity']);
 
         $return['prices']['subTotal'] = $asset['price']->add($return['prices']['subTotal']);
@@ -134,6 +281,9 @@ function projectFinancials($project) {
 
         $asset['flagsblocks'] = assetFlagsAndBlocks($asset['assets_id']);
 
+        $asset['quoteAllocations'] = (isset($quoteAllocations[$asset['assetsAssignments_id']]) ? $quoteAllocations[$asset['assetsAssignments_id']] : []);
+        $asset['quoteAllocationsBySection'] = (object) array_column($asset['quoteAllocations'], "projectsQuoteAllocations_quantity", "projectsQuoteSections_id");
+
         $asset['assetTypes_definableFields_ARRAY'] = array_filter(explode(",", $asset['assetTypes_definableFields']));
 
         $asset['latestScan'] = assetLatestScan($asset['assets_id']);
@@ -146,6 +296,7 @@ function projectFinancials($project) {
             if (!isset($return['assetsAssigned'][$asset['assetTypes_id']])) $return['assetsAssigned'][$asset['assetTypes_id']]['assets'] = [];
             $return['assetsAssigned'][$asset['assetTypes_id']]['assets'][] = $asset;
         }
+        $quoteAssets[] = $asset;
     }
     foreach ($return['assetsAssigned'] as $key => $type) {
         if (!isset($return['assetsAssigned'][$key]['totals'])) $return['assetsAssigned'][$key]['totals'] = ["status" => null,"quantity"=>0,"discountPrice"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"price"=>new Money(null, new Currency($AUTH->data['instance']['instances_config_currency'])),"mass"=>0.0];
@@ -183,6 +334,11 @@ function projectFinancials($project) {
             $return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['formattedMass'] = number_format($return['assetsAssignedSUB'][$instanceid]['assets'][$key]['totals']['mass'], 2, '.', '') . "kg";
         }
     }
+
+    $return['quote'] = projectQuoteLayout($project, $quoteSections, $quoteAllocations, $quoteAssets, $return['assetsAssignedSUB'], $moneyFormatter);
+    //Priced note lines are charged alongside the equipment
+    $return['prices']['subTotal'] = $return['prices']['subTotal']->add($return['quote']['linesTotal']);
+    $return['prices']['total'] = $return['prices']['total']->add($return['quote']['linesTotal']);
 
     $return['payments']['subTotal'] = $return['prices']['total']->add($return['payments']['sales']['total'],$return['payments']['subHire']['total'],$return['payments']['staff']['total']);
     $return['payments']['total'] = $return['payments']['subTotal']->subtract($return['payments']['received']['total']);

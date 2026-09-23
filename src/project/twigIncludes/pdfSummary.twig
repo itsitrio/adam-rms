@@ -1,0 +1,93 @@
+{# Front page of a PDF printed with its sub-projects, summarising the project and each of them #}
+{% set showMoney = GET['finance'] and "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions and project.projectsTypes_config_finance == 1 %}
+{% set showPayments = showMoney and GET['type'] == "invoice" %}
+{% if INSTANCELOGO %}
+{
+    image: "{{ INSTANCELOGO|escape("js") }}",
+    width: 200,
+    margin: [157, 0, 0, 20]
+},
+{% endif %}
+{
+    columns: [
+        {
+            stack: [
+                {% if project.projectsTypes_config_client == 1 %}
+                    { text: "{{ project.clients_name|escape("js") }}", style: { bold: true } },
+                {% endif %}
+            ],
+            width: "50%"
+        },
+        {
+            stack: [
+                { text: "{{ USERDATA['instance']['instances_name']|escape("js") }}", style: { bold: true } },
+                {% if GET['pmdetails'] %}
+                    "{{ project.users_name1|escape("js") ~ " " ~ project.users_name2|escape("js") }}",
+                    "{{ project.users_email|escape("js") }}",
+                {% endif %}
+                {% if fileNumber %}"v{{ fileNumber|escape("js") }}",{% endif %}
+            ],
+            style: { alignment: "right" },
+            width: "50%"
+        }
+    ],
+},
+" ",
+{ text: "{{ project.projects_name|escape("js") }}", style: { bold: true, fontSize: 25 } },
+{ text: "{{ GET['fileType'] }} Summary", style: { fontSize: 16 } },
+{
+    table: {
+        headerRows: 1,
+        widths: ['*', 'auto'{% if showMoney %}, 'auto', 'auto', 'auto'{% endif %}{% if showPayments %}, 'auto', 'auto'{% endif %}],
+        body: [
+            [
+                { text: "Project", style: { bold: true } },
+                { text: "Dates", style: { bold: true } },
+                {% if showMoney %}
+                    { text: "Equipment", style: { bold: true, alignment: 'right' } },
+                    { text: "Other", style: { bold: true, alignment: 'right' } },
+                    { text: "Total", style: { bold: true, alignment: 'right' } },
+                {% endif %}
+                {% if showPayments %}
+                    { text: "Received", style: { bold: true, alignment: 'right' } },
+                    { text: "Outstanding", style: { bold: true, alignment: 'right' } },
+                {% endif %}
+            ],
+            {% for row in SUMMARY.rows %}
+            [
+                "{{ row.project.projects_name|escape("js") }}{% if loop.first %} (shared){% endif %}",
+                "{% if row.project.projects_dates_use_start %}{{ row.project.projects_dates_use_start|date("j M Y")|escape("js") }}{% if row.project.projects_dates_use_end and row.project.projects_dates_use_end|date("j M Y") != row.project.projects_dates_use_start|date("j M Y") %} - {{ row.project.projects_dates_use_end|date("j M Y")|escape("js") }}{% endif %}{% endif %}",
+                {% if showMoney %}
+                    { text: "{{ row.equipment|money|escape("js") }}", style: { alignment: 'right' } },
+                    { text: "{{ row.other|money|escape("js") }}", style: { alignment: 'right' } },
+                    { text: "{{ row.total|money|escape("js") }}", style: { alignment: 'right' } },
+                {% endif %}
+                {% if showPayments %}
+                    { text: "{{ row.received|money|escape("js") }}", style: { alignment: 'right' } },
+                    { text: "{{ row.outstanding|money|escape("js") }}", style: { alignment: 'right' } },
+                {% endif %}
+            ],
+            {% endfor %}
+            {% if showMoney %}
+            [
+                { text: "{% if GET['type'] == 'quote' %}Grand Total{% else %}Total{% endif %}", style: { bold: true } },
+                "",
+                { text: "{{ SUMMARY.totals.equipment|money|escape("js") }}", style: { bold: true, alignment: 'right' } },
+                { text: "{{ SUMMARY.totals.other|money|escape("js") }}", style: { bold: true, alignment: 'right' } },
+                { text: "{{ SUMMARY.totals.total|money|escape("js") }}", style: { bold: true, alignment: 'right' } },
+                {% if showPayments %}
+                    { text: "{{ SUMMARY.totals.received|money|escape("js") }}", style: { bold: true, alignment: 'right' } },
+                    { text: "{{ SUMMARY.totals.outstanding|money|escape("js") }}", style: { bold: true, alignment: 'right' } },
+                {% endif %}
+            ],
+            {% endif %}
+        ],
+    },
+    layout: 'lightHorizontalLines',
+    margin: [ 0, 20, 0, 10 ]
+},
+{% if showMoney %}
+    { text: "Other covers sales, staffing and additional hires. Each project's {{ GET['fileType']|lower }} follows.", style: { fontSize: 9, italics: true } },
+{% else %}
+    { text: "Each project's {{ GET['fileType']|lower }} follows.", style: { fontSize: 9, italics: true } },
+{% endif %}

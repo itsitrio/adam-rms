@@ -1,0 +1,191 @@
+{% macro quoteLine(line, project, canEditQuote) %}
+    <tr class="quoteLine" data-lineid="{{ line.projectsQuoteLines_id }}">
+        <td class="pl-4"><i class="far fa-sticky-note mr-1"></i>{% if line.projectsQuoteLines_quantity > 1 %}{{ line.projectsQuoteLines_quantity }}x {% endif %}{{ line.projectsQuoteLines_text }}</td>
+        <td></td>
+        {% if project.projectsTypes_config_finance == 1 %}<td>{{ line.price|moneyPositive ? line.price|money : '' }}</td>{% endif %}
+        <td class="text-right">
+            {% if canEditQuote %}
+                <button type="button" class="btn btn-xs btn-default editQuoteLine" title="Edit note line" data-lineid="{{ line.projectsQuoteLines_id }}" data-text="{{ line.projectsQuoteLines_text }}" data-section="{{ line.projectsQuoteSections_id }}" data-quantity="{{ line.projectsQuoteLines_quantity }}" data-price="{{ line.unitPrice|moneyDecimal }}"><i class="fas fa-pencil-alt"></i></button>
+                <button type="button" class="btn btn-xs btn-default deleteQuoteLine" title="Delete note line" data-lineid="{{ line.projectsQuoteLines_id }}"><i class="fas fa-trash"></i></button>
+            {% endif %}
+        </td>
+    </tr>
+{% endmacro %}
+{% set canEditQuote = "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions %}
+{% if canEditQuote or FINANCIALS.quote.sections|length > 0 or FINANCIALS.quote.lines|length > 0 %}
+<div class="card card-primary card-outline" id="quoteLayoutCard">
+    <div class="card-header">
+        <h3 class="card-title">Quote Layout</h3>
+        <div class="card-tools">
+            {% if canEditQuote %}
+                <button type="button" class="btn btn-tool" id="newQuoteSection"><i class="fas fa-plus"></i> Heading</button>
+                <button type="button" class="btn btn-tool" id="newQuoteLine"><i class="fas fa-plus"></i> Note Line</button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <p class="px-3 pt-3 text-muted">Headings group this project's equipment on quotes, instead of asset categories. To place assets under a heading, select them above and click <i class="fas fa-layer-group"></i>. If you select one asset that has several units, you can split them between headings. Anything not placed under a heading is shown under its category. Note lines can carry a price, which is added to the equipment total.</p>
+        <table class="table table-sm">
+            <thead>
+            <tr>
+                <th>Heading</th>
+                <th style="width:6em;">Units</th>
+                {% if project.projectsTypes_config_finance == 1 %}<th style="width:9em;">Total</th>{% endif %}
+                <th style="width:10em;"></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for section in FINANCIALS.quote.sections %}
+                <tr class="quoteSection" data-sectionid="{{ section.projectsQuoteSections_id }}">
+                    <td><b>{{ section.projectsQuoteSections_name }}</b></td>
+                    <td>{{ section.totals.quantity }}</td>
+                    {% if project.projectsTypes_config_finance == 1 %}<td>{{ section.totals.discountPrice|money }}</td>{% endif %}
+                    <td class="text-right">
+                        {% if canEditQuote %}
+                            <button type="button" class="btn btn-xs btn-default moveQuoteSection" title="Move up" data-sectionid="{{ section.projectsQuoteSections_id }}" data-move="up" {{ loop.first ? 'disabled' }}><i class="fas fa-arrow-up"></i></button>
+                            <button type="button" class="btn btn-xs btn-default moveQuoteSection" title="Move down" data-sectionid="{{ section.projectsQuoteSections_id }}" data-move="down" {{ loop.last ? 'disabled' }}><i class="fas fa-arrow-down"></i></button>
+                            <button type="button" class="btn btn-xs btn-default renameQuoteSection" title="Rename heading" data-sectionid="{{ section.projectsQuoteSections_id }}" data-name="{{ section.projectsQuoteSections_name }}"><i class="fas fa-pencil-alt"></i></button>
+                            <button type="button" class="btn btn-xs btn-default deleteQuoteSection" title="Delete heading" data-sectionid="{{ section.projectsQuoteSections_id }}"><i class="fas fa-trash"></i></button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% for line in section.lines %}{{ _self.quoteLine(line, project, canEditQuote) }}{% endfor %}
+            {% else %}
+                <tr><td colspan="4" class="text-muted">No headings yet - equipment is shown under its asset categories</td></tr>
+            {% endfor %}
+            {% if FINANCIALS.quote.lines|length > 0 %}
+                <tr><td colspan="4"><i>End of quote</i></td></tr>
+                {% for line in FINANCIALS.quote.lines %}{{ _self.quoteLine(line, project, canEditQuote) }}{% endfor %}
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% if canEditQuote %}
+<script>
+    $(document).ready(function () {
+        var quoteSections = [
+            {% for section in FINANCIALS.quote.sections %}
+            { value: '{{ section.projectsQuoteSections_id }}', text: '{{ section.projectsQuoteSections_name|escape('js') }}' },
+            {% endfor %}
+        ];
+        function escapeHTML(text) {
+            return $("<div>").text(text).html();
+        }
+        $("#newQuoteSection").click(function () {
+            bootbox.prompt({
+                title: "New Quote Heading",
+                message: "E.g. Video, Audio or Lighting",
+                callback: function (result) {
+                    if (result) {
+                        ajaxcall("projects/quote/newSection.php", {
+                            "projects_id": {{ project.projects_id }},
+                            "projectsQuoteSections_name": result
+                        }, function () {
+                            location.reload();
+                        });
+                    }
+                }
+            });
+        });
+        $(".renameQuoteSection").click(function () {
+            var section = $(this).data("sectionid");
+            bootbox.prompt({
+                title: "Rename Quote Heading",
+                value: $(this).attr("data-name"),
+                callback: function (result) {
+                    if (result) {
+                        ajaxcall("projects/quote/editSection.php", {
+                            "projectsQuoteSections_id": section,
+                            "projectsQuoteSections_name": result
+                        }, function () {
+                            location.reload();
+                        });
+                    }
+                }
+            });
+        });
+        $(".moveQuoteSection").click(function () {
+            ajaxcall("projects/quote/editSection.php", {
+                "projectsQuoteSections_id": $(this).data("sectionid"),
+                "move": $(this).data("move")
+            }, function () {
+                location.reload();
+            });
+        });
+        $(".deleteQuoteSection").click(function () {
+            var section = $(this).data("sectionid");
+            bootbox.confirm("Delete this heading? Its assets will be shown under their asset categories, and its note lines at the end of the quote.", function (result) {
+                if (result) {
+                    ajaxcall("projects/quote/deleteSection.php", { "projectsQuoteSections_id": section }, function () {
+                        location.reload();
+                    });
+                }
+            });
+        });
+        function quoteLineDialog(line) {
+            var options = '<option value="-1">End of quote</option>';
+            quoteSections.forEach(function (section) {
+                options += '<option value="' + section.value + '"' + (line && line.section == section.value ? ' selected' : '') + '>' + escapeHTML(section.text) + '</option>';
+            });
+            bootbox.dialog({
+                title: (line ? "Edit Note Line" : "New Note Line"),
+                message: '<div class="form-group"><label>Text</label><input type="text" class="form-control" id="quoteLineText" maxlength="1000"></div>' +
+                    '<div class="form-group"><label>Heading</label><select class="form-control" id="quoteLineSection">' + options + '</select></div>' +
+                    '<div class="form-row"><div class="form-group col-6"><label>Quantity</label><input type="number" class="form-control" id="quoteLineQuantity" min="1" step="1" value="1"></div>' +
+                    {% if project.projectsTypes_config_finance == 1 %}'<div class="form-group col-6"><label>Price each ({{ moneySymbol() }})</label><input type="number" class="form-control" id="quoteLinePrice" min="0" step="0.01" placeholder="None"></div>' +{% endif %}
+                    '</div><small class="text-muted">A price is added to the project\'s equipment total. Leave it empty for a plain note.</small>',
+                onShown: function () {
+                    if (line) {
+                        $("#quoteLineText").val(line.text);
+                        $("#quoteLineQuantity").val(line.quantity);
+                        $("#quoteLinePrice").val(parseFloat(line.price) > 0 ? line.price : "");
+                    }
+                    $("#quoteLineText").focus();
+                },
+                buttons: {
+                    cancel: { label: 'Cancel', className: 'btn-default' },
+                    confirm: {
+                        label: 'Save', className: 'btn-primary', callback: function () {
+                            var data = {
+                                "projectsQuoteLines_text": $("#quoteLineText").val(),
+                                "projectsQuoteSections_id": $("#quoteLineSection").val(),
+                                "projectsQuoteLines_quantity": $("#quoteLineQuantity").val() || 1,
+                                "projectsQuoteLines_price": $("#quoteLinePrice").val() || "0"
+                            };
+                            if (line) data.projectsQuoteLines_id = line.id;
+                            else data.projects_id = {{ project.projects_id }};
+                            ajaxcall("projects/quote/" + (line ? "editLine.php" : "newLine.php"), data, function () {
+                                location.reload();
+                            });
+                        }
+                    }
+                }
+            });
+        }
+        $("#newQuoteLine").click(function () {
+            quoteLineDialog(null);
+        });
+        $(".editQuoteLine").click(function () {
+            quoteLineDialog({
+                id: $(this).data("lineid"),
+                text: $(this).attr("data-text"),
+                section: $(this).data("section"),
+                quantity: $(this).data("quantity"),
+                price: $(this).attr("data-price")
+            });
+        });
+        $(".deleteQuoteLine").click(function () {
+            var line = $(this).data("lineid");
+            bootbox.confirm("Delete this note line?", function (result) {
+                if (result) {
+                    ajaxcall("projects/quote/deleteLine.php", { "projectsQuoteLines_id": line }, function () {
+                        location.reload();
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endif %}

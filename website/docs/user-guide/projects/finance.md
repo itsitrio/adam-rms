@@ -75,6 +75,21 @@ Every generated quote is stored, so you can track the history of the project thr
 ![A Sample Quote](/img/tutorial/projects/finance-quote.png)
 *An example quotes*
 
+### Quote Layout
+
+By default a quote lists equipment under its asset categories. The **Quote Layout** tab on a project lets you use your own headings instead - for example Video, Audio, Lighting and Visuals for a stage - and add note lines. You need the `PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES` permission to change it.
+
+- **Headings** are added, renamed, reordered and deleted from the Quote Layout tab.
+- To **place assets under a heading**, select them in the Assets List and click the *Place in quote section* (layers icon) button. If you select a single asset that has several units (such as 10 microphones), you can split the units between headings - e.g. 6 under Audio and 4 under Video.
+- Anything not placed under a heading is still shown under its asset category, after the headings.
+- **Note lines** sit under a heading, or at the end of the quote. They can have a quantity and a price - useful for sub-rentals, transport or other items that aren't assets. A note line's price is added to the project's equipment total; leave the price empty for a plain note.
+
+The layout also applies to invoices and delivery notes.
+
+### Quoting Sub-Projects Together
+
+When a project has sub-projects - such as a festival with a sub-project for each stage, and costs shared between the stages on the parent project - you can tick **Include Sub-Projects, with a Summary Page** when creating a quote or invoice for the parent project. The PDF then starts with a summary page listing the parent project and each sub-project with its dates and totals, and a grand total, followed by the parent project's quote and each sub-project's quote in turn.
+
 
 ## Invoices
 ---

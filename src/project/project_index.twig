@@ -102,6 +102,9 @@
                                     <li class="nav-item"><a class="nav-link" href="#assets-view" data-toggle="tab"><i class="fas fa-list"></i> Assets List</a></li>
                                     <li class="nav-item"><a class="nav-link" href="#assets-board" data-toggle="tab"><i class="fas fa-shipping-fast"></i> Asset Dispatch</a></li>
                                 {% endif %}
+                                {% if (project.projectsTypes_config_assets == 1 or project.projectsTypes_config_finance == 1) and ("PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions or FINANCIALS.quote.sections or FINANCIALS.quote.lines) %}
+                                    <li class="nav-item"><a class="nav-link" href="#quote-layout" data-toggle="tab"><i class="fas fa-layer-group"></i> Quote Layout</a></li>
+                                {% endif %}
                                 <li class="nav-item"><a class="nav-link" href="#file-view" data-toggle="tab"><i class="fas fa-file-alt"></i> {% if CONFIG.FILES_ENABLED == "Enabled" and USERDATA.instance.instances_storageEnabled == 1 and project.projectsTypes_config_files == 1 %}Files, {% endif %}{% if project.projectsTypes_config_notes == 1 %}Notes, {% endif %} Invoices & Quotes</a></li>
                                 {% if "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions and project.projectsTypes_config_finance == 1 %}
                                     <li class="nav-item"><a class="nav-link" href="#payments-view" data-toggle="tab"><i class="fas fa-pound-sign"></i> Finance</a></li>
@@ -408,6 +411,11 @@
                         <div class="tab-pane" id="assets-board">
                             {% if (FINANCIALS['assetsAssigned'] or FINANCIALS['assetsAssignedSUB']) and project.projectsTypes_config_assets == 1 %}
                                 {% embed 'project/project_assetsBoard.twig' %}{% endembed %}
+                            {% endif %}
+                        </div>
+                        <div class="tab-pane" id="quote-layout">
+                            {% if (project.projectsTypes_config_assets == 1 or project.projectsTypes_config_finance == 1) and ("PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions or FINANCIALS.quote.sections or FINANCIALS.quote.lines) %}
+                                {% embed 'project/project_quoteLayout.twig' %}{% endembed %}
                             {% endif %}
                         </div>
                         <div class="tab-pane" id="file-view">
@@ -730,6 +738,12 @@
                                 <input class="form-check-input" type="checkbox" name="pmdetails" checked>
                                 <label class="form-check-label">Project Manager</label>
                             </div>
+                            {% if project.subProjects|length > 0 %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="subProjects">
+                                    <label class="form-check-label">Include Sub-Projects ({{ project.subProjects|length }}), with a Summary Page</label>
+                                </div>
+                            {% endif %}
                             {% if project.projectsTypes_config_assets == 1 %}
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="totalmass" checked>

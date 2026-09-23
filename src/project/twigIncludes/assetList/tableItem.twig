@@ -22,7 +22,7 @@
 {% for assetAssignment in type['assets'] %}
 <tr id="assetRow{{ assetAssignment.assetsAssignments_id }}" class="{% if type['assets']|length > 1 %}typeFilter typeFilter{{ type['assets'][0].assetTypes_id }} categoryFilterClose{{ categoryid }}{% else %}categoryFilter categoryFilter{{ categoryid }}{% endif %}">
     <td>
-        <input type="checkbox" class="assetAssignmentCheckbox" data-typeid="{{ type['assets'][0].assetTypes_id }}" data-instanceid="{{ instanceid }}" data-assetassignmentid="{{ assetAssignment.assetsAssignments_id }}" />
+        <input type="checkbox" class="assetAssignmentCheckbox" data-typeid="{{ type['assets'][0].assetTypes_id }}" data-instanceid="{{ instanceid }}" data-assetassignmentid="{{ assetAssignment.assetsAssignments_id }}" data-quantity="{{ assetAssignment.assetsAssignments_quantity }}" data-quoteallocations="{{ assetAssignment.quoteAllocationsBySection|json_encode }}" />
     </td>
     <td colspan="{{ assetAssignment.assetsAssignments_comment ? '1' : (assetAssignment.assetTypes_definableFields_ARRAY|length > 0 ? '2' : '3') }}">
         {% if type['assets']|length == 1 %}
@@ -41,6 +41,11 @@
         {% endfor %}
         {% for flag in assetAssignment.flagsblocks.BLOCK %}
             <a target="_blank" href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ flag.maintenanceJobs_id }}" class="btn btn-sm btn-danger" title="{{ flag.maintenanceJobs_title }}"><i class="fas fa-ban"></i></a>
+        {% endfor %}
+        {% for allocation in assetAssignment.quoteAllocations %}
+            {% if allocation.projectsQuoteAllocations_quantity > 0 %}
+                <span class="badge badge-light" title="Shown under this heading on quotes"><i class="fas fa-layer-group"></i> {{ allocation.projectsQuoteSections_name }}{% if assetAssignment.assetsAssignments_quantity > 1 %} &times;{{ allocation.projectsQuoteAllocations_quantity }}{% endif %}</span>
+            {% endif %}
         {% endfor %}
         {% if assetAssignment.assetsAssignments_linkedTo %}
             <button class="btn btn-sm btn-secondary" title="Asset was assigned automatically because it's linked to another asset"><i class="fas fa-link"></i></button>

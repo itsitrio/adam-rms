@@ -1161,6 +1161,17 @@ $instanceActions = [
     'LEGACY-ID' => 53,
     'LEGACY-Sort Rank' => 48,
   ],
+  'PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES' => [
+    'Category' => 'Projects',
+    'Table' => 'Project Assets',
+    'Type' => 'Edit',
+    'Detail' => 'Quote Sections and Lines',
+    'Combined Text Description' => 'Projects - Project Assets: Edit  - Quote Sections and Lines (Group assets under custom headings on quotes, and add note lines that can carry a price)',
+    'Dependencies' => ['PROJECTS:VIEW'],
+    'Comment' => 'Group assets under custom headings on quotes, and add note lines that can carry a price',
+    'Supported Token Types' => ["web-session"],
+    'Caution' => 'Priced note lines change the project\'s totals',
+  ],
   'PROJECTS:PROJECT_CREW:CREATE' => [
     'Category' => 'Projects',
     'Table' => 'Project Crew',

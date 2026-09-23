@@ -43,6 +43,10 @@
                         <button type="button" class="btn btn-tool" title="Set custom price" id="setAssetAssignmentPrice">
                             <i class="fas fa-coins"></i></button>
                     {% endif %}
+                    {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions %}
+                        <button type="button" class="btn btn-tool" title="Place in quote section" id="setAssetAssignmentQuoteSection">
+                            <i class="fas fa-layer-group"></i></button>
+                    {% endif %}
                     {% if "PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS"|instancePermissions %}
                         <button type="button" class="btn btn-tool" title="Set status" id="setAllAssetStatus">
                             <i class="fas fa-clipboard-check"></i></button>
@@ -349,6 +353,66 @@
                             type: 'info',
                             title: ' No assets available to swap!'
                         });
+                    }
+                });
+            }
+        });
+        {% endif %}
+        {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions %}
+        var quoteSections = [
+            {% for section in FINANCIALS.quote.sections %}
+            { value: '{{ section.projectsQuoteSections_id }}', text: '{{ section.projectsQuoteSections_name|escape('js') }}' },
+            {% endfor %}
+        ];
+        function escapeHTML(text) {
+            return $("<div>").text(text).html();
+        }
+        $("#setAssetAssignmentQuoteSection").click(function () {
+            var selected = $('.assetAssignmentCheckbox:checkbox:checked');
+            if (selected.length < 1) {
+                Toast.fire({ type: 'error', title: 'Please select some assets.' });
+            } else if (quoteSections.length < 1) {
+                Toast.fire({ type: 'info', title: 'Add a heading under Quote Layout first.' });
+            } else if (selected.length == 1 && selected.data("quantity") > 1) {
+                //One assignment of several units can be split between headings
+                var allocations = selected.data("quoteallocations") || {};
+                var form = '<p>This assignment has ' + selected.data("quantity") + ' units. Enter how many to show under each heading. Any left over are shown under their asset category.</p>';
+                quoteSections.forEach(function (section) {
+                    form += '<div class="form-group row"><label class="col-8 col-form-label">' + escapeHTML(section.text) + '</label><div class="col-4"><input type="number" class="form-control quoteAllocationInput" min="0" step="1" data-sectionid="' + section.value + '" value="' + (allocations[section.value] || 0) + '"></div></div>';
+                });
+                bootbox.dialog({
+                    title: "Split Between Quote Headings",
+                    message: form,
+                    buttons: {
+                        cancel: { label: 'Cancel', className: 'btn-default' },
+                        confirm: {
+                            label: 'Save', className: 'btn-primary', callback: function () {
+                                var data = { "assetsAssignments_id": selected.data("assetassignmentid"), "allocations": {} };
+                                $(".quoteAllocationInput").each(function () {
+                                    data.allocations[$(this).data("sectionid")] = $(this).val() || 0;
+                                });
+                                ajaxcall("projects/quote/allocate.php", data, function () {
+                                    location.reload();
+                                });
+                            }
+                        }
+                    }
+                });
+            } else {
+                bootbox.prompt({
+                    title: "Place in Quote Heading",
+                    message: "Show all the units of the selected assets under this heading on quotes",
+                    inputType: 'select',
+                    inputOptions: quoteSections.concat([{ value: '-1', text: 'No heading - show under asset category' }]),
+                    callback: function (result) {
+                        if (result) {
+                            ajaxcall("projects/quote/allocate.php", {
+                                "assetsAssignments": getSelected(),
+                                "projectsQuoteSections_id": result
+                            }, function () {
+                                location.reload();
+                            });
+                        }
                     }
                 });
             }
