@@ -33,8 +33,19 @@ foreach (['assets_value', 'assets_dayRate', 'assets_weekRate'] as $moneyField) {
 $DBLIB->where("assets_id", $array['assets_id']);
 $DBLIB->where("assets.instances_id",$AUTH->data['instance']["instances_id"]);
 $DBLIB->join("assetTypes","assets.assetTypes_id=assetTypes.assetTypes_id","LEFT");
-$asset = $DBLIB->getone("assets", ['assets.assets_id','assets.assets_dayRate','assets.assets_tag','assets.assets_weekRate','assets.assets_mass','assets.assets_value','assets.assets_unserialized','assets.assets_quantity','assetTypes.assetTypes_mass','assetTypes.assetTypes_value',"assetTypes.assetTypes_dayRate","assetTypes.assetTypes_weekRate"]);
+$asset = $DBLIB->getone("assets", ['assets.assets_id','assets.assetTypes_id','assets.assets_dayRate','assets.assets_tag','assets.assets_weekRate','assets.assets_mass','assets.assets_value','assets.assets_unserialized','assets.assets_quantity','assetTypes.assetTypes_mass','assetTypes.assetTypes_value',"assetTypes.assetTypes_dayRate","assetTypes.assetTypes_weekRate"]);
 if (!$asset) finish(false, ["code" => "PARAM-ERROR", "message" => "Could not find asset"]);
+
+//An asset without its own overrides is worth whatever its type is worth, so moving it to another type
+//changes what it contributes to every project it's on and the new type's figures are needed below.
+//Scoped the way the type picker scopes itself, so an asset can't be moved onto another business's type.
+$newAssetType = false;
+if (array_key_exists('assetTypes_id', $array) and intval($array['assetTypes_id']) !== intval($asset['assetTypes_id'])) {
+    $DBLIB->where("(assetTypes.instances_id IS NULL OR assetTypes.instances_id = '" . $AUTH->data['instance']['instances_id'] . "')");
+    $DBLIB->where("assetTypes.assetTypes_id", intval($array['assetTypes_id']));
+    $newAssetType = $DBLIB->getone("assetTypes", ['assetTypes.assetTypes_mass','assetTypes.assetTypes_value','assetTypes.assetTypes_dayRate','assetTypes.assetTypes_weekRate']);
+    if (!$newAssetType) finish(false, ["code" => "LIST-ASSETTYPES-FAIL", "message" => "Could not find the asset type to move this asset to"]);
+}
 
 //Only unserialized assets hold more than a single unit, so turning serialization back on resets the stock to one
 if (isset($array['assets_unserialized'])) $array['assets_unserialized'] = ($array['assets_unserialized'] == 1 or $array['assets_unserialized'] === "true" or $array['assets_unserialized'] === "on" ? 1 : 0);
@@ -74,16 +85,29 @@ $DBLIB->where("assets.instances_id",$AUTH->data['instance']["instances_id"]);
 $result = $DBLIB->update("assets", array_intersect_key($array, array_flip(['assets_linkedTo', 'assetTypes_id', 'assets_notes', 'assets_tag', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_value', 'assets_dayRate', 'assets_weekRate', 'assets_mass', 'assets_storageLocation', 'assets_unserialized', 'assets_quantity'])));
 if (!$result) finish(false, ["code" => "UPDATE-FAIL", "message"=> "Could not update asset"]);
 else {
-    //What an asset contributes to a project's cached finances comes from these four overrides, so only
-    //a request that sent one of them can have changed those figures. Anything the request left out keeps
-    //its stored value, rather than being read as an override that's just been cleared.
-    $financeFields = ['assets_mass', 'assets_value', 'assets_dayRate', 'assets_weekRate'];
+    //What an asset contributes to a project's cached finances is its own override where it has one and
+    //its type's figure where it hasn't, so both an edited override and a move to another type can shift
+    //those figures. $newAsset is the asset as it now stands: the stored row, with whatever this request
+    //actually sent laid over it, alongside the type it now belongs to. Anything the request left out
+    //keeps its stored value, rather than being read as an override that's just been cleared.
     $newAsset = $asset;
+    foreach (['assets_mass', 'assets_value', 'assets_dayRate', 'assets_weekRate'] as $financeField) {
+        if (array_key_exists($financeField, $array)) $newAsset[$financeField] = $array[$financeField];
+    }
+    if ($newAssetType) {
+        foreach (['assetTypes_mass', 'assetTypes_value', 'assetTypes_dayRate', 'assetTypes_weekRate'] as $typeField) {
+            $newAsset[$typeField] = $newAssetType[$typeField];
+        }
+    }
+    //Walk the assignments only where a figure has actually moved. Adjusting a project's cache by a
+    //difference of zero rewrites it for nothing, and floating point mass isn't guaranteed to round back
+    //to exactly where it started.
+    $assetFigure = function ($row, $figure) {
+        return ($row['assets_' . $figure] !== null ? $row['assets_' . $figure] : $row['assetTypes_' . $figure]);
+    };
     $financeChanged = false;
-    foreach ($financeFields as $financeField) {
-        if (!array_key_exists($financeField, $array)) continue;
-        $newAsset[$financeField] = $array[$financeField];
-        $financeChanged = true;
+    foreach (['mass', 'value', 'dayRate', 'weekRate'] as $figure) {
+        if ($assetFigure($asset, $figure) != $assetFigure($newAsset, $figure)) $financeChanged = true;
     }
     if ($financeChanged) {
         $DBLIB->where("assets_id",$array['assets_id']);
@@ -102,8 +126,8 @@ else {
             $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),true);
 
             //Add new mass and value
-            $projectFinanceCacher->adjust('projectsFinanceCache_mass',($newAsset['assets_mass'] !== null ? $newAsset['assets_mass'] : $asset['assetTypes_mass']) * $quantity,false);
-            $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($newAsset['assets_value'] !== null ? $newAsset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),false);
+            $projectFinanceCacher->adjust('projectsFinanceCache_mass',($newAsset['assets_mass'] !== null ? $newAsset['assets_mass'] : $newAsset['assetTypes_mass']) * $quantity,false);
+            $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($newAsset['assets_value'] !== null ? $newAsset['assets_value'] : $newAsset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),false);
 
             if ($assignment['assetsAssignments_customPrice'] > 0) {
                 //Old price stands so ignore it
@@ -114,8 +138,8 @@ else {
                 $oldPrice = $oldPrice->multiply($quantity);
                 //Price is now manually calculated
                 $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-                $price = $price->add((new Money(($newAsset['assets_dayRate'] !== null ? $newAsset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-                $price = $price->add((new Money(($newAsset['assets_weekRate'] !== null ? $newAsset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+                $price = $price->add((new Money(($newAsset['assets_dayRate'] !== null ? $newAsset['assets_dayRate'] : $newAsset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+                $price = $price->add((new Money(($newAsset['assets_weekRate'] !== null ? $newAsset['assets_weekRate'] : $newAsset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
                 $price = $price->multiply($quantity);
 
                 //Remove the old price
