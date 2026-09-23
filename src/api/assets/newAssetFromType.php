@@ -17,7 +17,7 @@ $asset = $DBLIB->getone("assetTypes");
 if (!$asset) finish(false, ["code" => "LIST-ASSETTYPES-FAIL", "message" => "Could not find asset type"]);
 
 //Unserialized assets hold a quantity of interchangeable units, serialized assets are always a single unit
-$array['assets_unserialized'] = (isset($array['assets_unserialized']) and ($array['assets_unserialized'] == 1 or $array['assets_unserialized'] === "true" or $array['assets_unserialized'] === "on") ? 1 : 0);
+$array['assets_unserialized'] = ((isset($array['assets_unserialized']) and ($array['assets_unserialized'] == 1 or $array['assets_unserialized'] === "true" or $array['assets_unserialized'] === "on")) ? 1 : 0);
 if ($array['assets_unserialized'] == 1) {
     $array['assets_quantity'] = (isset($array['assets_quantity']) ? intval($array['assets_quantity']) : 1);
     if ($array['assets_quantity'] < 1) finish(false, ["code" => "PARAM-ERROR", "message" => "An unserialized asset must hold at least one unit"]);

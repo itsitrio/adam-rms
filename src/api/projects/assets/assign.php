@@ -72,7 +72,7 @@ $assetsFailed = [];
 $assetsProcessing = [];
 foreach ($assetsToProcess as $asset) {
     //Linked assets come along one unit at a time however many units of the asset they hang off were taken
-    $quantity = (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id'] ? $quantityWanted : 1);
+    $quantity = ((isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id']) ? $quantityWanted : 1);
     if ($quantity > 1 and $asset['assets_unserialized'] != 1) finish(false,["message"=>"Only unserialized assets can be assigned in quantities - assign another asset of this type instead"]);
     $availability = assetAvailableQuantity($asset, $project["projects_dates_deliver_start"], $project["projects_dates_deliver_end"], $project['projects_id']);
     //An asset gets one assignment per project, so more units of something the project already has are a change to that assignment rather than a new one
@@ -88,7 +88,7 @@ foreach ($assetsToProcess as $asset) {
     }
     $flagsBlocks = assetFlagsAndBlocks($asset['assets_id']); //Can't assign anything with a block on it, however many units it holds
     if ($flagsBlocks['COUNT']['BLOCK'] > 0 or $availability['available'] < $quantity) {
-        if (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id']) finish(false,["message"=>($flagsBlocks['COUNT']['BLOCK'] == 0 and $availability['quantity'] > 1 ? "Only " . $availability['available'] . " of the " . $availability['quantity'] . " units held are available" : "Asset wanted not available")]); //Fail because the one we were supposed to assign hasn't worked
+        if (isset($_POST['assets_id']) and $_POST['assets_id'] == $asset['assets_id']) finish(false,["message"=>(($flagsBlocks['COUNT']['BLOCK'] == 0 and $availability['quantity'] > 1) ? "Only " . $availability['available'] . " of the " . $availability['quantity'] . " units held are available" : "Asset wanted not available")]); //Fail because the one we were supposed to assign hasn't worked
         $assetsFailed[] = ["assets_id" => $asset['assets_id']];
     } else {
         $insertData = [

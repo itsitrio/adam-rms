@@ -48,7 +48,7 @@ if (array_key_exists('assetTypes_id', $array) and intval($array['assetTypes_id']
 }
 
 //Only unserialized assets hold more than a single unit, so turning serialization back on resets the stock to one
-if (isset($array['assets_unserialized'])) $array['assets_unserialized'] = ($array['assets_unserialized'] == 1 or $array['assets_unserialized'] === "true" or $array['assets_unserialized'] === "on" ? 1 : 0);
+if (isset($array['assets_unserialized'])) $array['assets_unserialized'] = (($array['assets_unserialized'] == 1 or $array['assets_unserialized'] === "true" or $array['assets_unserialized'] === "on") ? 1 : 0);
 $unserialized = (isset($array['assets_unserialized']) ? $array['assets_unserialized'] : $asset['assets_unserialized']);
 if (isset($array['assets_quantity']) or isset($array['assets_unserialized'])) {
     if ($unserialized == 1) {
