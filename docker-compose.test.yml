@@ -1,0 +1,62 @@
+# Local test stack - AdamRMS with a fresh MySQL database and phpMyAdmin.
+#
+#   docker compose -f docker-compose.test.yml up --build
+#
+# Then open http://localhost:8080 and log in as  username / password!
+# (the default super admin the seeders create). phpMyAdmin is on http://localhost:8082.
+#
+# src/ and db/ are mounted from this checkout, so PHP/Twig changes show on a browser refresh,
+# and new migrations run the next time the app container starts (docker compose ... restart app).
+# To start again with an empty database:  docker compose -f docker-compose.test.yml down -v
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy # migrate.sh doesn't retry, so MySQL has to be up before the app starts
+    volumes:
+      - ./src:/var/www/html/src
+      - ./db:/var/www/html/db
+    environment:
+      - DB_HOSTNAME=db
+      - DB_DATABASE=adamrms
+      - DB_USERNAME=adamrms
+      - DB_PASSWORD=adamrms
+      - DB_PORT=3306
+      - DEV_MODE=true
+      - CONFIG_ROOTURL=http://localhost:8080
+
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=adamrms
+      - MYSQL_USER=adamrms
+      - MYSQL_PASSWORD=adamrms
+      - MYSQL_ROOT_PASSWORD=adamrms
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uadamrms", "-padamrms"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    ports:
+      - "8082:80"
+    depends_on:
+      - db
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=adamrms
+      - PMA_PASSWORD=adamrms
+
+volumes:
+  db_data:
