@@ -95,6 +95,9 @@
                         <div class="card-header">
                             <ul class="nav nav-pills" id="nav-bar">
                                 <li class="nav-item"><a class="nav-link active" href="#details-view" data-toggle="tab" style="font-weight:bold;">{{project.projects_name}}</a></li>
+                                {% if project.subProjects %}
+                                    <li class="nav-item"><a class="nav-link" href="#calendar-view" data-toggle="tab"><i class="fas fa-sitemap"></i> Sub-Projects ({{ project.subProjects|length }})</a></li>
+                                {% endif %}
                                 {% if project.projectsTypes_config_assets == 1 and project.projects_dates_deliver_start and project.projects_archived != 1 and "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN"|instancePermissions %}
                                     <li class="nav-item"><a class="nav-link" href="{{CONFIG.ROOTURL}}/assets.php?project={{project.projects_id}}&project_referer={{project.projects_id}}"><i class="fas fa-plus"></i> Add Assets</a></li>
                                 {% endif %}
@@ -111,9 +114,6 @@
                                 {% endif %}
                                 {% if "PROJECTS:PROJECT_CREW:VIEW"|instancePermissions and project.projectsTypes_config_crew == 1 %}
                                     <li class="nav-item"><a class="nav-link" href="#crew-view" data-toggle="tab"><i class="fas fa-users"></i> Crew</a></li>
-                                {% endif %}
-                                {% if project.subProjects %}
-                                    <li class="nav-item"><a class="nav-link" href="#calendar-view" data-toggle="tab"><i class="fas fa-calendar-alt"></i> Sub Projects</a></li>
                                 {% endif %}
                                 {% if project.auditLog|length > 0 %}
                                 <li class="nav-item"><a class="nav-link" href="#log-view" data-toggle="tab"><i class="fas fa-comments"></i> Comments & History</a></li>
@@ -433,12 +433,7 @@
                         </div>
                         <div class="tab-pane" id="calendar-view">
                             {% if project.subProjects %}
-                                    <div class="card">
-                                        <div class="card-body p-0">
-                                            {% embed 'assets/widgets/calendar.twig' with {"projects": project.subProjects, "useStartDate": true } %}
-                                            {% endembed %}
-                                        </div>
-                                    </div>
+                                {% embed 'project/project_subProjects.twig' %}{% endembed %}
                             {% endif %}
                         </div>
                         <div class="tab-pane" id="log-view">
@@ -836,6 +831,7 @@
     <script>
         $(document).ready(function () {
             $('#pdfGenerateModal').on('show.bs.modal', function (e) {
+                 $('#pdfGenerateModal input[name="subProjects"]').prop('checked', !!$(e.relatedTarget).data('subprojects'));
                  if ($(e.relatedTarget).data('delivery-note')){
                     $("#pdfGenerateModal .modal-title").text("Create Delivery Note");
                     $('#pdfGenerateModal input[name="type"]').val("deliveryNote");

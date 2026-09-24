@@ -38,34 +38,8 @@ $PAGEDATA['fileNumber'] = $fileNumber;
 //Sub-projects are printed after the project, with a summary of them all at the front
 $PAGEDATA['CHILDREN'] = [];
 if (isset($_GET['subProjects']) and $_GET['subProjects'] and count($PAGEDATA['project']['subProjects']) > 0) {
-    $sortBySupplier = function ($a, $b) {
-        return $a['payments_supplier'] <=> $b['payments_supplier'];
-    };
-    foreach ($PAGEDATA['project']['subProjects'] as $subProject) {
-        $child = ["project" => projectDetails($subProject['projects_id'])];
-        if (!$child['project']) continue;
-        $child['FINANCIALS'] = projectFinancials($child['project']);
-        foreach (["subHire", "sales", "staff"] as $ledger) usort($child['FINANCIALS']['payments'][$ledger]['ledger'], $sortBySupplier);
-        $PAGEDATA['CHILDREN'][] = $child;
-    }
-    usort($PAGEDATA['CHILDREN'], function ($a, $b) {
-        return [$a['project']['projects_dates_deliver_start'] ?? '', $a['project']['projects_id']] <=> [$b['project']['projects_dates_deliver_start'] ?? '', $b['project']['projects_id']];
-    });
-
-    $PAGEDATA['SUMMARY'] = ["rows" => [], "totals" => null];
-    foreach (array_merge([["project" => $PAGEDATA['project'], "FINANCIALS" => $PAGEDATA['FINANCIALS']]], $PAGEDATA['CHILDREN']) as $row) {
-        $summaryRow = [
-            "project" => $row['project'],
-            "equipment" => $row['FINANCIALS']['prices']['total'],
-            "other" => $row['FINANCIALS']['payments']['subTotal']->subtract($row['FINANCIALS']['prices']['total']), //Sales, staff and sub-hires
-            "total" => $row['FINANCIALS']['payments']['subTotal'],
-            "received" => $row['FINANCIALS']['payments']['received']['total'],
-            "outstanding" => $row['FINANCIALS']['payments']['total'],
-        ];
-        $PAGEDATA['SUMMARY']['rows'][] = $summaryRow;
-        if ($PAGEDATA['SUMMARY']['totals'] === null) $PAGEDATA['SUMMARY']['totals'] = $summaryRow;
-        else foreach (["equipment", "other", "total", "received", "outstanding"] as $key) $PAGEDATA['SUMMARY']['totals'][$key] = $PAGEDATA['SUMMARY']['totals'][$key]->add($summaryRow[$key]);
-    }
+    $PAGEDATA['CHILDREN'] = subProjectsWithFinancials($PAGEDATA['project']['subProjects']);
+    $PAGEDATA['SUMMARY'] = projectsSummary(array_merge([["project" => $PAGEDATA['project'], "FINANCIALS" => $PAGEDATA['FINANCIALS']]], $PAGEDATA['CHILDREN']));
 }
 
 if ($PAGEDATA['USERDATA']['instance']['instances_logo'] and $PAGEDATA['GET']['instancelogo']) {

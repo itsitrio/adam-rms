@@ -4,6 +4,12 @@ if (!$AUTH->instancePermissionCheck("PROJECTS:VIEW") or !isset($_GET['id'])) die
 $PAGEDATA['USE_TWIG_404'] = true;
 require_once __DIR__ . '/../api/projects/data.php'; //Where most of the data comes from
 
+//Sub-projects and their totals, for the Sub-Projects tab
+if (count($PAGEDATA['project']['subProjects']) > 0) {
+    $PAGEDATA['SUBPROJECTS'] = subProjectsWithFinancials($PAGEDATA['project']['subProjects']);
+    $PAGEDATA['SUBPROJECTS_SUMMARY'] = projectsSummary(array_merge([["project" => $PAGEDATA['project'], "FINANCIALS" => $PAGEDATA['FINANCIALS']]], $PAGEDATA['SUBPROJECTS']));
+}
+
 //AuditLog
 $DBLIB->where("auditLog.auditLog_deleted", 0);
 $DBLIB->where("auditLog.projects_id", $PAGEDATA['project']['projects_id']);

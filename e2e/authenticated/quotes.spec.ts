@@ -225,3 +225,31 @@ test("a parent project's quote can include its sub-projects, after a summary pag
   expect(combined.match(/"text":"Main Stage"/g)?.length).toBe(1);
   expect(combined.match(/"text":"Second Stage"/g)?.length).toBe(1);
 });
+
+test("a parent project's Sub-Projects tab lists each sub-project with its totals", async ({ page, festival }) => {
+  await page.goto(`/project/?id=${festival.projects.parent}`, { waitUntil: "domcontentloaded" });
+  expect((await api(page, "newLine.php", { projects_id: festival.projects.parent, projectsQuoteLines_text: "Transport", projectsQuoteLines_price: "300" })).result).toBe(true);
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  // Next to the project's own tab, with how many there are
+  const tabs = page.locator("#nav-bar .nav-link");
+  await expect(tabs.nth(1)).toHaveText("Sub-Projects (2)");
+  await tabs.nth(1).click();
+
+  const rows = page.locator("#subProjectsCard tr.subProjectRow");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText("Festival (this project - shared)");
+  await expect(rows.nth(0)).toContainText("£300.00");
+  await expect(rows.nth(1)).toContainText("Main Stage");
+  await expect(rows.nth(1)).toContainText("Confirmed");
+  await expect(rows.nth(1)).toContainText("£150.00");
+  await expect(rows.nth(2)).toContainText("Second Stage");
+  await expect(rows.nth(2)).toContainText("£40.00");
+  await expect(page.locator("#subProjectsCard tfoot")).toContainText("£490.00");
+  await expect(rows.nth(1).getByRole("link", { name: "Main Stage" })).toHaveAttribute("href", new RegExp(`/project/\\?id=${festival.projects.stageA}$`));
+
+  // The combined quote can be started from here, with sub-projects already ticked
+  await page.getByRole("button", { name: "Create Combined Quote" }).click();
+  await expect(page.locator("#pdfGenerateModal .modal-title")).toHaveText("Create Quote");
+  await expect(page.locator('#pdfGenerateModal input[name="subProjects"]')).toBeChecked();
+});

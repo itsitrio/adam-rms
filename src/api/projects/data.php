@@ -360,6 +360,53 @@ function projectFinancials($project) {
     
     return $return;
 }
+/**
+ * A project's sub-projects with their details and finances, in date order - for showing or printing them alongside it
+ */
+function subProjectsWithFinancials($subProjects) {
+    $children = [];
+    foreach ($subProjects as $subProject) {
+        $child = ["project" => projectDetails($subProject['projects_id'])];
+        if (!$child['project']) continue;
+        $child['FINANCIALS'] = projectFinancials($child['project']);
+        foreach (["subHire", "sales", "staff"] as $ledger) {
+            usort($child['FINANCIALS']['payments'][$ledger]['ledger'], function ($a, $b) {
+                return $a['payments_supplier'] <=> $b['payments_supplier'];
+            });
+        }
+        $children[] = $child;
+    }
+    usort($children, function ($a, $b) {
+        return [$a['project']['projects_dates_deliver_start'] ?? '', $a['project']['projects_id']] <=> [$b['project']['projects_dates_deliver_start'] ?? '', $b['project']['projects_id']];
+    });
+    return $children;
+}
+
+/**
+ * Totals for a list of projects (each ["project" => ..., "FINANCIALS" => ...]), one row each plus a row adding them all up
+ */
+function projectsSummary($projects) {
+    $summary = ["rows" => [], "totals" => null];
+    foreach ($projects as $row) {
+        $summaryRow = [
+            "project" => $row['project'],
+            "assets" => $row['FINANCIALS']['assetsAssignedQuantity'],
+            "equipment" => $row['FINANCIALS']['prices']['total'],
+            "other" => $row['FINANCIALS']['payments']['subTotal']->subtract($row['FINANCIALS']['prices']['total']), //Sales, staff and sub-hires
+            "total" => $row['FINANCIALS']['payments']['subTotal'],
+            "received" => $row['FINANCIALS']['payments']['received']['total'],
+            "outstanding" => $row['FINANCIALS']['payments']['total'],
+        ];
+        $summary['rows'][] = $summaryRow;
+        if ($summary['totals'] === null) $summary['totals'] = $summaryRow;
+        else {
+            $summary['totals']['assets'] += $summaryRow['assets'];
+            foreach (["equipment", "other", "total", "received", "outstanding"] as $key) $summary['totals'][$key] = $summary['totals'][$key]->add($summaryRow[$key]);
+        }
+    }
+    return $summary;
+}
+
 $PAGEDATA['FINANCIALS'] = projectFinancials($PAGEDATA['project']);
 $DBLIB->where("projects_id",$PAGEDATA['project']['projects_id']);
 $DBLIB->orderBy("projectsFinanceCache_timestamp", "DESC");
