@@ -253,3 +253,18 @@ test("a parent project's Sub-Projects tab lists each sub-project with its totals
   await expect(page.locator("#pdfGenerateModal .modal-title")).toHaveText("Create Quote");
   await expect(page.locator('#pdfGenerateModal input[name="subProjects"]')).toBeChecked();
 });
+
+test("the project list shows each sub-project's own total, not its parent's", async ({ page, festival }) => {
+  // Opening a project makes its finance cache, which the list reads
+  for (const id of [festival.projects.parent, festival.projects.stageA, festival.projects.stageB]) {
+    await page.goto(`/project/?id=${id}`, { waitUntil: "domcontentloaded" });
+  }
+  expect((await api(page, "newLine.php", { projects_id: festival.projects.parent, projectsQuoteLines_text: "Transport", projectsQuoteLines_price: "300" })).result).toBe(true);
+
+  await page.goto("/project/list.php", { waitUntil: "domcontentloaded" });
+  const row = (id: number) => page.locator("tr", { has: page.locator(`a[href$="/project/?id=${id}"]`) });
+  await expect(row(festival.projects.parent)).toContainText("£300.00");
+  await expect(row(festival.projects.stageA)).toContainText("£150.00");
+  await expect(row(festival.projects.stageA)).not.toContainText("£300.00");
+  await expect(row(festival.projects.stageB)).toContainText("£40.00");
+});
