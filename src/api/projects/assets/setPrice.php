@@ -32,6 +32,7 @@ foreach ($assignmentsSetDiscount["assignments"] as $assignment) {
     if (!$DBLIB->update("assetsAssignments", ["assetsAssignments_customPrice" => $_POST['assetsAssignments_customPrice']])) finish(false);
     else {
         $bCMS->auditLog("EDIT-DISCOUNT", "assetsAssignments", $assignment['assetsAssignments_customPrice'], $AUTH->data['users_userid'],null, $assignment['projects_id']);
+        if ($assignment['assetsAssignments_excludedFromTotals'] == 1) continue; //Left out of the totals, so its price doesn't change them
 
         if ($assignment['assetsAssignments_customPrice'] > 0) {
             $oldPrice = new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency']));

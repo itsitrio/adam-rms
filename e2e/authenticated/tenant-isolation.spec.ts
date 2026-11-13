@@ -150,6 +150,7 @@ const writeCases: WriteCase[] = [
   { endpoint: "/api/projects/assets/setComment.php", params: (t) => ({ assetsAssignments: [t.assignmentId], assetsAssignments_comment: "Changed by e2e" }) },
   { endpoint: "/api/projects/assets/setDiscount.php", params: (t) => ({ assetsAssignments: [t.assignmentId], assetsAssignments_discount: 10 }) },
   { endpoint: "/api/projects/assets/setPrice.php", params: (t) => ({ assetsAssignments: [t.assignmentId], assetsAssignments_customPrice: "5.00" }) },
+  { endpoint: "/api/projects/assets/setHidden.php", params: (t) => ({ assetsAssignments: [t.assignmentId], assetsAssignments_hidden: 1, assetsAssignments_excludedFromTotals: 1 }) },
   { endpoint: "/api/projects/assets/setStatus.php", params: (t) => ({ assetsAssignments_id: t.assignmentId, assetsAssignments_status: t.assignmentStatusId }) },
   { endpoint: "/api/projects/assets/unassign.php", params: (t) => ({ assetsAssignments: [t.assignmentId] }) },
   { endpoint: "/api/projects/crew/edit.php", params: (t) => ({ crewAssignments_id: t.crewAssignmentId, crewAssignments_comment: "Changed by e2e" }) },

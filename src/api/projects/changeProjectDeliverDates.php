@@ -31,7 +31,7 @@ $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
 $DBLIB->where("assetsAssignments.projects_id", $project['projects_id']);
 $DBLIB->join("assets","assetsAssignments.assets_id=assets.assets_id", "LEFT");
 $DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
-$assets = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assetsAssignments.assetsAssignments_id","assetsAssignments_customPrice","assetsAssignments_discount","assetsAssignments_quantity","assetTypes_weekRate","assetTypes_dayRate","assets_dayRate","assets_weekRate","assets_unserialized","assets_quantity","assets_tag","assetTypes_name"]);
+$assets = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assetsAssignments.assetsAssignments_id","assetsAssignments_customPrice","assetsAssignments_discount","assetsAssignments_quantity","assetsAssignments_excludedFromTotals","assetTypes_weekRate","assetTypes_dayRate","assets_dayRate","assets_weekRate","assets_unserialized","assets_quantity","assets_tag","assetTypes_name"]);
 if ($assets) {
     $unavailableAssets = [];
     foreach ($assets as $asset) {
@@ -57,6 +57,7 @@ if ($assets) {
         foreach ($assets as $asset) {
             //This change is going to go ahead so re-calculate finance
             if ($asset['assetsAssignments_customPrice'] != null) continue; //There is a custom price set - so this asset is date agnostic anyway
+            if ($asset['assetsAssignments_excludedFromTotals'] == 1) continue; //Left out of the totals, so its price doesn't change them
             //Rates are per unit, and an assignment can take several units of an unserialized asset
             $quantity = (intval($asset['assetsAssignments_quantity']) > 0 ? intval($asset['assetsAssignments_quantity']) : 1);
 

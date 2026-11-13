@@ -32,6 +32,8 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/projects/assets/setStatusBarcode.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS", params: (a) => ({ projects_id: a.projectId, text: a.barcodeValue, type: "CODE_128", assetsAssignments_status: a.assignmentStatusId }) },
   { endpoint: "/api/projects/assets/assign.php", permission: "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN", params: (a) => ({ projects_id: a.projectId, assets_id: a.spareAssetId }) },
   { endpoint: "/api/projects/assets/swap.php", permission: "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN", params: (a) => ({ assetsAssignments_id: a.assignmentId, assets_id: a.spareAssetId }) },
+  { endpoint: "/api/projects/assets/setHidden.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_hidden: 1 }) },
+  { endpoint: "/api/projects/assets/setHidden.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_excludedFromTotals: 1 }) },
   // Quote layout
   ...([
     ["newSection", (a: Tenant) => ({ projects_id: a.projectId, projectsQuoteSections_name: "Section by e2e" })],

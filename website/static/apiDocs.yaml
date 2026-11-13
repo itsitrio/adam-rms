@@ -925,6 +925,12 @@ paths:
               assets_storageLocation:
                 description: undefined
                 type: string
+              assets_unserialized:
+                description: 'Whether the asset is unserialized - held as a quantity of interchangeable units rather than as a single tracked item'
+                type: boolean
+              assets_quantity:
+                description: 'Number of units held, for unserialized assets. Cannot be lower than the number of units already assigned to a current project'
+                type: integer
             type: object
       responses:
         '200':
@@ -1289,6 +1295,12 @@ paths:
               assets_assetGroups:
                 description: undefined
                 type: string
+              assets_unserialized:
+                description: 'Whether the asset is unserialized - held as a quantity of interchangeable units rather than as a single tracked item'
+                type: boolean
+              assets_quantity:
+                description: 'Number of units held, for unserialized assets. Ignored (and stored as 1) for serialized assets'
+                type: integer
               asset_definableFields_1:
                 description: undefined
                 type: string
@@ -1459,7 +1471,7 @@ paths:
           description: 'whether to include asset barcodes'
           required: 'false'
           schema:
-            type: boolean
+            type: string
       responses:
         '200':
           description: Success
@@ -5300,6 +5312,13 @@ paths:
           required: 'false'
           schema:
             type: number
+        -
+          name: assetsAssignments_quantity
+          in: query
+          description: 'Number of units to assign, for unserialized assets. Only valid alongside assets_id, and defaults to 1'
+          required: 'false'
+          schema:
+            type: number
       responses:
         '200':
           description: Success
@@ -5377,6 +5396,54 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/assets/setHidden.php:
+    post:
+      tags:
+        - project_assets
+      summary: 'Hide Assets from Quotes or Leave Them Out of Totals'
+      description: "Hide asset assignments from a project's quotes and invoices (they still show on delivery notes), and/or leave them out of the project's totals so they aren't charged for\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES to hide, and PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE to leave out of totals\n"
+      operationId: setAssetAssignmentHidden
+      parameters:
+        -
+          name: assetsAssignments
+          in: query
+          description: 'Assignment IDs, all on the same project'
+          required: 'true'
+          schema:
+            type: array
+            items:
+              type: number
+        -
+          name: assetsAssignments_hidden
+          in: query
+          description: '1 to leave them off quotes and invoices, 0 to show them'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: assetsAssignments_excludedFromTotals
+          in: query
+          description: "1 to leave them out of the project's totals, 0 to charge for them"
+          required: 'false'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'An Array containing objects of the error', type: array, items: { type: object } }
+                type: object
   /projects/assets/setPrice.php:
     post:
       tags:
@@ -5396,6 +5463,39 @@ paths:
           name: assetsAssignments_customPrice
           in: query
           description: Price
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/assets/setQuantity.php:
+    post:
+      tags:
+        - project_assets
+      summary: 'Set Asset Assignment Quantity'
+      description: "Changes how many units of an unserialized asset an assignment takes  \nRequires Instance Permission PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN\n"
+      operationId: setAssetAssignmentQuantity
+      parameters:
+        -
+          name: assetsAssignments_id
+          in: query
+          description: 'Asset Assignment ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: assetsAssignments_quantity
+          in: query
+          description: 'Number of units the assignment should take'
           required: 'true'
           schema:
             type: number
@@ -6771,6 +6871,288 @@ paths:
           name: text
           in: query
           description: 'Comment Text'
+          required: 'true'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/quote/allocate.php:
+    post:
+      tags:
+        - project_quote
+      summary: 'Place Assets in Quote Sections'
+      description: "Place asset assignments under a project's quote sections, or split one assignment's units between several\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: allocateQuoteSection
+      parameters:
+        -
+          name: assetsAssignments
+          in: query
+          description: 'Asset Assignment IDs to place all the units of'
+          required: 'false'
+          schema:
+            type: array
+            items:
+              type: number
+        -
+          name: projectsQuoteSections_id
+          in: query
+          description: 'Section to place them in, or -1 to show them under their asset category'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: assetsAssignments_id
+          in: query
+          description: 'Asset Assignment ID to split between sections'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: allocations
+          in: query
+          description: 'Number of units to show in each section, keyed by section ID'
+          required: 'false'
+          schema:
+            type: object
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/quote/deleteLine.php:
+    post:
+      tags:
+        - project_quote
+      summary: 'Delete Quote Note Line'
+      description: "Remove a note line from a project's quote\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: deleteQuoteLine
+      parameters:
+        -
+          name: projectsQuoteLines_id
+          in: query
+          description: 'Quote Note Line ID'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/quote/deleteSection.php:
+    post:
+      tags:
+        - project_quote
+      summary: 'Delete Quote Section'
+      description: "Remove a quote section. Its assets go back under their asset categories, and its note lines to the end of the quote\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: deleteQuoteSection
+      parameters:
+        -
+          name: projectsQuoteSections_id
+          in: query
+          description: 'Quote Section ID'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/quote/editLine.php:
+    post:
+      tags:
+        - project_quote
+      summary: 'Edit Quote Note Line'
+      description: "Change a quote note line's text, section, quantity or price. Only the fields given are changed\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: editQuoteLine
+      parameters:
+        -
+          name: projectsQuoteLines_id
+          in: query
+          description: 'Quote Note Line ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: projectsQuoteLines_text
+          in: query
+          description: 'Text of the line'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: projectsQuoteSections_id
+          in: query
+          description: 'Section to show the line in, or -1 to show it at the end of the quote'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: projectsQuoteLines_quantity
+          in: query
+          description: Quantity
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: projectsQuoteLines_price
+          in: query
+          description: 'Price of one unit as a decimal (e.g. 12.50)'
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/quote/editSection.php:
+    post:
+      tags:
+        - project_quote
+      summary: 'Edit Quote Section'
+      description: "Rename a quote section, or move it up or down the quote\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: editQuoteSection
+      parameters:
+        -
+          name: projectsQuoteSections_id
+          in: query
+          description: 'Quote Section ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: projectsQuoteSections_name
+          in: query
+          description: 'New heading'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: move
+          in: query
+          description: 'up or down'
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/quote/newLine.php:
+    post:
+      tags:
+        - project_quote
+      summary: 'New Quote Note Line'
+      description: "Add a note line to a project's quote. A line can carry a price, which is added to the project's equipment total\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: newQuoteLine
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: projectsQuoteLines_text
+          in: query
+          description: 'Text of the line'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: projectsQuoteSections_id
+          in: query
+          description: 'Section to show the line in - leave out to show it at the end of the quote'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: projectsQuoteLines_quantity
+          in: query
+          description: 'Quantity, defaults to 1'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: projectsQuoteLines_price
+          in: query
+          description: 'Price of one unit as a decimal (e.g. 12.50), defaults to 0'
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/quote/newSection.php:
+    post:
+      tags:
+        - project_quote
+      summary: 'New Quote Section'
+      description: "Add a custom heading to a project's quote, which assets and note lines can be placed under\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: newQuoteSection
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: projectsQuoteSections_name
+          in: query
+          description: 'Heading shown on the quote'
           required: 'true'
           schema:
             type: string
