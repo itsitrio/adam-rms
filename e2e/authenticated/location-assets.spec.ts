@@ -14,3 +14,9 @@ test("the location list links to assets stored at that location", async ({ asA, 
     dbQuery("UPDATE assets SET assets_storageLocation = NULL WHERE assets_id = ?", [a.assetId]);
   }
 });
+
+test("another business's location can't be used to filter the asset list", async ({ asA, tenants: { b } }) => {
+  const assets = await asA.page(`/assets.php?location=${b.locationId}`);
+  expect(assets.body).not.toContain(`${b.marker} location`);
+  expect(assets.body).not.toContain("Assets stored at");
+});
