@@ -26,10 +26,23 @@ The Basic Settings page includes the following information:
   - Website
 - Business Logo
 - Email Header
+- Mass unit - whether masses are shown and entered in kilograms or pounds
 - Invoice Footer - Note on the bottom of all generated invoices
+- Generated Documents - see [below](#generated-documents)
 - Cable length colours - assign a colour to each length for ease of identification
 - Asset Statuses - used for asset dispatch
 - Calendar Settings - configure how calendars are displayed across the dashboard
+
+## Generated Documents
+---
+The Invoices settings page also controls how quotes, invoices and delivery notes are generated:
+
+- **Page Size** - A4 or US Letter.
+- **What each document is called** - for example, a delivery note can be called a "Manifest", or a quotation an "Estimate". The name is used on the PDF and on the buttons that create it.
+- **Page header and footer text** - the text at the top left (your business's name by default) and bottom right of each page, and whether they are shown on the first page too.
+- **Delivery Note Footer** - text for the end of a delivery note, such as a line for whoever receives the equipment to sign.
+
+To choose which options are ticked to start with when generating each type of document, set them when creating one from a project and click **Save these options as the default**. Defaults are saved separately for quotes, invoices and delivery notes, and apply to everyone in the business.
 
 ## Calendar Settings
 ---

@@ -222,7 +222,19 @@ $TWIG->addFunction(new \Twig\TwigFunction('moneySymbol', function ($currency = f
     return $symbol;
 }));
 $TWIG->addFilter(new \Twig\TwigFilter('mass', function ($variable) {
-    return number_format((float)$variable, 2, '.', '') . "kg";
+    return formatMass($variable);
+}));
+$TWIG->addFilter(new \Twig\TwigFilter('massValue', function ($variable) {
+    return massValue($variable);
+}));
+$TWIG->addFunction(new \Twig\TwigFunction('massUnit', function () {
+    return massUnit();
+}));
+$TWIG->addFunction(new \Twig\TwigFunction('documentName', function ($type, $fallback) {
+    return documentName($type, $fallback);
+}));
+$TWIG->addFunction(new \Twig\TwigFunction('documentSettings', function () {
+    return documentSettings();
 }));
 $TWIG->addFilter(new \Twig\TwigFilter('nbsp', function ($string) {
     return str_replace(" ","&nbsp;", $string);

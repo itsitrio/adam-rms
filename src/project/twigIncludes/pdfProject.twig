@@ -3,7 +3,7 @@
     {
         image: "{{ INSTANCELOGO|escape("js") }}",
         width: 200,
-        margin: [157, 0, 0, 20]
+        margin: [{{ DOCUMENTS.pageSize == 'LETTER' ? 166 : 157 }}, 0, 0, 20]
     },
     {% endif %}
     {
@@ -55,7 +55,7 @@
     {% endif %}
     " ",
     { text: "{{ project.projects_name|escape("js") }}", style: { bold: true, fontSize: 25 } },
-    { text: "{{ GET['fileType']}}", style: { fontSize: 16 } },
+    { text: "{{ GET['fileType']|escape("js") }}", style: { fontSize: 16 } },
     {
         table: {
             widths: [ "50%", "50%"],
@@ -109,7 +109,7 @@
         "{{ project.projects_invoiceNotes|escape("js") }}",
     {% endif %}
     {% if project.projects_deliveryNotes|length > 0 and GET['type'] == 'deliveryNote' %}
-        { text: "Delivery Notes", style: { fontSize: 20, bold: true }, margin: [ 0, 20, 0, 0 ] },
+        { text: "{{ (DOCUMENTS.names.deliveryNote != "" ? DOCUMENTS.names.deliveryNote ~ " Notes" : "Delivery Notes")|escape("js") }}", style: { fontSize: 20, bold: true }, margin: [ 0, 20, 0, 0 ] },
         "{{ project.projects_deliveryNotes|escape("js") }}",
     {% endif %}
     {% if GET['assets'] and project.projectsTypes_config_assets == 1 %}
@@ -501,6 +501,19 @@
             ],
         },
         layout: 'noBorders',
+    },
+    {% endif %}
+    {% if GET['paymentTerms'] and GET['type'] == 'deliveryNote' and DOCUMENTS.deliveryNoteFooter != "" %}
+    {
+        table: {
+            widths: [ "100%"],
+            body: [[
+                { text: "{{ DOCUMENTS.deliveryNoteFooter|escape("js") }}", margin: 5 }
+            ]],
+        },
+        fillColor: '#F5F5F5',
+        layout: 'noBorders',
+        margin: [ 0, 10, 0, 0 ]
     },
     {% endif %}
     {% if GET['paymentTerms'] and GET['type'] != 'deliveryNote'  %}

@@ -98,7 +98,7 @@ function tenant(string $letter): array {
     $t['instanceId'] = $instance = upsert("instances", "instances_id", ["instances_name" => "$marker Ltd"], [
         "instances_deleted" => 0, "instances_suspended" => 0, "instances_suspendedReason" => null, "instances_suspendedReasonType" => null,
         "instances_address" => "$marker address", "instances_email" => "e2e-tenant-$lower@example.com",
-        "instances_config_currency" => "GBP", "instances_storageLimit" => 0, "instances_storageEnabled" => 1,
+        "instances_config_currency" => "GBP", "instances_config_massUnit" => "kg", "instances_config_documents" => null, "instances_storageLimit" => 0, "instances_storageEnabled" => 1,
         "instances_assetLimit" => 0, "instances_userLimit" => 0, "instances_projectLimit" => 0, "instances_planName" => "",
         "instances_calendarConfig" => '{"showProjectStatus":true,"showSubProjects":true,"useCustomWeekNumbers":true,"defaultView":"dayGridMonth"}',
         "instances_calendarHash" => "e2e-calendar-hash-$lower", "instances_publicConfig" => null, "instances_trustedDomains" => null,

@@ -64,7 +64,7 @@ function apiMoney($variable) {
     return $moneyFormatter->format($variable);
 }
 function apiMass($variable) {
-    return number_format((float)$variable, 2, '.', '') . "kg";
+    return formatMass($variable);
 }
 
 class assetAssignmentSelector

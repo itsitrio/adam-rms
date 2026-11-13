@@ -64,7 +64,7 @@
                         data                : [{% set total = 0.0 %}
                             {% for key,value in THISWIDGET.timeSeriesMass %}
                             {% set total = total + value %}
-                            {{ total }}
+                            {{ total|massValue }}
                             ,{% endfor %}],
                         yAxisID: "y-axis-mass",
                     },
@@ -112,7 +112,7 @@
                     },{
                         ticks : {
                             callback: function(value, index, values) {
-                                return value.toLocaleString() + "kg";
+                                return value.toLocaleString() + "{{ massUnit() }}";
                             },
                             fontColor: '#efefef',
                             beginAtZero: true,

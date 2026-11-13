@@ -5,7 +5,7 @@
 {
     image: "{{ INSTANCELOGO|escape("js") }}",
     width: 200,
-    margin: [157, 0, 0, 20]
+    margin: [{{ DOCUMENTS.pageSize == 'LETTER' ? 166 : 157 }}, 0, 0, 20]
 },
 {% endif %}
 {
@@ -34,7 +34,7 @@
 },
 " ",
 { text: "{{ project.projects_name|escape("js") }}", style: { bold: true, fontSize: 25 } },
-{ text: "{{ GET['fileType'] }} Summary", style: { fontSize: 16 } },
+{ text: "{{ GET['fileType']|escape("js") }} Summary", style: { fontSize: 16 } },
 {
     table: {
         headerRows: 1,
@@ -87,7 +87,7 @@
     margin: [ 0, 20, 0, 10 ]
 },
 {% if showMoney %}
-    { text: "Other covers sales, staffing and additional hires. Each project's {{ GET['fileType']|lower }} follows.", style: { fontSize: 9, italics: true } },
+    { text: "Other covers sales, staffing and additional hires. Each project's {{ GET['fileType']|lower|escape("js") }} follows.", style: { fontSize: 9, italics: true } },
 {% else %}
-    { text: "Each project's {{ GET['fileType']|lower }} follows.", style: { fontSize: 9, italics: true } },
+    { text: "Each project's {{ GET['fileType']|lower|escape("js") }} follows.", style: { fontSize: 9, italics: true } },
 {% endif %}

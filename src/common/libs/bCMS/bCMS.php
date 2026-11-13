@@ -541,3 +541,79 @@ class bCMS
     return true;
   }
 }
+
+/* UNITS & GENERATED DOCUMENTS - settings each business chooses, see instances/configuration/invoices.php */
+const KG_TO_LB = 2.20462262185;
+/**
+ * The unit the current business shows and enters masses in. They are always stored in kg.
+ */
+function massUnit()
+{
+  global $AUTH;
+  if (isset($AUTH) and $AUTH->login and $AUTH->data['instance'] and ($AUTH->data['instance']['instances_config_massUnit'] ?? 'kg') === 'lb') return 'lb';
+  return 'kg';
+}
+/**
+ * A mass in kg as a number in the business's unit
+ */
+function massValue($kg)
+{
+  if ($kg === null or $kg === '') return $kg;
+  if (massUnit() === 'lb') return round((float) $kg * KG_TO_LB, 3);
+  return $kg;
+}
+/**
+ * A mass in kg as text in the business's unit, such as 12.50kg or 27.56lb
+ */
+function formatMass($kg)
+{
+  $unit = massUnit();
+  return number_format((float) $kg * ($unit === 'lb' ? KG_TO_LB : 1), 2, '.', '') . $unit;
+}
+/**
+ * Forms that show masses in the business's unit send massUnit with them - turn what was typed back into kg.
+ * Requests without it (the app, the API) are in kg as they always were.
+ */
+function massFieldsToKg($array, $fields)
+{
+  if (($array['massUnit'] ?? null) !== 'lb') return $array;
+  foreach ($fields as $field) {
+    if (isset($array[$field]) and is_numeric($array[$field])) $array[$field] = round((float) $array[$field] / KG_TO_LB, 5);
+  }
+  return $array;
+}
+const DOCUMENT_TYPES = ["invoice", "quote", "deliveryNote"];
+//The tick boxes on the generate PDF form that a business can save defaults for
+const DOCUMENT_OPTIONS = ["instancelogo", "addresses", "pmdetails", "totalmass", "totalvalue", "venue", "invoiceNotes", "assets", "showAll", "flagsBlocks", "checkboxes", "comments", "masses", "finance", "prices", "discounts", "subHires", "sales", "staff", "paymentTerms"];
+/**
+ * A business's settings for generated documents, with anything it hasn't set (or that isn't valid) at its default
+ */
+function documentSettings($instance = null)
+{
+  global $AUTH;
+  if ($instance === null and isset($AUTH) and $AUTH->login and $AUTH->data['instance']) $instance = $AUTH->data['instance'];
+  $stored = json_decode(($instance ? ($instance['instances_config_documents'] ?? '') : '') ?: '[]', true);
+  if (!is_array($stored)) $stored = [];
+  $settings = ["pageSize" => "A4", "names" => [], "headerText" => "", "footerText" => "", "firstPage" => false, "deliveryNoteFooter" => "", "defaults" => []];
+  if (($stored['pageSize'] ?? null) === "LETTER") $settings['pageSize'] = "LETTER";
+  foreach (["headerText", "footerText", "deliveryNoteFooter"] as $key) {
+    if (isset($stored[$key]) and is_string($stored[$key])) $settings[$key] = $stored[$key];
+  }
+  $settings['firstPage'] = ($stored['firstPage'] ?? false) === true;
+  foreach (DOCUMENT_TYPES as $type) {
+    $settings['names'][$type] = (isset($stored['names'][$type]) and is_string($stored['names'][$type])) ? $stored['names'][$type] : "";
+    $settings['defaults'][$type] = [];
+    foreach (DOCUMENT_OPTIONS as $option) {
+      if (isset($stored['defaults'][$type][$option]) and is_bool($stored['defaults'][$type][$option])) $settings['defaults'][$type][$option] = $stored['defaults'][$type][$option];
+    }
+  }
+  return $settings;
+}
+/**
+ * What a business calls a type of document, or $fallback if it hasn't chosen a name
+ */
+function documentName($type, $fallback)
+{
+  $settings = documentSettings();
+  return (isset($settings['names'][$type]) and $settings['names'][$type] !== "") ? $settings['names'][$type] : $fallback;
+}

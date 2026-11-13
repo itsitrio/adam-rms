@@ -676,7 +676,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Project Delivery Notes</h4>
+                    <h4 class="modal-title">Project {{ documentName('deliveryNote', 'Delivery Note') }}s</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -694,7 +694,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Project Quotes</h4>
+                    <h4 class="modal-title">Project {{ documentName('quote', 'Quote') }}s</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -712,7 +712,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Project Invoices</h4>
+                    <h4 class="modal-title">Project {{ documentName('invoice', 'Invoice') }}s</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -833,10 +833,13 @@
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="paymentTerms" checked>
-                                    <label class="form-check-label">Invoice/Quotation Footer</label>
+                                    <label class="form-check-label">Footer Text</label>
                                 </div>
                             {% endif %}
                         </div>
+                        {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
+                            <button type="button" class="btn btn-link btn-sm p-0" id="pdfSaveDefaults">Save these options as the default</button>
+                        {% endif %}
                     </div>
                     <div class="modal-footer justify-content-between">
                         <button type="submit" name="draft" value="true" class="btn btn-default">Draft Printout</button>
@@ -847,11 +850,13 @@
         </div>
     </div>
     <script>
+        var pdfGenerateDefaults = {{ documentSettings().defaults|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_FORCE_OBJECT'))|raw }};
         $(document).ready(function () {
             $('#pdfGenerateModal').on('show.bs.modal', function (e) {
+                $("#pdfSaveDefaults").text("Save these options as the default");
                  $('#pdfGenerateModal input[name="subProjects"]').prop('checked', !!$(e.relatedTarget).data('subprojects'));
                  if ($(e.relatedTarget).data('delivery-note')){
-                    $("#pdfGenerateModal .modal-title").text("Create Delivery Note");
+                    $("#pdfGenerateModal .modal-title").text("Create {{ documentName('deliveryNote', 'Delivery Note')|escape("js") }}");
                     $('#pdfGenerateModal input[name="type"]').val("deliveryNote");
                     $('#pdfGenerateModal input[name="finance"]').prop('checked', false).parent().hide();
                     $('#pdfGenerateModal input[name="prices"]').prop('checked', false).parent().hide();
@@ -863,14 +868,33 @@
                     $('#pdfGenerateModal input[name="discounts"]').prop('checked', true).parent().show();
                     $('#pdfGenerateModal input[name="flagsBlocks"]').prop('checked', false).parent().show();
                     if ($(e.relatedTarget).data('quote')) {
-                        $("#pdfGenerateModal .modal-title").text("Create Quote");
+                        $("#pdfGenerateModal .modal-title").text("Create {{ documentName('quote', 'Quote')|escape("js") }}");
                         $('#pdfGenerateModal input[name="type"]').val("quote");
                     } else {
-                        $("#pdfGenerateModal .modal-title").text("Create Invoice");
+                        $("#pdfGenerateModal .modal-title").text("Create {{ documentName('invoice', 'Invoice')|escape("js") }}");
                         $('#pdfGenerateModal input[name="type"]').val("invoice");
                     }
                 }
+                //The business's saved defaults for this type of document - not for options this type doesn't offer
+                var type = $('#pdfGenerateModal input[name="type"]').val();
+                $.each(pdfGenerateDefaults[type] || {}, function (name, checked) {
+                    var input = $('#pdfGenerateModal input[type="checkbox"][name="' + name + '"]');
+                    if (input.length && !input.prop('disabled') && input.parent().css('display') != 'none') input.prop('checked', checked);
+                });
             });
+            {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
+            $("#pdfSaveDefaults").click(function () {
+                var type = $('#pdfGenerateModal input[name="type"]').val();
+                var defaults = {};
+                $('#pdfGenerateModal input[type="checkbox"]').each(function () {
+                    if ($(this).attr('name') != "subProjects" && !$(this).prop('disabled') && $(this).parent().css('display') != 'none') defaults[$(this).attr('name')] = $(this).prop('checked');
+                });
+                ajaxcall("instances/editInstanceDocuments.php", { "defaultsType": type, "defaults": defaults }, function () {
+                    pdfGenerateDefaults[type] = $.extend(pdfGenerateDefaults[type] || {}, defaults);
+                    $("#pdfSaveDefaults").text("Saved as the default");
+                }, false);
+            });
+            {% endif %}
             $("#assetAssignmentCheckboxAll").click(function () {
                 $(".assetAssignmentCheckbox").prop('checked', $(this).prop('checked'));
             });

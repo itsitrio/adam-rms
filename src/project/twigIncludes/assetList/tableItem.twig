@@ -7,7 +7,7 @@
         {{ type['totals']['status'] }}
     </td>
     <td>
-        {{ (type['totals']['mass'] > 0 ? type['totals']['mass'] ~ 'kg' : '') }}
+        {{ (type['totals']['mass'] > 0 ? type['totals']['mass']|mass : '') }}
     </td>
     {% if project.projectsTypes_config_finance == 1 %}
     <td>

@@ -214,7 +214,7 @@
                                             {# Because there's just one asset it might have a load of specific overrides so we had better show those #}
                                             {% if asset.tags[0]['assets_mass'] != 0 or asset.assetTypes_mass != 0 %}
                                             <li class="small">
-                                                <span class="fa-li"><i class="fas fa-weight"></i></span> {{ (asset.tags[0]['assets_mass'] ? asset.tags[0]['assets_mass']|number_format(2) : (asset.assetTypes_mass != "" and asset.assetTypes_mass != 0 ? asset.assetTypes_mass|mass : '?')) }}
+                                                <span class="fa-li"><i class="fas fa-weight"></i></span> {{ (asset.tags[0]['assets_mass'] ? asset.tags[0]['assets_mass']|mass : (asset.assetTypes_mass != "" and asset.assetTypes_mass != 0 ? asset.assetTypes_mass|mass : '?')) }}
                                             </li>
                                                 {% endif %}
                                             <li class="small">

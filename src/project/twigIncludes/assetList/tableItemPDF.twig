@@ -8,7 +8,7 @@
     },
     {% for i in range(2, GET['comments'] ? 3 : 2) %}{},{% endfor %}{# Quirk of pdfmake is that you have to follow any colspans that are followed by content with empty {} #}
     {% if GET['masses'] %}
-        '{{ (type['totals']['mass'] > 0 ? type['totals']['mass']|escape("js") ~ 'kg' : '') }}',
+        '{{ (type['totals']['mass'] > 0 ? type['totals']['mass']|mass|escape("js") : '') }}',
     {% endif %}
     {% if project.projectsTypes_config_finance == 1 %}
         {% if GET['prices'] %}

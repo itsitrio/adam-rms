@@ -49,6 +49,13 @@
                             <label>Website</label>
                             <input type="url" class="form-control" value="{{ USERDATA.instance.instances_website }}" name="instances_website" placeholder="https://">
                         </div>
+                        <div class="form-group">
+                            <label>Show and enter masses in</label>
+                            <select class="form-control" name="instances_config_massUnit">
+                                <option value="kg" {{ massUnit() == 'kg' ? 'selected' }}>Kilograms (kg)</option>
+                                <option value="lb" {{ massUnit() == 'lb' ? 'selected' }}>Pounds (lb)</option>
+                            </select>
+                        </div>
                 </div>
                 <div class="card-footer">
                     {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
