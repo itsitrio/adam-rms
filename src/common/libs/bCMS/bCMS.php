@@ -608,7 +608,7 @@ const DOCUMENT_LABELS = [
 ];
 //Free text settings and how long each can be. Those ending _ are one for each type of document
 const DOCUMENT_TEXTS = ["headerText" => 100, "footerText" => 100, "deliveryNoteFooter" => 5000];
-const DOCUMENT_TEXTS_BY_TYPE = ["names" => 50, "intro" => 2000, "signature" => 50, "reference" => 50, "cover" => 5000];
+const DOCUMENT_TEXTS_BY_TYPE = ["names" => 50, "intro" => 2000, "signature" => 50, "reference" => 50, "cover" => 30000];
 /**
  * Tick box defaults as stored, keeping only real options with true/false values
  */
