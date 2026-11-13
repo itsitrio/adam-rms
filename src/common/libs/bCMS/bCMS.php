@@ -762,7 +762,7 @@ function documentFormattedRuns($line)
 }
 /**
  * Text a business wrote with simple formatting, as pdfmake content. It understands a little Markdown - # headings
- * (to ###), **bold**, *italic*, lists (- or 1.), a rule (---) and blank lines between paragraphs - and swaps
+ * (to ###), **bold**, *italic*, lists (- or 1.), a rule (---), a new page (===) and blank lines between paragraphs - and swaps
  * {placeholders} for $values. Everything ends up as text in a JSON structure, so nothing typed can do more than that.
  */
 function documentFormattedText($text, $values = [], $width = 515, $colour = "#000000")
@@ -782,6 +782,10 @@ function documentFormattedText($text, $values = [], $width = 515, $colour = "#00
     if (preg_match('/^(#{1,3})\s+(.+)$/u', $line, $match)) {
       $flush();
       $nodes[] = ["text" => documentFormattedRuns($match[2]), "fontSize" => [1 => 28, 2 => 20, 3 => 15][strlen($match[1])], "bold" => true, "margin" => [0, 6, 0, 8]];
+    } elseif (preg_match('/^={3,}$/', $line)) {
+      //A new page
+      $flush();
+      $nodes[] = ["text" => "", "pageBreak" => "after"];
     } elseif (preg_match('/^(-{3,}|\*{3,})$/', $line)) {
       $flush();
       $nodes[] = ["canvas" => [["type" => "line", "x1" => 0, "y1" => 4, "x2" => $width, "y2" => 4, "lineWidth" => 1.5, "lineColor" => $colour]], "margin" => [0, 4, 0, 12]];
