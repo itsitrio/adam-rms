@@ -110,8 +110,8 @@
         layout: 'noBorders',
         margin: [ 0, 10, 0, 10 ]
     },
-    {% if DOCUMENTS.intro[documentType] != "" %}
-        { text: {{ DOCUMENTS.intro[documentType]|jsString }}, margin: [ 0, 0, 0, 10 ] },
+    {% if INTROTEXT|length > 0 %}
+        { stack: {{ INTROTEXT|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP'))|raw }}, margin: [ 0, 0, 0, 2 ] },
     {% endif %}
     {% if project.projects_invoiceNotes|length > 0 and GET['invoiceNotes'] %}
         { text: {{ DOCUMENTS.labels.notes|jsString }}, style: { fontSize: 20, bold: true } },
