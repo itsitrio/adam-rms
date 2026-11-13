@@ -39,6 +39,12 @@ $DBLIB->where('assets.assets_deleted', 0);
 $assetToSwap = $DBLIB->getone("assets", ["assets_id", "assets_quantity", "assets_dayRate", "assets_weekRate", "assets_value", "assets_mass"]);
 if (!$assetToSwap) finish(false);
 
+//An asset gets one assignment per project, so it can't be swapped onto a project that already has it
+$DBLIB->where("assetsAssignments.assets_id", $assetToSwap['assets_id']);
+$DBLIB->where("assetsAssignments.projects_id", $currentAsset['projects_id']);
+$DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
+if ($DBLIB->getValue("assetsAssignments", "count(*)") > 0) finish(false, ["message" => "That asset is already assigned to this project"]);
+
 //The replacement has to be able to cover every unit the assignment took
 $quantity = (intval($currentAsset['assetsAssignments_quantity']) > 0 ? intval($currentAsset['assetsAssignments_quantity']) : 1);
 $availability = assetAvailableQuantity($assetToSwap, $currentAsset["projects_dates_deliver_start"], $currentAsset["projects_dates_deliver_end"]);

@@ -62,13 +62,20 @@ if (isset($array['assets_quantity']) or isset($array['assets_unserialized'])) {
         $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
         $DBLIB->where("projects.projects_deleted", 0);
         $DBLIB->where("(projects.projects_dates_deliver_end IS NULL OR projects.projects_dates_deliver_end >= '" . date('Y-m-d H:i:s') . "')");
-        $assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity"]);
-        $committed = [];
+        $assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "projects.projects_dates_deliver_start", "projects.projects_dates_deliver_end"]);
+        //Projects on overlapping dates all need their units at once, so what has to stay in stock is the most
+        //committed at any one moment. That busiest moment is always the start of one of the bookings, so add up
+        //everything booked at each start (and everything on that booking's own project) and take the largest.
+        $committed = 0;
         foreach ($assignments as $assignment) {
-            if (!isset($committed[$assignment['projects_id']])) $committed[$assignment['projects_id']] = 0;
-            $committed[$assignment['projects_id']] += (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
+            $atOnce = 0;
+            foreach ($assignments as $other) {
+                $overlaps = ($assignment['projects_dates_deliver_start'] !== null and $other['projects_dates_deliver_start'] !== null and $other['projects_dates_deliver_end'] !== null and $other['projects_dates_deliver_start'] <= $assignment['projects_dates_deliver_start'] and $other['projects_dates_deliver_end'] >= $assignment['projects_dates_deliver_start']);
+                if ($overlaps or $other['projects_id'] == $assignment['projects_id']) $atOnce += (intval($other['assetsAssignments_quantity']) > 0 ? intval($other['assetsAssignments_quantity']) : 1);
+            }
+            $committed = max($committed, $atOnce);
         }
-        if (count($committed) > 0 and $array['assets_quantity'] < max($committed)) finish(false, ["code" => "PARAM-ERROR", "message" => "This asset already has " . max($committed) . " units assigned to a current project - remove them from that project before reducing the quantity held"]);
+        if ($array['assets_quantity'] < $committed) finish(false, ["code" => "PARAM-ERROR", "message" => "This asset has " . $committed . " units assigned to current projects at the same time - remove some of them before reducing the quantity held"]);
     }
 }
 if (isset($array['assets_linkedTo'])) {
