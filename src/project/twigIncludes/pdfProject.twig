@@ -101,6 +101,8 @@
                     style: { alignment: "right" },
                     margin: 10
                 },
+                {% else %}
+                { text: "" },{# So the box is still the width of the page #}
                 {% endif %}
             ]],
         },
@@ -108,8 +110,8 @@
         layout: 'noBorders',
         margin: [ 0, 10, 0, 10 ]
     },
-    {% if DOCUMENTS.intro[documentType] != "" %}
-        { text: {{ DOCUMENTS.intro[documentType]|jsString }}, margin: [ 0, 0, 0, 10 ] },
+    {% if INTROTEXT|length > 0 %}
+        { stack: {{ INTROTEXT|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP'))|raw }}, margin: [ 0, 0, 0, 2 ] },
     {% endif %}
     {% if project.projects_invoiceNotes|length > 0 and GET['invoiceNotes'] %}
         { text: {{ DOCUMENTS.labels.notes|jsString }}, style: { fontSize: 20, bold: true } },
@@ -512,25 +514,12 @@
         layout: 'noBorders',
     },
     {% endif %}
-    {% if GET['paymentTerms'] and GET['type'] == 'deliveryNote' and DOCUMENTS.deliveryNoteFooter != "" %}
+    {% if GET['paymentTerms'] and FOOTERTEXT|length > 0 %}
     {
         table: {
             widths: [ "100%"],
             body: [[
-                { text: "{{ DOCUMENTS.deliveryNoteFooter|escape("js") }}", margin: 5 }
-            ]],
-        },
-        fillColor: '#F5F5F5',
-        layout: 'noBorders',
-        margin: [ 0, 10, 0, 0 ]
-    },
-    {% endif %}
-    {% if GET['paymentTerms'] and GET['type'] != 'deliveryNote' and (GET['type'] == 'quote' ? USERDATA.instance.instances_quoteTerms : USERDATA.instance.instances_termsAndPayment)|striptags|trim != "" %}
-    {
-        table: {
-            widths: [ "100%"],
-            body: [[
-                { text: "{{ GET['type'] == 'quote' ? USERDATA.instance.instances_quoteTerms|striptags|escape("js") : USERDATA.instance.instances_termsAndPayment|replace({"</p>":"\n", "<br/>":"\n"})|striptags|escape("js") }}", margin: 5 }
+                { stack: {{ FOOTERTEXT|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP'))|raw }}, margin: 5 }
             ]],
         },
         fillColor: '#F5F5F5',

@@ -64,4 +64,21 @@ if ($PAGEDATA['PREVIEW'] and count($_POST) > 0) {
     }
 }
 
+//The business's own text for the cover page and the start of the document, with its formatting and placeholders
+$PAGEDATA['documentPlaceholders'] = [
+    "{project}" => $PAGEDATA['project']['projects_name'], "{client}" => (string) ($PAGEDATA['project']['clients_name'] ?? ""),
+    "{business}" => $AUTH->data['instance']['instances_name'], "{manager}" => (string) ($PAGEDATA['project']['projects_manager_name'] ?? ""),
+    "{managerEmail}" => (string) ($PAGEDATA['project']['projects_manager_email'] ?? ""), "{document}" => $PAGEDATA['GET']['fileType'],
+    "{date}" => date($PAGEDATA['DOCUMENTS']['dateFormat']), "{number}" => (string) $PAGEDATA['project']['projects_id'],
+    "{reference}" => strtr($PAGEDATA['DOCUMENTS']['reference'][$PAGEDATA['documentType']] ?: "v{version}", ["{project}" => $PAGEDATA['project']['projects_id'], "{version}" => $fileNumber]),
+];
+foreach (["cover" => "COVERTEXT", "intro" => "INTROTEXT"] as $setting => $key) {
+    $PAGEDATA[$key] = documentFormattedText($PAGEDATA['DOCUMENTS'][$setting][$PAGEDATA['documentType']], $PAGEDATA['documentPlaceholders'], $PAGEDATA['DOCUMENTS']['contentWidth'], $PAGEDATA['DOCUMENTS']['accentColour'] ?: "#000000");
+}
+//The footer for this type of document, formatted the same way. The quote and invoice footers are stored as cleaned HTML
+$footer = $PAGEDATA['DOCUMENTS']['deliveryNoteFooter'];
+if ($PAGEDATA['documentType'] == "quote") $footer = html_entity_decode(strip_tags((string) $AUTH->data['instance']['instances_quoteTerms']), ENT_QUOTES | ENT_HTML5);
+elseif ($PAGEDATA['documentType'] == "invoice") $footer = html_entity_decode(strip_tags(str_replace(["</p>", "<br/>"], "\n", (string) $AUTH->data['instance']['instances_termsAndPayment'])), ENT_QUOTES | ENT_HTML5);
+$PAGEDATA['FOOTERTEXT'] = documentFormattedText(trim($footer), $PAGEDATA['documentPlaceholders'], $PAGEDATA['DOCUMENTS']['contentWidth'] - 10, $PAGEDATA['DOCUMENTS']['accentColour'] ?: "#000000");
+
 echo $TWIG->render('project/pdf.twig', $PAGEDATA);

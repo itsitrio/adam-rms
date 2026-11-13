@@ -94,7 +94,7 @@ Requires Instance Permission BUSINESS:BUSINESS_SETTINGS:EDIT
  *     @OA\Parameter(
  *         name="intro_invoice",
  *         in="query",
- *         description="Text for the start of an invoice (also intro_quote and intro_deliveryNote). signature_ (the label of a signature line at the end, empty for none) and reference_ (the reference to print, where {project} is the project's number and {version} the document's version) work the same way",
+ *         description="Text for the start of an invoice (also intro_quote and intro_deliveryNote). cover_ (text for the cover page), signature_ (the label of a signature line at the end, empty for none) and reference_ (the reference to print, where {project} is the project's number and {version} the document's version) work the same way",
  *         required="false", 
  *         @OA\Schema(
  *             type="string"), 

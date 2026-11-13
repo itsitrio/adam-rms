@@ -48,6 +48,8 @@ For each type of document you can also set:
 - **What it is called** - for example, a delivery note can be called a "Manifest", or a quotation an "Estimate". The name is used on the PDF and on the buttons that create it.
 - **Reference** - what is printed as its reference. `{project}` is the project's number and `{version}` counts up each time the document is generated, so `INV-{project}-{version}` gives "INV-1042-2".
 - **Opening text** - a paragraph at the start of the document.
+- **Cover page text** - printed on the cover page, when one is asked for. Tick **Cover Page** when creating a document to start it with a page showing your logo, the project, who it was prepared for and by, the date and this text. Save that as a default to have one on every quote, say.
+  The cover page can instead show only your logo and your text, aligned as you choose. The cover page text, opening text and footers can be formatted: `# Heading`, `## Smaller heading`, `**bold**`, `*italic*`, `- list item`, `---` for a line, and an empty line between paragraphs. `{project}`, `{client}`, `{business}`, `{manager}`, `{managerEmail}`, `{document}`, `{date}`, `{number}` and `{reference}` are swapped for the project's details.
 - **Signature line** - a line to sign and date at the end, with the label you give it, such as "Accepted by".
 - **Footer** - the quotation and invoice footers, and one for delivery notes.
 

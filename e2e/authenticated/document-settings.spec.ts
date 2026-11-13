@@ -58,12 +58,12 @@ test("a business's documents use its names, page size, header and footer", async
   expect(manifest).toContain(jsEscaped("Footer by e2e"));
   expect(manifest).not.toContain("Generated\\u0020by\\u0020AdamRMS");
   expect(manifest).toContain("if (currentPage === 1 && !true) return null;");
-  expect(manifest).toContain(jsEscaped("Received by: ____"));
+  expect(manifest).toContain('"text":"Received by: ____"');
   expect(await document(asA, a, "quote")).toContain('text: "Estimate"');
   // Names that weren't set keep their default, and the delivery note's footer stays off other documents
   const invoice = await document(asA, a, "invoice");
   expect(invoice).toContain('text: "Invoice"');
-  expect(invoice).not.toContain(jsEscaped("Received by: ____"));
+  expect(invoice).not.toContain("Received by: ____");
 
   const project = (await asA.page(`/project/?id=${a.projectId}`)).body;
   expect(project).toContain("Create Manifest");
@@ -194,7 +194,7 @@ test("more of a document can be changed: wording, dates, references, logo, colou
   expect(quote).toContain(`"Q\\u002D${a.projectId}\\u002D1"`);
   expect(quote).toContain("fillColor: '#102030'");
   expect(quote).toContain("color: '#FFFFFF'");
-  expect(quote).toContain('"Thank you for asking."');
+  expect(quote).toContain('"text":"Thank you for asking."');
   expect(quote).toContain('"Accepted by:"');
   // The opening text, signature line and reference are the quote's alone
   const invoice = await document(asA, a, "invoice");
@@ -280,5 +280,54 @@ test("the copy that is downloaded is the copy that is stored", async ({ page, as
     expect(stored.includes(downloaded), "the upload holds the downloaded file, byte for byte").toBe(true);
   } finally {
     dbQuery("DELETE FROM config WHERE config_key = 'FILES_ENABLED'");
+  }
+});
+
+test("a document can start with a cover page", async ({ asA, tenants: { a } }) => {
+  await ok(asA.api("/api/instances/editInstanceDocuments.php", { cover_quote: "Cover text by e2e", firstPage: "true" }), "saving the cover text");
+  const url = `/project/projectInvoice.php?id=${a.projectId}&type=quote&assets=1`;
+  const without = (await asA.page(url)).body;
+  expect(without).not.toContain('"Prepared for"');
+  expect(without).not.toContain("Cover text by e2e");
+  expect(without).toContain("if (currentPage <= 0) return null;");
+
+  const withCover = (await asA.page(`${url}&coverPage=on`)).body;
+  expect(withCover).toContain('"Prepared for"');
+  expect(withCover).toContain('"text":"Cover text by e2e"');
+  // The cover comes before the rest, and has no page header or footer
+  expect(withCover.indexOf('"Prepared for"')).toBeLessThan(withCover.indexOf('"Our Reference:"'));
+  expect(withCover).toContain("if (currentPage <= 1) return null;");
+  // Its text is the quote's alone
+  expect((await asA.page(`/project/projectInvoice.php?id=${a.projectId}&type=invoice&coverPage=on`)).body).not.toContain("Cover text by e2e");
+});
+
+test("the cover page can be the business's own formatted text alone", async ({ asA, tenants: { a } }) => {
+  const text = ["# Welcome to {business}", "", "Quote for **{project}**, prepared for *{client}*.", "Second line </script>", "", "- One", "- Two", "", "---", "1. First"].join("\n");
+  await ok(asA.api("/api/instances/editInstanceDocuments.php", { cover_quote: text, coverLayout: "custom", coverAlign: "right" }), "saving the cover");
+  const body = (await asA.page(`/project/projectInvoice.php?id=${a.projectId}&type=quote&coverPage=on`)).body;
+  const stack = JSON.parse(body.match(/\{ stack: (\[.*\]), alignment: 'right' \},/)![1]);
+  expect(stack).toMatchObject([
+    { text: [{ text: `Welcome to ${a.marker} Ltd` }], fontSize: 28, bold: true },
+    { text: [{ text: "Quote for " }, { text: `${a.marker} project`, bold: true }, { text: ", prepared for " }, { text: `${a.marker} client`, italics: true }, { text: "." }, { text: "\n" }, { text: "Second line </script>" }] },
+    { ul: [{ text: [{ text: "One" }] }, { text: [{ text: "Two" }] }] },
+    { canvas: [{ type: "line" }] },
+    { ol: [{ text: [{ text: "First" }] }] },
+  ]);
+  // Nothing typed gets out of the text it is in, and the standard cover's own lines are gone
+  expect(body).not.toContain("Second line </script>");
+  expect(body).not.toContain('"Prepared for"');
+  expect((await asA.api("/api/instances/editInstanceDocuments.php", { coverLayout: "fancy" })).json).toMatchObject({ result: false });
+});
+
+test("footers are formatted too, and keep what was typed as text", async ({ asA, tenants: { a } }) => {
+  const terms = dbQuery<{ terms: string }>("SELECT instances_quoteTerms terms FROM instances WHERE instances_id = ?", [a.instanceId])[0].terms;
+  try {
+    await ok(asA.api("/api/instances/editInstance.php", { formData: formData({ instances_quoteTerms: "## Deposit Policy\nA **50%** deposit for {project} & <b>more</b>" }) }), "saving the footer");
+    const body = (await asA.page(`/project/projectInvoice.php?id=${a.projectId}&type=quote&paymentTerms=on`)).body;
+    expect(body).toContain('"text":[{"text":"Deposit Policy"}],"fontSize":20,"bold":true');
+    expect(body).toContain(`{"text":"A "},{"text":"50%","bold":true},{"text":" deposit for ${a.marker} project \\u0026 more"}`);
+    expect((await asA.page(`/project/projectInvoice.php?id=${a.projectId}&type=quote`)).body).not.toContain("Deposit Policy");
+  } finally {
+    dbQuery("UPDATE instances SET instances_quoteTerms = ? WHERE instances_id = ?", [terms, a.instanceId]);
   }
 });

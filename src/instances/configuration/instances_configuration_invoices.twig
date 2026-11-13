@@ -166,7 +166,7 @@
                                     {% endfor %}
                                 </tr>
                                 <tr>
-                                    <td>Opening text</td>
+                                    <td>Opening text <i class="fas fa-info-circle" title="Can be formatted in the same way as the cover page text."></i></td>
                                     {% for type, name in types %}
                                         <td><textarea class="form-control form-control-sm" name="intro_{{ type }}" rows="3" maxlength="2000">{{ stored.intro[type] }}</textarea></td>
                                     {% endfor %}
@@ -177,13 +177,41 @@
                                     <td><input type="text" class="form-control form-control-sm" name="signature_quote" maxlength="50" value="{{ stored.signature.quote }}" placeholder="e.g. Accepted by"></td>
                                     <td><input type="text" class="form-control form-control-sm" name="signature_deliveryNote" maxlength="50" value="{{ stored.signature.deliveryNote }}" placeholder="e.g. Received by"></td>
                                 </tr>
+                                <tr>
+                                    <td>Cover page text <i class="fas fa-info-circle" title="Printed on the cover page, when one is ticked while generating the document."></i></td>
+                                    {% for type, name in types %}
+                                        <td><textarea class="form-control form-control-sm" name="cover_{{ type }}" rows="8" maxlength="5000">{{ stored.cover[type] }}</textarea></td>
+                                    {% endfor %}
+                                </tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>Cover page shows</label>
+                            <select class="form-control" name="coverLayout">
+                                <option value="standard" {{ documents.coverLayout == 'standard' ? 'selected' }}>The project, who it is for, then my text</option>
+                                <option value="custom" {{ documents.coverLayout == 'custom' ? 'selected' }}>Only my logo and my text</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Cover page text is</label>
+                            <select class="form-control" name="coverAlign">
+                                <option value="left" {{ documents.coverAlign == 'left' ? 'selected' }}>Left aligned</option>
+                                <option value="center" {{ documents.coverAlign == 'center' ? 'selected' }}>Centred</option>
+                                <option value="right" {{ documents.coverAlign == 'right' ? 'selected' }}>Right aligned</option>
+                                <option value="justify" {{ documents.coverAlign == 'justify' ? 'selected' }}>Justified</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="callout callout-info small">
+                        <b>Formatting the cover page, opening text and footers:</b> <code># Heading</code>, <code>## Smaller heading</code>, <code>**bold**</code>, <code>*italic*</code>, <code>- list item</code>, <code>---</code> for a line, and an empty line between paragraphs.<br/>
+                        These are swapped for the project's details: <code>{project}</code> <code>{client}</code> <code>{business}</code> <code>{manager}</code> <code>{managerEmail}</code> <code>{document}</code> <code>{date}</code> <code>{number}</code> <code>{reference}</code>
                     </div>
                     <div class="form-group">
                         <label>Delivery note footer</label>
                         <textarea class="form-control" name="deliveryNoteFooter" rows="3" maxlength="5000">{{ documents.deliveryNoteFooter }}</textarea>
-                        <small class="form-text text-muted">The footers for quotes and invoices are above.</small>
+                        <small class="form-text text-muted">The footers for quotes and invoices are above. Footers run on to further pages when they are long.</small>
                     </div>
                     <hr/>
                     <h5><a data-toggle="collapse" href="#documentLabels">Wording <i class="fas fa-caret-down"></i></a></h5>
@@ -213,7 +241,11 @@
             <div class="card-header">
                 <h3 class="card-title">Preview</h3>
                 {% if previewProject %}
-                <div class="card-tools">
+                <div class="card-tools form-inline">
+                    <div class="form-check mr-3">
+                        <input class="form-check-input" type="checkbox" id="documentPreviewCover">
+                        <label class="form-check-label" for="documentPreviewCover">Cover page</label>
+                    </div>
                     <select class="form-control form-control-sm" id="documentPreviewType">
                         <option value="quote">Quote</option>
                         <option value="invoice">Invoice</option>
@@ -262,6 +294,7 @@
                 var type = $("#documentPreviewType").val();
                 var options = $.extend({}, previewOptions, previewDefaults[type]);
                 if (type == "deliveryNote") options = $.extend(options, { finance: false, prices: false, discounts: false });
+                options.coverPage = $("#documentPreviewCover").prop("checked");
                 var query = "id={{ previewProject.projects_id }}&type=" + type + "&preview=1";
                 $.each(options, function (name, on) { if (on) query += "&" + name + "=on"; });
                 var form = $("#documentPreviewForm").empty().attr("action", "{{ CONFIG.ROOTURL }}/project/projectInvoice.php?" + query);
@@ -274,7 +307,13 @@
             }, 500);
         }
         $("#documentSettings").on("change input", "input, select, textarea", documentPreviewRefresh);
-        $("#documentPreviewType").on("change", documentPreviewRefresh);
+        $("#documentPreviewType, #documentPreviewCover").on("change", documentPreviewRefresh);
+        //Show the cover page while its text is being written
+        $('#documentSettings textarea[name^="cover_"]').on("focus", function () {
+            $("#documentPreviewType").val($(this).attr("name").replace("cover_", ""));
+            $("#documentPreviewCover").prop("checked", true);
+            documentPreviewRefresh();
+        });
         documentPreviewRefresh();
         {% endif %}
     });

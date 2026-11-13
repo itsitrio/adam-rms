@@ -594,7 +594,7 @@ function moneyLocale($currency = null)
 }
 const DOCUMENT_TYPES = ["invoice", "quote", "deliveryNote"];
 //The tick boxes on the generate PDF form that defaults can be saved for
-const DOCUMENT_OPTIONS = ["instancelogo", "addresses", "pmdetails", "totalmass", "totalvalue", "venue", "invoiceNotes", "assets", "showAll", "flagsBlocks", "checkboxes", "comments", "masses", "finance", "prices", "discounts", "subHires", "sales", "staff", "paymentTerms"];
+const DOCUMENT_OPTIONS = ["instancelogo", "addresses", "pmdetails", "totalmass", "totalvalue", "venue", "invoiceNotes", "assets", "showAll", "flagsBlocks", "checkboxes", "comments", "masses", "finance", "prices", "discounts", "subHires", "sales", "staff", "paymentTerms", "coverPage"];
 const DOCUMENT_DATE_FORMATS = ["j M Y", "M j, Y", "d/m/Y", "m/d/Y", "Y-m-d"];
 const DOCUMENT_TIME_FORMATS = ["h:ia", "g:i A", "H:i"];
 const DOCUMENT_LOGO_WIDTHS = ["small" => 120, "medium" => 200, "large" => 300];
@@ -604,11 +604,11 @@ const DOCUMENT_LABELS = [
   "massEstimate" => "Mass Estimate", "valueEstimate" => "Value Estimate", "venue" => "Venue", "notes" => "Notes",
   "equipment" => "Equipment", "item" => "Item", "mass" => "Mass", "price" => "Price", "discount" => "Disc", "otherItems" => "Other Items",
   "totalItems" => "Total Items", "additionalHires" => "Additional Hire Items", "sales" => "Sales", "staff" => "Staff", "summary" => "Summary",
-  "grandTotal" => "Grand Total", "grandTotalOutstanding" => "Grand Total Outstanding", "signature" => "Signature", "date" => "Date",
+  "grandTotal" => "Grand Total", "grandTotalOutstanding" => "Grand Total Outstanding", "signature" => "Signature", "date" => "Date", "preparedFor" => "Prepared for", "preparedBy" => "Prepared by",
 ];
 //Free text settings and how long each can be. Those ending _ are one for each type of document
 const DOCUMENT_TEXTS = ["headerText" => 100, "footerText" => 100, "deliveryNoteFooter" => 5000];
-const DOCUMENT_TEXTS_BY_TYPE = ["names" => 50, "intro" => 2000, "signature" => 50, "reference" => 50];
+const DOCUMENT_TEXTS_BY_TYPE = ["names" => 50, "intro" => 2000, "signature" => 50, "reference" => 50, "cover" => 5000];
 /**
  * Tick box defaults as stored, keeping only real options with true/false values
  */
@@ -643,8 +643,8 @@ function documentDefaultsFromInput($defaults, $input)
 function documentSettingsNormalise($stored)
 {
   if (!is_array($stored)) $stored = [];
-  $settings = ["pageSize" => "A4", "firstPage" => ($stored['firstPage'] ?? false) === true, "logoAlign" => "center", "logoSize" => "medium", "accentColour" => "", "dateFormat" => DOCUMENT_DATE_FORMATS[0], "timeFormat" => DOCUMENT_TIME_FORMATS[0]];
-  foreach (["pageSize" => ["A4", "LETTER"], "logoAlign" => ["left", "center", "right"], "logoSize" => array_keys(DOCUMENT_LOGO_WIDTHS), "dateFormat" => DOCUMENT_DATE_FORMATS, "timeFormat" => DOCUMENT_TIME_FORMATS] as $key => $allowed) {
+  $settings = ["pageSize" => "A4", "firstPage" => ($stored['firstPage'] ?? false) === true, "logoAlign" => "center", "logoSize" => "medium", "coverLayout" => "standard", "coverAlign" => "center", "accentColour" => "", "dateFormat" => DOCUMENT_DATE_FORMATS[0], "timeFormat" => DOCUMENT_TIME_FORMATS[0]];
+  foreach (["pageSize" => ["A4", "LETTER"], "logoAlign" => ["left", "center", "right"], "logoSize" => array_keys(DOCUMENT_LOGO_WIDTHS), "coverLayout" => ["standard", "custom"], "coverAlign" => ["left", "center", "right", "justify"], "dateFormat" => DOCUMENT_DATE_FORMATS, "timeFormat" => DOCUMENT_TIME_FORMATS] as $key => $allowed) {
     if (isset($stored[$key]) and in_array($stored[$key], $allowed, true)) $settings[$key] = $stored[$key];
   }
   if (isset($stored['accentColour']) and is_string($stored['accentColour']) and preg_match('/^#[0-9a-fA-F]{6}$/', $stored['accentColour'])) $settings['accentColour'] = $stored['accentColour'];
@@ -672,7 +672,7 @@ function documentSettingsFromInput($settings, $input)
     if (!isset($input[$key]) or !is_string($input[$key])) return null;
     return mb_substr(trim($input[$key]), 0, $limit);
   };
-  foreach (["pageSize" => "Page size", "logoAlign" => "Logo position", "logoSize" => "Logo size", "dateFormat" => "Date format", "timeFormat" => "Time format", "accentColour" => "Colour"] as $key => $name) {
+  foreach (["pageSize" => "Page size", "logoAlign" => "Logo position", "logoSize" => "Logo size", "coverLayout" => "Cover page layout", "coverAlign" => "Cover page alignment", "dateFormat" => "Date format", "timeFormat" => "Time format", "accentColour" => "Colour"] as $key => $name) {
     if (!isset($input[$key])) continue;
     $attempt = documentSettingsNormalise([$key => $input[$key]]);
     if ($attempt[$key] !== $input[$key]) return $name . " not recognised";
@@ -745,4 +745,59 @@ function documentName($type, $fallback)
 {
   $settings = documentSettingsStored();
   return (isset($settings['names'][$type]) and $settings['names'][$type] !== "") ? $settings['names'][$type] : $fallback;
+}
+/**
+ * One line of formatted text as pdfmake text runs: **bold**, *italic* (or _italic_) and ***both***
+ */
+function documentFormattedRuns($line)
+{
+  $runs = [];
+  foreach (preg_split('/(\*\*\*.+?\*\*\*|\*\*.+?\*\*|\*[^*\s](?:.*?[^*\s])?\*|(?<![\w])_[^_\s](?:.*?[^_\s])?_(?![\w]))/u', $line, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) as $part) {
+    if (preg_match('/^\*\*\*(.+)\*\*\*$/us', $part, $match)) $runs[] = ["text" => $match[1], "bold" => true, "italics" => true];
+    elseif (preg_match('/^\*\*(.+)\*\*$/us', $part, $match)) $runs[] = ["text" => $match[1], "bold" => true];
+    elseif (preg_match('/^[*_](.+)[*_]$/us', $part, $match) and strlen($part) > 2) $runs[] = ["text" => $match[1], "italics" => true];
+    else $runs[] = ["text" => $part];
+  }
+  return $runs;
+}
+/**
+ * Text a business wrote with simple formatting, as pdfmake content. It understands a little Markdown - # headings
+ * (to ###), **bold**, *italic*, lists (- or 1.), a rule (---) and blank lines between paragraphs - and swaps
+ * {placeholders} for $values. Everything ends up as text in a JSON structure, so nothing typed can do more than that.
+ */
+function documentFormattedText($text, $values = [], $width = 515, $colour = "#000000")
+{
+  $text = strtr(str_replace("\r", "", (string) $text), $values);
+  $nodes = [];
+  $paragraph = [];
+  $list = null;
+  $flush = function () use (&$nodes, &$paragraph, &$list) {
+    if (count($paragraph) > 0) $nodes[] = ["text" => $paragraph, "margin" => [0, 0, 0, 8]];
+    if ($list !== null) $nodes[] = [$list['type'] => $list['items'], "margin" => [0, 0, 0, 8]];
+    $paragraph = [];
+    $list = null;
+  };
+  foreach (explode("\n", $text) as $line) {
+    $line = rtrim($line);
+    if (preg_match('/^(#{1,3})\s+(.+)$/u', $line, $match)) {
+      $flush();
+      $nodes[] = ["text" => documentFormattedRuns($match[2]), "fontSize" => [1 => 28, 2 => 20, 3 => 15][strlen($match[1])], "bold" => true, "margin" => [0, 6, 0, 8]];
+    } elseif (preg_match('/^(-{3,}|\*{3,})$/', $line)) {
+      $flush();
+      $nodes[] = ["canvas" => [["type" => "line", "x1" => 0, "y1" => 4, "x2" => $width, "y2" => 4, "lineWidth" => 1.5, "lineColor" => $colour]], "margin" => [0, 4, 0, 12]];
+    } elseif (preg_match('/^\s*(?:([-*])|(\d+)[.)])\s+(.+)$/u', $line, $match)) {
+      $type = $match[1] !== "" ? "ul" : "ol";
+      if (count($paragraph) > 0 or ($list !== null and $list['type'] != $type)) $flush();
+      if ($list === null) $list = ["type" => $type, "items" => []];
+      $list['items'][] = ["text" => documentFormattedRuns($match[3])];
+    } elseif (trim($line) === "") {
+      $flush();
+    } else {
+      if ($list !== null) $flush();
+      if (count($paragraph) > 0) $paragraph[] = ["text" => "\n"];
+      $paragraph = array_merge($paragraph, documentFormattedRuns($line));
+    }
+  }
+  $flush();
+  return $nodes;
 }
