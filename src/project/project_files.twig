@@ -75,7 +75,7 @@
 	<div class="col-sm-12 col-md-12 {% if project.projectsTypes_config_files == 1 or project.projectsTypes_config_notes == 1 %}col-lg-6{% else %}col-lg-12{% endif %}">
 		<div class="card">
 			<div class="card-header">
-				<h3 class="card-title">Invoices</h3>
+				<h3 class="card-title">{{ documentName('invoice', 'Invoice') }}s</h3>
 				{% if invoices %}
 					<div class="card-tools">
 						<a data-toggle="modal" data-target="#projectInvoicesModal" type="button" class="btn btn-tool">
@@ -109,14 +109,14 @@
 			<div class="card-footer">
 				<div class="btn-group float-right">
 					<button type="button" class="btn btn-default" data-toggle="modal" data-target="#pdfGenerateModal">
-						Create Invoice
+						Create {{ documentName('invoice', 'Invoice') }}
 					</button>
 				</div>
 			</div>
 		</div>
 		<div class="card">
 			<div class="card-header">
-				<h3 class="card-title">Quotes</h3>
+				<h3 class="card-title">{{ documentName('quote', 'Quote') }}s</h3>
 				{% if quotes %}
 					<div class="card-tools">
 						<a data-toggle="modal" data-target="#projectQuotesModal" type="button" class="btn btn-tool">
@@ -150,14 +150,14 @@
 			<div class="card-footer">
 				<div class="btn-group float-right">
 					<button type="button" class="btn btn-default" data-toggle="modal" data-target="#pdfGenerateModal" data-quote="true">
-						Create Quote
+						Create {{ documentName('quote', 'Quote') }}
 					</button>
 				</div>
 			</div>
 		</div>
         <div class="card">
 			<div class="card-header">
-				<h3 class="card-title">Delivery Notes</h3>
+				<h3 class="card-title">{{ documentName('deliveryNote', 'Delivery Note') }}s</h3>
 				{% if deliveryNotes %}
 					<div class="card-tools">
 						<a data-toggle="modal" data-target="#projectDeliveryNotesModal" type="button" class="btn btn-tool">
@@ -191,7 +191,7 @@
 			<div class="card-footer">
 				<div class="btn-group float-right">
 					<button type="button" class="btn btn-default" data-toggle="modal" data-target="#pdfGenerateModal" data-delivery-note="true">
-						Create Delivery Note
+						Create {{ documentName('deliveryNote', 'Delivery Note') }}
 					</button>
 				</div>
 			</div>

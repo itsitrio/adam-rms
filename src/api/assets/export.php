@@ -18,7 +18,7 @@ use Money\Currencies\ISOCurrencies;
 use Money\Formatter\IntlMoneyFormatter;
 
 $currencies = new ISOCurrencies();
-$numberFormatter = new NumberFormatter('en_GB', NumberFormatter::CURRENCY);
+$numberFormatter = new NumberFormatter(moneyLocale(), NumberFormatter::CURRENCY);
 $moneyFormatter = new IntlMoneyFormatter($numberFormatter, $currencies);
 
 

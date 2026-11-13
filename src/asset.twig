@@ -380,9 +380,10 @@
                                                       Mass
                                                     </span>
                                                             </div>
-                                                            <input type="number" step="0.001" min="0" name="assets_mass" value="{{ assets[0].assets_mass }}" class="form-control" />
+                                                            <input type="number" step="0.001" min="0" name="assets_mass" value="{{ assets[0].assets_mass|massValue }}" class="form-control" />
+                                                            <input type="hidden" name="massUnit" value="{{ massUnit() }}" />
                                                             <div class="input-group-append">
-                                                                <div class="input-group-text">kg</div>
+                                                                <div class="input-group-text">{{ massUnit() }}</div>
                                                             </div>
                                                         </div>
                                                         <div class="input-group">
@@ -1080,9 +1081,10 @@
                                                       Mass
                                                     </span>
                                                 </div>
-                                                <input type="number" step="0.001" min="0" name="assetTypes_mass" value="{{ asset.assetTypes_mass}}" class="form-control" id="addNewType-mass" />
+                                                <input type="number" step="0.001" min="0" name="assetTypes_mass" value="{{ asset.assetTypes_mass|massValue }}" class="form-control" id="addNewType-mass" />
+                                                <input type="hidden" name="massUnit" value="{{ massUnit() }}" />
                                                 <div class="input-group-append">
-                                                    <div class="input-group-text">kg</div>
+                                                    <div class="input-group-text">{{ massUnit() }}</div>
                                                 </div>
                                             </div>
                                             <div class="input-group">

@@ -3208,6 +3208,107 @@ paths:
                 properties:
                   result: { description: 'Whether the request was successful', type: boolean }
                 type: object
+  /instances/editInstanceDocuments.php:
+    post:
+      tags:
+        - instances
+      summary: 'Edit Document Settings'
+      description: "Edit a business's settings for generated documents (quotes, invoices and delivery notes). Only the parameters sent are changed.  \nRequires Instance Permission BUSINESS:BUSINESS_SETTINGS:EDIT\n"
+      operationId: editInstanceDocuments
+      parameters:
+        -
+          name: pageSize
+          in: query
+          description: 'A4 or LETTER'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: headerText
+          in: query
+          description: "Text for the left of the page header, in place of the business's name"
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: footerText
+          in: query
+          description: 'Text for the right of the page footer'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: firstPage
+          in: query
+          description: 'Whether the page header and footer are shown on the first page too'
+          required: 'false'
+          schema:
+            type: boolean
+        -
+          name: deliveryNoteFooter
+          in: query
+          description: 'Text for the end of a delivery note'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: name_invoice
+          in: query
+          description: 'What invoices are called (also name_quote and name_deliveryNote). Empty for the default'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: intro_invoice
+          in: query
+          description: "Text for the start of an invoice (also intro_quote and intro_deliveryNote). signature_ (the label of a signature line at the end, empty for none) and reference_ (the reference to print, where {project} is the project's number and {version} the document's version) work the same way"
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: logoAlign
+          in: query
+          description: 'left, center or right. Also logoSize (small, medium or large), accentColour (#RRGGBB, or empty), dateFormat and timeFormat (PHP date formats from the lists the settings page offers)'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: label_reference
+          in: query
+          description: 'Wording to use in place of Our Reference. Each label on the documents has one, listed on the settings page. Empty for the default'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: defaultsType
+          in: query
+          description: 'invoice, quote or deliveryNote - the type of document the defaults parameter is for'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: defaults
+          in: query
+          description: 'The options to tick by default when generating that type of document, as option name => true/false'
+          required: 'false'
+          schema:
+            type: object
+        -
+          name: defaultsReset
+          in: query
+          description: 'Forget the defaults saved for that type of document first'
+          required: 'false'
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
   /instances/editInstancePublicData.php:
     post:
       tags:
@@ -6686,6 +6787,44 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/documentDefaults.php:
+    post:
+      tags:
+        - projects
+      summary: 'Save My Document Defaults'
+      description: "Save the options the current user wants ticked to start with when generating one type of document in the current business. They go on top of the business's own defaults.  \nRequires Instance Permission PROJECTS:VIEW\n"
+      operationId: documentDefaults
+      parameters:
+        -
+          name: defaultsType
+          in: query
+          description: 'invoice, quote or deliveryNote'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: defaults
+          in: query
+          description: 'The options to tick by default when generating that type of document, as option name => true/false'
+          required: 'false'
+          schema:
+            type: object
+        -
+          name: defaultsReset
+          in: query
+          description: 'Forget the defaults saved for that type of document first'
+          required: 'false'
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
   /projects/editNote.php:
     post:
       tags:

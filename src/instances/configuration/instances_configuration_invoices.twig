@@ -61,4 +61,222 @@
         </div>
    </div>
 </div>
+{% set documents = documentSettings() %}
+{% set stored = documentSettingsStored() %}
+{% set types = {"invoice": "Invoice", "quote": "Quote", "deliveryNote": "Delivery note"} %}
+<div class="row">
+    <div class="col-12 col-lg-6">
+        <div class="card">
+            <form id="documentSettings">
+                <div class="card-header">
+                    <h3 class="card-title">Generated Documents</h3>
+                </div>
+                <div class="card-body">
+                    <h5>Page</h5>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Page size</label>
+                            <select class="form-control" name="pageSize">
+                                <option value="A4" {{ documents.pageSize == 'A4' ? 'selected' }}>A4</option>
+                                <option value="LETTER" {{ documents.pageSize == 'LETTER' ? 'selected' }}>US Letter</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Dates</label>
+                            <select class="form-control" name="dateFormat">
+                                {% for format in documentDateFormats() %}
+                                    <option value="{{ format }}" {{ documents.dateFormat == format ? 'selected' }}>{{ "2030-01-31"|date(format) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Times</label>
+                            <select class="form-control" name="timeFormat">
+                                {% for format in documentTimeFormats() %}
+                                    <option value="{{ format }}" {{ documents.timeFormat == format ? 'selected' }}>{{ "2030-01-31 14:30"|date(format) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Logo position</label>
+                            <select class="form-control" name="logoAlign">
+                                <option value="left" {{ documents.logoAlign == 'left' ? 'selected' }}>Left</option>
+                                <option value="center" {{ documents.logoAlign == 'center' ? 'selected' }}>Centre</option>
+                                <option value="right" {{ documents.logoAlign == 'right' ? 'selected' }}>Right</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Logo size</label>
+                            <select class="form-control" name="logoSize">
+                                <option value="small" {{ documents.logoSize == 'small' ? 'selected' }}>Small</option>
+                                <option value="medium" {{ documents.logoSize == 'medium' ? 'selected' }}>Medium</option>
+                                <option value="large" {{ documents.logoSize == 'large' ? 'selected' }}>Large</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Accent colour</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">
+                                        <input type="checkbox" id="documentsUseAccent" title="Use an accent colour" {{ documents.accentColour ? 'checked' }}>
+                                    </div>
+                                </div>
+                                <input type="color" class="form-control" id="documentsAccent" value="{{ documents.accentColour ?: '#1f6feb' }}">
+                                <input type="hidden" name="accentColour" value="{{ documents.accentColour }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>Page header text (top left)</label>
+                            <input type="text" class="form-control" name="headerText" maxlength="100" value="{{ documents.headerText }}" placeholder="{{ USERDATA.instance.instances_name }}">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Page footer text (bottom right)</label>
+                            <input type="text" class="form-control" name="footerText" maxlength="100" value="{{ documents.footerText }}" placeholder="Generated by AdamRMS">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="hidden" name="firstPage" value="false">
+                            <input class="form-check-input" type="checkbox" name="firstPage" value="true" id="documentsFirstPage" {{ documents.firstPage ? 'checked' }}>
+                            <label class="form-check-label" for="documentsFirstPage">Show the page header and footer on the first page too</label>
+                        </div>
+                    </div>
+                    <hr/>
+                    <h5>Each type of document</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless">
+                            <thead>
+                                <tr><th></th>{% for type, name in types %}<th>{{ name }}</th>{% endfor %}</tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Called</td>
+                                    <td><input type="text" class="form-control form-control-sm" name="name_invoice" maxlength="50" value="{{ stored.names.invoice }}" placeholder="Invoice"></td>
+                                    <td><input type="text" class="form-control form-control-sm" name="name_quote" maxlength="50" value="{{ stored.names.quote }}" placeholder="Quotation"></td>
+                                    <td><input type="text" class="form-control form-control-sm" name="name_deliveryNote" maxlength="50" value="{{ stored.names.deliveryNote }}" placeholder="Delivery Note"></td>
+                                </tr>
+                                <tr>
+                                    <td>Reference <i class="fas fa-info-circle" title="What is printed as the document's reference. {project} is the project's number and {version} counts up each time the document is generated, so INV-{project}-{version} gives INV-1042-2."></i></td>
+                                    {% for type, name in types %}
+                                        <td><input type="text" class="form-control form-control-sm" name="reference_{{ type }}" maxlength="50" value="{{ stored.reference[type] }}" placeholder="v{version}"></td>
+                                    {% endfor %}
+                                </tr>
+                                <tr>
+                                    <td>Opening text</td>
+                                    {% for type, name in types %}
+                                        <td><textarea class="form-control form-control-sm" name="intro_{{ type }}" rows="3" maxlength="2000">{{ stored.intro[type] }}</textarea></td>
+                                    {% endfor %}
+                                </tr>
+                                <tr>
+                                    <td>Signature line <i class="fas fa-info-circle" title="Adds a line to sign and date at the end of the document. Leave empty for none."></i></td>
+                                    <td><input type="text" class="form-control form-control-sm" name="signature_invoice" maxlength="50" value="{{ stored.signature.invoice }}" placeholder="None"></td>
+                                    <td><input type="text" class="form-control form-control-sm" name="signature_quote" maxlength="50" value="{{ stored.signature.quote }}" placeholder="e.g. Accepted by"></td>
+                                    <td><input type="text" class="form-control form-control-sm" name="signature_deliveryNote" maxlength="50" value="{{ stored.signature.deliveryNote }}" placeholder="e.g. Received by"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivery note footer</label>
+                        <textarea class="form-control" name="deliveryNoteFooter" rows="3" maxlength="5000">{{ documents.deliveryNoteFooter }}</textarea>
+                        <small class="form-text text-muted">The footers for quotes and invoices are above.</small>
+                    </div>
+                    <hr/>
+                    <h5><a data-toggle="collapse" href="#documentLabels">Wording <i class="fas fa-caret-down"></i></a></h5>
+                    <div class="collapse" id="documentLabels">
+                        <p class="text-muted">Change any of the words printed on the documents. Leave one empty to keep it as it is.</p>
+                        <div class="form-row">
+                            {% for key, default in documentLabels() %}
+                                <div class="form-group col-md-4">
+                                    <label class="mb-0 small">{{ default }}</label>
+                                    <input type="text" class="form-control form-control-sm" name="label_{{ key }}" maxlength="50" value="{{ stored.labels[key] }}" placeholder="{{ default }}">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0">To choose which options are ticked to start with for each type of document, set them when generating one from a project and save them as the default there.</p>
+                </div>
+                <div class="card-footer">
+                    {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
+                    <button type="submit" class="btn btn-default">Save</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card" style="position: sticky; top: 70px;">
+            <div class="card-header">
+                <h3 class="card-title">Preview</h3>
+                {% if previewProject %}
+                <div class="card-tools">
+                    <select class="form-control form-control-sm" id="documentPreviewType">
+                        <option value="quote">Quote</option>
+                        <option value="invoice">Invoice</option>
+                        <option value="deliveryNote">Delivery note</option>
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if previewProject %}
+                    <iframe name="documentPreview" id="documentPreview" title="Preview" style="width: 100%; height: 75vh; border: 0; display: block;"></iframe>
+                    <form id="documentPreviewForm" method="POST" target="documentPreview" class="d-none"></form>
+                {% else %}
+                    <p class="p-3 mb-0">Once the business has a project, a preview of its documents with these settings is shown here.</p>
+                {% endif %}
+            </div>
+            {% if previewProject %}
+            <div class="card-footer text-muted small">Using {{ previewProject.projects_name }}, with settings as they are on the left - saved or not.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<script>
+    $(document).ready(function() {
+        $("#documentsUseAccent, #documentsAccent").on("change input", function () {
+            $('#documentSettings input[name="accentColour"]').val($("#documentsUseAccent").prop("checked") ? $("#documentsAccent").val() : "").trigger("change");
+        });
+        {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
+        $("#documentSettings").on("submit", function(e) {
+            e.preventDefault();
+            var data = {};
+            $.each($("#documentSettings").serializeArray(), function (i, field) { data[field.name] = field.value; });
+            ajaxcall("instances/editInstanceDocuments.php", data, function (data) {
+                location.reload();
+            }, false);
+        });
+        {% endif %}
+        {% if previewProject %}
+        //The options ticked when generating: the usual ones, then the business's saved defaults for the type
+        var previewOptions = { instancelogo: true, addresses: true, pmdetails: true, totalmass: true, totalvalue: true, venue: true, invoiceNotes: true, assets: true, masses: true, finance: true, prices: true, discounts: true, subHires: true, sales: true, staff: true, paymentTerms: true };
+        var previewDefaults = {{ documents.defaults|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_FORCE_OBJECT'))|raw }};
+        var previewTimer;
+        function documentPreviewRefresh() {
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(function () {
+                var type = $("#documentPreviewType").val();
+                var options = $.extend({}, previewOptions, previewDefaults[type]);
+                if (type == "deliveryNote") options = $.extend(options, { finance: false, prices: false, discounts: false });
+                var query = "id={{ previewProject.projects_id }}&type=" + type + "&preview=1";
+                $.each(options, function (name, on) { if (on) query += "&" + name + "=on"; });
+                var form = $("#documentPreviewForm").empty().attr("action", "{{ CONFIG.ROOTURL }}/project/projectInvoice.php?" + query);
+                $.each($("#documentSettings").serializeArray(), function (i, field) {
+                    //Last one wins, as when saving: the tick box comes after the hidden field that says it is off
+                    form.find('input[name="' + field.name + '"]').remove();
+                    form.append($('<input type="hidden">').attr("name", field.name).val(field.value));
+                });
+                form.submit();
+            }, 500);
+        }
+        $("#documentSettings").on("change input", "input, select, textarea", documentPreviewRefresh);
+        $("#documentPreviewType").on("change", documentPreviewRefresh);
+        documentPreviewRefresh();
+        {% endif %}
+    });
+</script>
 {% endblock %}

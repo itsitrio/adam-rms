@@ -26,10 +26,35 @@ The Basic Settings page includes the following information:
   - Website
 - Business Logo
 - Email Header
+- Mass unit - whether masses are shown and entered in kilograms or pounds
 - Invoice Footer - Note on the bottom of all generated invoices
+- Generated Documents - see [below](#generated-documents)
 - Cable length colours - assign a colour to each length for ease of identification
 - Asset Statuses - used for asset dispatch
 - Calendar Settings - configure how calendars are displayed across the dashboard
+
+## Generated Documents
+---
+The Invoices settings page also controls how quotes, invoices and delivery notes are generated. A preview beside the settings shows one of your projects' documents as you change them, before anything is saved.
+
+- **Page size** - A4 or US Letter.
+- **Dates and times** - how they are written, such as "31 Jan 2030" or "Jan 31, 2030", and 12 or 24 hour times.
+- **Logo** - left, centre or right, and small, medium or large.
+- **Accent colour** - used for the heading bands and a rule under the title.
+- **Page header and footer text** - the text at the top left (your business's name by default) and bottom right of each page, and whether they are shown on the first page too.
+
+For each type of document you can also set:
+
+- **What it is called** - for example, a delivery note can be called a "Manifest", or a quotation an "Estimate". The name is used on the PDF and on the buttons that create it.
+- **Reference** - what is printed as its reference. `{project}` is the project's number and `{version}` counts up each time the document is generated, so `INV-{project}-{version}` gives "INV-1042-2".
+- **Opening text** - a paragraph at the start of the document.
+- **Signature line** - a line to sign and date at the end, with the label you give it, such as "Accepted by".
+- **Footer** - the quotation and invoice footers, and one for delivery notes.
+
+Under **Wording**, any of the words printed on the documents ("Our Reference", "Equipment", "Grand Total" and so on) can be changed.
+
+### Default options
+When creating a document from a project, a preview beside the options shows it as you tick and untick them. To keep a set of options for next time, click **Save these options as my default** - or, with permission to edit the business's settings, **Save these options as the default for everyone**. Defaults are saved separately for quotes, invoices and delivery notes; your own go on top of the business's.
 
 ## Calendar Settings
 ---

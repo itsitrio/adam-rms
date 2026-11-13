@@ -78,6 +78,7 @@ const writeCases: ApiCase[] = [
   // Business settings
   { endpoint: "/api/instances/editInstance.php", permission: "BUSINESS:BUSINESS_SETTINGS:EDIT", params: () => ({ formData: formData({ instances_phone: "01234 567890" }) }) },
   { endpoint: "/api/instances/editCalendarSettings.php", permission: "BUSINESS:BUSINESS_SETTINGS:EDIT", params: () => ({ formData: formData({ defaultView: "timeGridWeek" }) }) },
+  { endpoint: "/api/instances/editInstanceDocuments.php", permission: "BUSINESS:BUSINESS_SETTINGS:EDIT", params: () => ({ footerText: "Changed by e2e" }) },
   { endpoint: "/api/instances/editInstancePublicSite.php", permission: "BUSINESS:BUSINESS_SETTINGS:EDIT", params: () => ({ formData: formData({ enabled: "on" }) }) },
   { endpoint: "/api/instances/editInstanceTrustedDomains.php", permission: "BUSINESS:SETTINGS:EDIT:TRUSTED_DOMAINS", params: (a) => ({ formData: formData({ domains: "example.org", instancePositions_id: a.positions.limited, userInstances_label: "e2e" }) }) },
   { endpoint: "/api/instances/assetAssignmentStatus/new.php", permission: "BUSINESS:BUSINESS_SETTINGS:EDIT", params: () => ({ statusName: "E2E_TENANT_A_SECRET status by e2e", statusOrder: 5 }) },

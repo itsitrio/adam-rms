@@ -676,7 +676,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Project Delivery Notes</h4>
+                    <h4 class="modal-title">Project {{ documentName('deliveryNote', 'Delivery Note') }}s</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -694,7 +694,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Project Quotes</h4>
+                    <h4 class="modal-title">Project {{ documentName('quote', 'Quote') }}s</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -712,7 +712,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Project Invoices</h4>
+                    <h4 class="modal-title">Project {{ documentName('invoice', 'Invoice') }}s</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -725,7 +725,7 @@
         </div>
     </div>
     <div class="modal fade" id="pdfGenerateModal">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <form id="pdfGenerate" method="GET" action="{{CONFIG.ROOTURL}}/project/projectInvoice.php" target="_blank">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -735,6 +735,8 @@
                         </button>
                     </div>
                     <div class="modal-body">
+                      <div class="row">
+                        <div class="col-lg-4">
                         <input type="hidden" name="pdf" value="true">
                         <input type="hidden" name="type" value="">
                         <input type="hidden" name="id" value="{{ project.projects_id }}">
@@ -833,10 +835,22 @@
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="paymentTerms" checked>
-                                    <label class="form-check-label">Invoice/Quotation Footer</label>
+                                    <label class="form-check-label">Footer Text</label>
                                 </div>
                             {% endif %}
                         </div>
+                        {% if USERDATA.instance.userInstances_id %}
+                            <button type="button" class="btn btn-link btn-sm p-0 d-block" id="pdfSaveMyDefaults">Save these options as my default</button>
+                            <button type="button" class="btn btn-link btn-sm p-0 d-block" id="pdfClearMyDefaults">Go back to the business's defaults</button>
+                        {% endif %}
+                        {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
+                            <button type="button" class="btn btn-link btn-sm p-0 d-block" id="pdfSaveDefaults">Save these options as the default for everyone</button>
+                        {% endif %}
+                        </div>
+                        <div class="col-lg-8 d-none d-lg-block">
+                            <iframe id="pdfPreviewFrame" title="Preview" style="width: 100%; height: 75vh; border: 1px solid #dee2e6;"></iframe>
+                        </div>
+                      </div>
                     </div>
                     <div class="modal-footer justify-content-between">
                         <button type="submit" name="draft" value="true" class="btn btn-default">Draft Printout</button>
@@ -847,11 +861,33 @@
         </div>
     </div>
     <script>
+        //Options to start with for each type of document: the business's, then the user's own on top
+        var pdfGenerateDefaults = {
+            business: {{ documentSettings().defaults|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_FORCE_OBJECT'))|raw }},
+            mine: {{ documentUserDefaults()|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_FORCE_OBJECT'))|raw }}
+        };
+        var pdfPreviewTimer;
+        function pdfPreviewRefresh() {
+            clearTimeout(pdfPreviewTimer);
+            pdfPreviewTimer = setTimeout(function () {
+                if (!$("#pdfPreviewFrame").is(":visible")) return;
+                $("#pdfPreviewFrame").attr("src", $("#pdfGenerate").attr("action") + "?" + $("#pdfGenerate").serialize() + "&preview=1");
+            }, 400);
+        }
+        function pdfGenerateOptions() {
+            var options = {};
+            $('#pdfGenerateModal input[type="checkbox"]').each(function () {
+                if ($(this).attr('name') != "subProjects" && !$(this).prop('disabled') && $(this).parent().css('display') != 'none') options[$(this).attr('name')] = $(this).prop('checked');
+            });
+            return options;
+        }
         $(document).ready(function () {
             $('#pdfGenerateModal').on('show.bs.modal', function (e) {
+                $("#pdfSaveDefaults").text("Save these options as the default for everyone");
+                $("#pdfSaveMyDefaults").text("Save these options as my default");
                  $('#pdfGenerateModal input[name="subProjects"]').prop('checked', !!$(e.relatedTarget).data('subprojects'));
                  if ($(e.relatedTarget).data('delivery-note')){
-                    $("#pdfGenerateModal .modal-title").text("Create Delivery Note");
+                    $("#pdfGenerateModal .modal-title").text("Create {{ documentName('deliveryNote', 'Delivery Note')|escape("js") }}");
                     $('#pdfGenerateModal input[name="type"]').val("deliveryNote");
                     $('#pdfGenerateModal input[name="finance"]').prop('checked', false).parent().hide();
                     $('#pdfGenerateModal input[name="prices"]').prop('checked', false).parent().hide();
@@ -863,14 +899,56 @@
                     $('#pdfGenerateModal input[name="discounts"]').prop('checked', true).parent().show();
                     $('#pdfGenerateModal input[name="flagsBlocks"]').prop('checked', false).parent().show();
                     if ($(e.relatedTarget).data('quote')) {
-                        $("#pdfGenerateModal .modal-title").text("Create Quote");
+                        $("#pdfGenerateModal .modal-title").text("Create {{ documentName('quote', 'Quote')|escape("js") }}");
                         $('#pdfGenerateModal input[name="type"]').val("quote");
                     } else {
-                        $("#pdfGenerateModal .modal-title").text("Create Invoice");
+                        $("#pdfGenerateModal .modal-title").text("Create {{ documentName('invoice', 'Invoice')|escape("js") }}");
                         $('#pdfGenerateModal input[name="type"]').val("invoice");
                     }
                 }
+                //The saved defaults for this type of document - not for options this type doesn't offer
+                var type = $('#pdfGenerateModal input[name="type"]').val();
+                $.each($.extend({}, pdfGenerateDefaults.business[type], pdfGenerateDefaults.mine[type]), function (name, checked) {
+                    var input = $('#pdfGenerateModal input[type="checkbox"][name="' + name + '"]');
+                    if (input.length && !input.prop('disabled') && input.parent().css('display') != 'none') input.prop('checked', checked);
+                });
+                $("#pdfClearMyDefaults").toggle(!$.isEmptyObject(pdfGenerateDefaults.mine[type]));
             });
+            $('#pdfGenerateModal').on('shown.bs.modal', pdfPreviewRefresh).on('change', 'input[type="checkbox"]', pdfPreviewRefresh).on('hidden.bs.modal', function () {
+                clearTimeout(pdfPreviewTimer);
+                $("#pdfPreviewFrame").attr("src", "about:blank");
+            });
+            $("#pdfSaveMyDefaults").click(function () {
+                var type = $('#pdfGenerateModal input[name="type"]').val();
+                var defaults = pdfGenerateOptions();
+                ajaxcall("projects/documentDefaults.php", { "defaultsType": type, "defaults": defaults }, function () {
+                    pdfGenerateDefaults.mine[type] = $.extend(pdfGenerateDefaults.mine[type] || {}, defaults);
+                    $("#pdfSaveMyDefaults").text("Saved as my default");
+                    $("#pdfClearMyDefaults").show();
+                }, false);
+            });
+            $("#pdfClearMyDefaults").click(function () {
+                var type = $('#pdfGenerateModal input[name="type"]').val();
+                ajaxcall("projects/documentDefaults.php", { "defaultsType": type, "defaultsReset": 1 }, function () {
+                    pdfGenerateDefaults.mine[type] = {};
+                    $.each(pdfGenerateDefaults.business[type] || {}, function (name, checked) {
+                        var input = $('#pdfGenerateModal input[type="checkbox"][name="' + name + '"]');
+                        if (input.length && !input.prop('disabled') && input.parent().css('display') != 'none') input.prop('checked', checked);
+                    });
+                    $("#pdfClearMyDefaults").hide();
+                    pdfPreviewRefresh();
+                }, false);
+            });
+            {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
+            $("#pdfSaveDefaults").click(function () {
+                var type = $('#pdfGenerateModal input[name="type"]').val();
+                var defaults = pdfGenerateOptions();
+                ajaxcall("instances/editInstanceDocuments.php", { "defaultsType": type, "defaults": defaults }, function () {
+                    pdfGenerateDefaults.business[type] = $.extend(pdfGenerateDefaults.business[type] || {}, defaults);
+                    $("#pdfSaveDefaults").text("Saved as the default for everyone");
+                }, false);
+            });
+            {% endif %}
             $("#assetAssignmentCheckboxAll").click(function () {
                 $(".assetAssignmentCheckbox").prop('checked', $(this).prop('checked'));
             });

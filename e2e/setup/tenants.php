@@ -98,7 +98,7 @@ function tenant(string $letter): array {
     $t['instanceId'] = $instance = upsert("instances", "instances_id", ["instances_name" => "$marker Ltd"], [
         "instances_deleted" => 0, "instances_suspended" => 0, "instances_suspendedReason" => null, "instances_suspendedReasonType" => null,
         "instances_address" => "$marker address", "instances_email" => "e2e-tenant-$lower@example.com",
-        "instances_config_currency" => "GBP", "instances_storageLimit" => 0, "instances_storageEnabled" => 1,
+        "instances_config_currency" => "GBP", "instances_config_massUnit" => "kg", "instances_config_documents" => null, "instances_storageLimit" => 0, "instances_storageEnabled" => 1,
         "instances_assetLimit" => 0, "instances_userLimit" => 0, "instances_projectLimit" => 0, "instances_planName" => "",
         "instances_calendarConfig" => '{"showProjectStatus":true,"showSubProjects":true,"useCustomWeekNumbers":true,"defaultView":"dayGridMonth"}',
         "instances_calendarHash" => "e2e-calendar-hash-$lower", "instances_publicConfig" => null, "instances_trustedDomains" => null,
@@ -121,7 +121,7 @@ function tenant(string $letter): array {
         $db->prepare("UPDATE userInstances SET userInstances_deleted = 1 WHERE users_userid = ? AND instancePositions_id != ?")
             ->execute([$userId, $position]);
         $membershipId = upsert("userInstances", "userInstances_id", ["users_userid" => $userId, "instancePositions_id" => $position], [
-            "userInstances_deleted" => 0, "userInstances_archived" => null, "userInstances_extraPermissions" => null, "userInstances_label" => "$marker $kind",
+            "userInstances_deleted" => 0, "userInstances_archived" => null, "userInstances_extraPermissions" => null, "userInstances_documentDefaults" => null, "userInstances_label" => "$marker $kind",
         ], $kind === "deleted" ? ($remembered['deletedMembershipId'] ?? null) : null);
         // A test may have had the user leave and join again, leaving a second membership with the same role
         $db->prepare("UPDATE userInstances SET userInstances_deleted = 1 WHERE users_userid = ? AND userInstances_id != ?")->execute([$userId, $membershipId]);

@@ -18,6 +18,7 @@ foreach ($_POST['formData'] as $item) {
     if ($item['value'] == '') $item['value'] = null;
     $array[$item['name']] = $item['value'];
 }
+$array = massFieldsToKg($array, ['assets_mass']);
 if (strlen($array['assets_id']) < 1) finish(false, ["code" => "PARAM-ERROR", "message"=> "No data for action"]);
 $currencies = new ISOCurrencies();
 $moneyParser = new DecimalMoneyParser($currencies);

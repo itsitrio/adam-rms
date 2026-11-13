@@ -8,6 +8,7 @@ foreach ($_POST['formData'] as $item) {
     if ($item['value'] == '') $item['value'] = null;
     $array[$item['name']] = $item['value'];
 }
+$array = massFieldsToKg($array, ['assetTypes_mass']);
 if (strlen($array['manufacturers_id']) <1) finish(false, ["code" => "PARAM-ERROR", "message"=> "No data for action"]);
 if (strlen($array['assetTypes_name']) <1) finish(false, ["code" => "PARAM-ERROR", "message"=> "No asset type name provided"]);
 

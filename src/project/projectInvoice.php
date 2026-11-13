@@ -13,16 +13,19 @@ $PAGEDATA['GET']['quote'] = $isQuote;
 $PAGEDATA['GET']['deliveryNote'] = $isDeliveryNote;
 
 $typeId = 20;
-$PAGEDATA['GET']['fileType'] = 'Invoice';
+$PAGEDATA['documentType'] = "invoice";
+$PAGEDATA['GET']['fileType'] = documentName('invoice', 'Invoice');
 
 switch ($_GET['type']) {
     case 'quote':
         $typeId = 21;
-        $PAGEDATA['GET']['fileType'] = 'Quotation';
+        $PAGEDATA['documentType'] = "quote";
+        $PAGEDATA['GET']['fileType'] = documentName('quote', 'Quotation');
         break;
     case 'deliveryNote':
         $typeId = 22;
-        $PAGEDATA['GET']['fileType'] = 'Delivery Note';
+        $PAGEDATA['documentType'] = "deliveryNote";
+        $PAGEDATA['GET']['fileType'] = documentName('deliveryNote', 'Delivery Note');
         break;
     default:
         break;
@@ -46,5 +49,19 @@ if (isset($_GET['subProjects']) and $_GET['subProjects'] and count($PAGEDATA['pr
 if ($PAGEDATA['USERDATA']['instance']['instances_logo'] and $PAGEDATA['GET']['instancelogo']) {
     $PAGEDATA['INSTANCELOGO'] = $bCMS->s3DataUri($PAGEDATA['USERDATA']['instance']['instances_logo']);
 } else $PAGEDATA['INSTANCELOGO'] = false;
+
+$PAGEDATA['DOCUMENTS'] = documentSettings();
+//A preview is shown in the page rather than downloaded or stored. The settings page previews settings before
+//they are saved by posting them - they change nothing, and go through the same checks as saving them does
+$PAGEDATA['PREVIEW'] = isset($_GET['preview']);
+if ($PAGEDATA['PREVIEW'] and count($_POST) > 0) {
+    $previewSettings = documentSettingsFromInput(documentSettingsStored(), $_POST);
+    if (is_array($previewSettings)) {
+        $PAGEDATA['DOCUMENTS'] = documentSettingsForDisplay($previewSettings);
+        foreach (['invoice' => 'Invoice', 'quote' => 'Quotation', 'deliveryNote' => 'Delivery Note'] as $type => $name) {
+            if ($type == $PAGEDATA['documentType']) $PAGEDATA['GET']['fileType'] = $previewSettings['names'][$type] !== "" ? $previewSettings['names'][$type] : $name;
+        }
+    }
+}
 
 echo $TWIG->render('project/pdf.twig', $PAGEDATA);
