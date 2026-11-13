@@ -1,0 +1,13 @@
+[
+    {% if GET['checkboxes'] %}'[  ]',{% endif %}
+    {
+        text: "{% if line.projectsQuoteLines_quantity > 1 %}{{ line.projectsQuoteLines_quantity }}x {% endif %}{{ line.projectsQuoteLines_text|escape("js") }}{% if project.projectsTypes_config_finance == 1 and GET['prices'] and line.projectsQuoteLines_quantity > 1 and line.unitPrice|moneyPositive %} ({{ line.unitPrice|money|escape("js") }} each){% endif %}",
+        colSpan: {{ GET['comments'] ? 3 : 2 }}
+    },
+    {% for i in range(2, GET['comments'] ? 3 : 2) %}{},{% endfor %}
+    {% if GET['masses'] %}'',{% endif %}
+    {% if project.projectsTypes_config_finance == 1 %}
+        {% if GET['prices'] %}'{{ line.price|moneyPositive ? line.price|money|escape("js") : "" }}',{% endif %}
+        {% if GET['discounts'] %}'{{ line.price|moneyPositive ? line.price|money|escape("js") : "" }}',{% endif %}
+    {% endif %}
+],

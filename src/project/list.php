@@ -79,7 +79,7 @@ foreach ($projectlist as $project) {
     $subProjects = $DBLIB->get("projects", null, ["projects_id", "projectsTypes.*","projects_archived", "projects_name", "clients_name", "projects.clients_id", "projects_dates_deliver_start", "projects_dates_deliver_end","projects_dates_use_start", "projects_dates_use_end", "projects_manager", "users.users_name1", "users.users_name2", "users.users_email", "users.users_thumbnail", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_description"]);
     $project['subProjects'] = [];
     foreach ($subProjects as $subProject) {
-        $DBLIB->where("projects_id", $project['projects_id']);
+        $DBLIB->where("projects_id", $subProject['projects_id']);
         $DBLIB->orderBy("projectsFinanceCache_timestamp", "DESC");
         $subProject['finance'] = $DBLIB->getOne("projectsFinanceCache");
         $project['subProjects'][] = $subProject; 

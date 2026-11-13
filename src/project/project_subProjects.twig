@@ -1,0 +1,75 @@
+{% set showMoney = "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions and project.projectsTypes_config_finance == 1 %}
+<div class="card card-primary card-outline" id="subProjectsCard">
+    <div class="card-header">
+        <h3 class="card-title">Sub-Projects</h3>
+        <div class="card-tools">
+            <button type="button" class="btn btn-tool" data-toggle="modal" data-target="#pdfGenerateModal" data-quote="true" data-subprojects="true">
+                <i class="fas fa-file-invoice"></i> Create Combined Quote
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+            <tr>
+                <th>Project</th>
+                <th>Status</th>
+                <th>Dates</th>
+                <th class="text-right">Assets</th>
+                {% if showMoney %}
+                    <th class="text-right">Equipment</th>
+                    <th class="text-right" title="Sales, staffing and additional hires">Other</th>
+                    <th class="text-right">Total</th>
+                {% endif %}
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in SUBPROJECTS_SUMMARY.rows %}
+                <tr class="subProjectRow">
+                    <td>
+                        {% if loop.first %}
+                            {{ row.project.projects_name }} <span class="text-muted">(this project - shared)</span>
+                        {% else %}
+                            <a href="{{ CONFIG.ROOTURL }}/project/?id={{ row.project.projects_id }}">{{ row.project.projects_name }}</a>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge" style="background-color: {{ row.project.projectsStatuses_backgroundColour }}; color: {{ row.project.projectsStatuses_foregroundColour }}; border: 1px solid rgba(0,0,0,0.15);">{{ row.project.projectsStatuses_name }}</span></td>
+                    <td>
+                        {% if row.project.projects_dates_use_start %}
+                            {{ row.project.projects_dates_use_start|date("D j M Y") }}{% if row.project.projects_dates_use_end and row.project.projects_dates_use_end|date("Y-m-d") != row.project.projects_dates_use_start|date("Y-m-d") %} - {{ row.project.projects_dates_use_end|date("D j M Y") }}{% endif %}
+                        {% else %}
+                            <span class="text-muted">No dates set</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">{{ row.assets }}</td>
+                    {% if showMoney %}
+                        <td class="text-right">{{ row.equipment|money }}</td>
+                        <td class="text-right">{{ row.other|money }}</td>
+                        <td class="text-right">{{ row.total|money }}</td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot>
+            <tr class="font-weight-bold">
+                <td colspan="3">Total</td>
+                <td class="text-right">{{ SUBPROJECTS_SUMMARY.totals.assets }}</td>
+                {% if showMoney %}
+                    <td class="text-right">{{ SUBPROJECTS_SUMMARY.totals.equipment|money }}</td>
+                    <td class="text-right">{{ SUBPROJECTS_SUMMARY.totals.other|money }}</td>
+                    <td class="text-right">{{ SUBPROJECTS_SUMMARY.totals.total|money }}</td>
+                {% endif %}
+            </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Calendar</h3>
+    </div>
+    <div class="card-body p-0">
+        {% embed 'assets/widgets/calendar.twig' with {"projects": project.subProjects, "useStartDate": true } %}
+        {% endembed %}
+    </div>
+</div>

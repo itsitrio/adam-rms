@@ -35,6 +35,13 @@ if ($count) $fileNumber = ($count+1);
 else $fileNumber = 1;
 $PAGEDATA['fileNumber'] = $fileNumber;
 
+//Sub-projects are printed after the project, with a summary of them all at the front
+$PAGEDATA['CHILDREN'] = [];
+if (isset($_GET['subProjects']) and $_GET['subProjects'] and count($PAGEDATA['project']['subProjects']) > 0) {
+    $PAGEDATA['CHILDREN'] = subProjectsWithFinancials($PAGEDATA['project']['subProjects']);
+    $PAGEDATA['SUMMARY'] = projectsSummary(array_merge([["project" => $PAGEDATA['project'], "FINANCIALS" => $PAGEDATA['FINANCIALS']]], $PAGEDATA['CHILDREN']));
+}
+
 if ($PAGEDATA['USERDATA']['instance']['instances_logo'] and $PAGEDATA['GET']['instancelogo']) {
     $PAGEDATA['INSTANCELOGO'] = $bCMS->s3DataUri($PAGEDATA['USERDATA']['instance']['instances_logo']);
 } else $PAGEDATA['INSTANCELOGO'] = false;
