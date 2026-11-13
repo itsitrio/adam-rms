@@ -104,54 +104,6 @@
         layout: 'noBorders',
         margin: [ 0, 10, 0, 10 ]
     },
-    {% if GET['finance'] and "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions and project.projectsTypes_config_finance == 1 %}
-    {
-        table: {
-            widths: [ "35%", "15%", "35%", "15%"],
-            body: [
-                [
-                    { text: "Equipment SubTotal" },
-                    { text: "{{ FINANCIALS.prices.subTotal|money|escape("js") }}", style: { alignment: 'right' } },
-                    { text: "Sales" },
-                    { text: "{{ FINANCIALS.payments.sales.total|money|escape("js") }}", style: { alignment: 'right' } },
-                ],
-                [
-                    { text: "{% if FINANCIALS.prices.discounts|moneyPositive %}Discounts{% else %}Adjustments{% endif %}" },
-                    { text: "{% if FINANCIALS.prices.discounts|moneyPositive %}-{{ FINANCIALS.prices.discounts|money|escape("js") }}{% else %}None{% endif %}", style: { alignment: 'right' } },
-                    { text: "Staffing" },
-                    { text: "{{ FINANCIALS.payments.staff.total|money|escape("js") }}", style: { alignment: 'right' } },
-                ],
-                [
-                    { text: "Equipment Total", style: { bold: true } },
-                    { text: "{{ FINANCIALS.prices.total|money|escape("js") }}", style: { alignment: 'right' } },
-                    { text: "Sub Hires" },
-                    { text: "{{ FINANCIALS.payments.subHire.total|money|escape("js") }}", style: { alignment: 'right' } },
-                ],
-                {% if GET['type'] == "invoice" %}
-                [
-                    { text: "" },
-                    { text: "" },
-                    { text: "SubTotal", style: { bold: true } },
-                    { text: "{{ FINANCIALS.payments.subTotal|money|escape("js") }}", style: { alignment: 'right' } },
-                ],
-                [
-                    { text: "" },
-                    { text: "" },
-                    { text: "Payments Received to Date" },
-                    { text: "-{{ FINANCIALS.payments.received.total|money|escape("js") }}", style: { alignment: 'right' } },
-                ],
-                {% endif %}
-                [
-                    { text: "" },
-                    { text: "" },
-                    { text: "{% if GET['type'] == 'quote' %}Grand Total{% else %}Grand Total Outstanding{% endif %}", style: { bold: true } },
-                    { text: "{{ FINANCIALS.payments.total|money|escape("js") }}", style: { alignment: 'right' } },
-                ],
-            ],
-        },
-        layout: 'noBorders',
-    },
-    {% endif %}
     {% if project.projects_invoiceNotes|length > 0 and GET['invoiceNotes'] %}
         { text: "Notes", style: { fontSize: 20, bold: true } },
         "{{ project.projects_invoiceNotes|escape("js") }}",
@@ -501,6 +453,55 @@
             ]
         },
         {% endif %}
+    {% endif %}
+    {% if GET['finance'] and "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions and project.projectsTypes_config_finance == 1 %}
+    { text: "Summary", style: { fontSize: 20, bold: true }, margin: [ 0, 20, 0, 5 ] },
+    {
+        table: {
+            widths: [ "35%", "15%", "35%", "15%"],
+            body: [
+                [
+                    { text: "Equipment SubTotal" },
+                    { text: "{{ FINANCIALS.prices.subTotal|money|escape("js") }}", style: { alignment: 'right' } },
+                    { text: "Sales" },
+                    { text: "{{ FINANCIALS.payments.sales.total|money|escape("js") }}", style: { alignment: 'right' } },
+                ],
+                [
+                    { text: "{% if FINANCIALS.prices.discounts|moneyPositive %}Discounts{% else %}Adjustments{% endif %}" },
+                    { text: "{% if FINANCIALS.prices.discounts|moneyPositive %}-{{ FINANCIALS.prices.discounts|money|escape("js") }}{% else %}None{% endif %}", style: { alignment: 'right' } },
+                    { text: "Staffing" },
+                    { text: "{{ FINANCIALS.payments.staff.total|money|escape("js") }}", style: { alignment: 'right' } },
+                ],
+                [
+                    { text: "Equipment Total", style: { bold: true } },
+                    { text: "{{ FINANCIALS.prices.total|money|escape("js") }}", style: { alignment: 'right' } },
+                    { text: "Sub Hires" },
+                    { text: "{{ FINANCIALS.payments.subHire.total|money|escape("js") }}", style: { alignment: 'right' } },
+                ],
+                {% if GET['type'] == "invoice" %}
+                [
+                    { text: "" },
+                    { text: "" },
+                    { text: "SubTotal", style: { bold: true } },
+                    { text: "{{ FINANCIALS.payments.subTotal|money|escape("js") }}", style: { alignment: 'right' } },
+                ],
+                [
+                    { text: "" },
+                    { text: "" },
+                    { text: "Payments Received to Date" },
+                    { text: "-{{ FINANCIALS.payments.received.total|money|escape("js") }}", style: { alignment: 'right' } },
+                ],
+                {% endif %}
+                [
+                    { text: "" },
+                    { text: "" },
+                    { text: "{% if GET['type'] == 'quote' %}Grand Total{% else %}Grand Total Outstanding{% endif %}", style: { bold: true } },
+                    { text: "{{ FINANCIALS.payments.total|money|escape("js") }}", style: { alignment: 'right' } },
+                ],
+            ],
+        },
+        layout: 'noBorders',
+    },
     {% endif %}
     {% if GET['paymentTerms'] and GET['type'] != 'deliveryNote'  %}
     {

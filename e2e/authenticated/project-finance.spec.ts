@@ -1,4 +1,4 @@
-import { documentSummary, expectFinances, type Finances } from "../projects";
+import { assign, documentSummary, expectFinances, type Finances, newAsset, newProject } from "../projects";
 import { BASE_URL } from "../env";
 import { dbQuery, expect, formData, newSession, type Session, test } from "../tenants";
 
@@ -222,4 +222,20 @@ test("transferring an asset that's on a project to another business leaves that 
   expect(dbQuery<{ archived: string | null }>("SELECT assets_archived archived FROM assets WHERE assets_id = ?", [asset])[0].archived).not.toBeNull();
   await expectFinances(asShared, a, project, { ...none, subTotal: 3000, total: 3000, grandTotal: 3000, value: 10000, mass: 1 });
   await context.dispose();
+});
+
+test("the totals come after the equipment list on quotes and invoices", async ({ asA, tenants: { a } }) => {
+  const project = await newProject(asA, a, a.users.full.id, { start: "2036-09-01 09:00:00", end: "2036-09-02 18:00:00" });
+  expect(await assign(asA, a, project, await newAsset(asA, a))).toMatchObject({ json: { result: true } });
+  for (const [type, label] of [["quote", "Grand Total"], ["invoice", "Grand Total Outstanding"]] as const) {
+    const page = await asA.page(`/project/projectInvoice.php?id=${project}&type=${type}&finance=1&assets=1&prices=1`);
+    expect(page.status, `opening the ${type}`).toBe(200);
+    const totals = page.body.indexOf(`text: "${label}"`);
+    // The PDF is built in the browser from a script, where Twig's JS escaping writes spaces as "\u0020"
+    const equipment = page.body.lastIndexOf(`${a.marker} asset type`.replace(/[^A-Za-z0-9,._]/g, (c) => `\\u${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`));
+    expect(totals, `the ${type} has its totals`).toBeGreaterThan(-1);
+    expect(equipment, `the ${type} lists the asset's type`).toBeGreaterThan(-1);
+    // Nothing the client is charged for should come after the figure they're asked to pay
+    expect(totals, `the ${type}'s totals come after its equipment list`).toBeGreaterThan(equipment);
+  }
 });
