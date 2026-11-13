@@ -43,7 +43,7 @@ test("a business's documents use its names, page size, header and footer", async
   expect(before).toContain('text: "Delivery\\u0020Note"');
   expect(before).toContain("pageSize: 'A4'");
   expect(before).toContain("Generated\\u0020by\\u0020AdamRMS");
-  expect(before).toContain("if (currentPage === 1 && !false) return null;");
+  expect(before).toContain("if (currentPage === coverPages + 1 && !false) return null;");
 
   await ok(asA.api("/api/instances/editInstanceDocuments.php", {
     pageSize: "LETTER", name_deliveryNote: "Manifest", name_quote: "Estimate", headerText: "Header by e2e", footerText: "Footer by e2e",
@@ -57,7 +57,7 @@ test("a business's documents use its names, page size, header and footer", async
   expect(manifest).toContain(jsEscaped("Header by e2e"));
   expect(manifest).toContain(jsEscaped("Footer by e2e"));
   expect(manifest).not.toContain("Generated\\u0020by\\u0020AdamRMS");
-  expect(manifest).toContain("if (currentPage === 1 && !true) return null;");
+  expect(manifest).toContain("if (currentPage === coverPages + 1 && !true) return null;");
   expect(manifest).toContain('"text":"Received by: ____"');
   expect(await document(asA, a, "quote")).toContain('text: "Estimate"');
   // Names that weren't set keep their default, and the delivery note's footer stays off other documents
@@ -289,14 +289,14 @@ test("a document can start with a cover page", async ({ asA, tenants: { a } }) =
   const without = (await asA.page(url)).body;
   expect(without).not.toContain('"Prepared for"');
   expect(without).not.toContain("Cover text by e2e");
-  expect(without).toContain("if (currentPage <= 0) return null;");
+  expect(without).toContain("var coverPages = 0;");
 
   const withCover = (await asA.page(`${url}&coverPage=on`)).body;
   expect(withCover).toContain('"Prepared for"');
   expect(withCover).toContain('"text":"Cover text by e2e"');
   // The cover comes before the rest, and has no page header or footer
   expect(withCover.indexOf('"Prepared for"')).toBeLessThan(withCover.indexOf('"Our Reference:"'));
-  expect(withCover).toContain("if (currentPage <= 1) return null;");
+  expect(withCover).toContain("var coverPages = 1;");
   // Its text is the quote's alone
   expect((await asA.page(`/project/projectInvoice.php?id=${a.projectId}&type=invoice&coverPage=on`)).body).not.toContain("Cover text by e2e");
 });
@@ -330,4 +330,13 @@ test("footers are formatted too, and keep what was typed as text", async ({ asA,
   } finally {
     dbQuery("UPDATE instances SET instances_quoteTerms = ? WHERE instances_id = ?", [terms, a.instanceId]);
   }
+});
+
+test("the cover's text can start new pages, which are part of the cover", async ({ asA, tenants: { a } }) => {
+  await ok(asA.api("/api/instances/editInstanceDocuments.php", { cover_quote: "Welcome\n===\n## Terms\nPay on time\n===\nMore terms", coverLayout: "custom", coverAlign: "left" }), "saving the cover");
+  const body = (await asA.page(`/project/projectInvoice.php?id=${a.projectId}&type=quote&coverPage=on`)).body;
+  const stack = JSON.parse(body.match(/\{ stack: (\[.*\]), alignment: 'left' \},/)![1]);
+  expect(stack.map((node: any) => node.pageBreak ?? null)).toEqual([null, "after", null, null, "after", null]);
+  // Three pages of cover without the page header and footer
+  expect(body).toContain("var coverPages = 3;");
 });

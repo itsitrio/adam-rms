@@ -6,6 +6,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.6/vfs_fonts.min.js" integrity="sha512-P0bOMePRS378NwmPDVPU455C/TuxDS+8QwJozdc7PGgN8kLqR4ems0U/3DeJkmiE31749vYWHvBOtR+37qDCZQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
     window.addEventListener("DOMContentLoaded", function () {
+        //How many pages the cover takes: one, and one more for each new page its text asks for
+        var coverPages = {{ GET['coverPage'] ? 1 + COVERTEXT|filter(node => node.pageBreak is defined)|length : 0 }};
         var docDefinition = {
             content: [
                 {% if GET['coverPage'] %}
@@ -22,9 +24,9 @@
                 {% endfor %}
             ],
             header: function(currentPage) { 
-                //Never on the cover page; the page after it is the first
-                if (currentPage <= {{ GET['coverPage'] ? 1 : 0 }}) return null;
-                if (currentPage === {{ GET['coverPage'] ? 2 : 1 }} && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
+                //Never on the cover, which can be more than one page; the page after it is the first
+                if (currentPage <= coverPages) return null;
+                if (currentPage === coverPages + 1 && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
                 return {
                     columns: [
                         {text: "{{ (DOCUMENTS.headerText != "" ? DOCUMENTS.headerText : USERDATA['instance']['instances_name'])|escape("js") }}", width: "40%"},
@@ -35,9 +37,9 @@
                 };           
             },
             footer: function(currentPage, pageCount) { 
-                //Never on the cover page; the page after it is the first
-                if (currentPage <= {{ GET['coverPage'] ? 1 : 0 }}) return null;
-                if (currentPage === {{ GET['coverPage'] ? 2 : 1 }} && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
+                //Never on the cover, which can be more than one page; the page after it is the first
+                if (currentPage <= coverPages) return null;
+                if (currentPage === coverPages + 1 && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
                 return {
                     columns: [
                         {text: "{{ "now"|date(DOCUMENTS.dateTimeFormat)|escape("js") }}", width: "40%"},
