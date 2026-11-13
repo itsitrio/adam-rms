@@ -1,3 +1,4 @@
+import fs from "fs";
 import { cacheCdn } from "../cdn";
 import { login } from "../fixtures";
 import { BASE_URL } from "../env";
@@ -257,4 +258,27 @@ test("masses are shown and entered in the business's unit, and stored in kg", as
 
   // Another business keeps its own unit
   expect((await asB.page(`/asset.php?id=${b.assetTypeId}`)).body).toContain("1.00kg");
+});
+
+test("the copy that is downloaded is the copy that is stored", async ({ page, asA, tenants: { a, password } }) => {
+  // With file storage on the PDF is uploaded and then downloaded. It used to be made twice, and pdfmake draws
+  // lines (the accent rule, the signature line) in the wrong place the second time
+  await ok(asA.api("/api/instances/editInstanceDocuments.php", { accentColour: "#102030", signature_quote: "Accepted by" }), "saving the settings");
+  dbQuery("INSERT INTO config (config_key, config_value) VALUES ('FILES_ENABLED', 'Enabled') ON DUPLICATE KEY UPDATE config_value = 'Enabled'");
+  try {
+    await cacheCdn(page.context());
+    await login(page, a.users.full.email, password);
+    let stored = Buffer.alloc(0);
+    await page.route("**/api/s3files/uploadProjectInvoice.php", async (route) => {
+      stored = route.request().postDataBuffer()!;
+      await route.fulfill({ json: { result: true, response: { url: "stored" } } });
+    });
+    const download = page.waitForEvent("download");
+    await page.goto(`/project/projectInvoice.php?id=${a.projectId}&type=quote&assets=1`).catch(() => {});
+    const downloaded = fs.readFileSync(await (await download).path());
+    expect(downloaded.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(stored.includes(downloaded), "the upload holds the downloaded file, byte for byte").toBe(true);
+  } finally {
+    dbQuery("DELETE FROM config WHERE config_key = 'FILES_ENABLED'");
+  }
 });
