@@ -2,8 +2,9 @@
     {% if INSTANCELOGO %}
     {
         image: "{{ INSTANCELOGO|escape("js") }}",
-        width: 200,
-        margin: [{{ DOCUMENTS.pageSize == 'LETTER' ? 166 : 157 }}, 0, 0, 20]
+        width: {{ DOCUMENTS.logoWidth }},
+        alignment: '{{ DOCUMENTS.logoAlign }}',
+        margin: [0, 0, 0, 20]
     },
     {% endif %}
     {
@@ -51,11 +52,14 @@
         {text: "{{ project.projects_manager_email|escape("js") }}", style: { alignment: "right" } },
     {% endif %}
     {% if fileNumber %}
-        {text: "v{{ fileNumber|escape("js") }}", style: { alignment: "right" } },
+        {text: "{{ (DOCUMENTS.reference[documentType] ?: "v{version}")|replace({"{project}": project.projects_id, "{version}": fileNumber})|escape("js") }}", style: { alignment: "right" } },
     {% endif %}
     " ",
     { text: "{{ project.projects_name|escape("js") }}", style: { bold: true, fontSize: 25 } },
     { text: "{{ GET['fileType']|escape("js") }}", style: { fontSize: 16 } },
+    {% if DOCUMENTS.accentColour %}
+        { canvas: [ { type: 'line', x1: 0, y1: 4, x2: {{ DOCUMENTS.contentWidth }}, y2: 4, lineWidth: 2, lineColor: '{{ DOCUMENTS.accentColour }}' } ] },
+    {% endif %}
     {
         table: {
             widths: [ "50%", "50%"],
@@ -63,24 +67,24 @@
                 {
                     table: {
                         body: [
-                            ['Our Reference:',"{{project.projects_id|escape("js")}}"],
+                            [{{ (DOCUMENTS.labels.reference ~ ':')|jsString }},"{{project.projects_id|escape("js")}}"],
                             {% if project.projects_dates_deliver_start %}
-                                ['Deliver:',"{{ project.projects_dates_deliver_start|date("j M Y h:ia")|escape("js")}}"],
+                                [{{ (DOCUMENTS.labels.deliver ~ ':')|jsString }},"{{ project.projects_dates_deliver_start|date(DOCUMENTS.dateTimeFormat)|escape("js")}}"],
                             {% endif %}
                             {% if project.projects_dates_use_start %}
-                                ['Start:',"{{ project.projects_dates_use_start|date("j M Y h:ia")|escape("js")}}"],
+                                [{{ (DOCUMENTS.labels.start ~ ':')|jsString }},"{{ project.projects_dates_use_start|date(DOCUMENTS.dateTimeFormat)|escape("js")}}"],
                             {% endif %}
                             {% if project.projects_dates_use_end %}
-                                ['Finish:',"{{ project.projects_dates_use_end|date("j M Y h:ia")|escape("js") }}"],
+                                [{{ (DOCUMENTS.labels.finish ~ ':')|jsString }},"{{ project.projects_dates_use_end|date(DOCUMENTS.dateTimeFormat)|escape("js") }}"],
                             {% endif %}
                             {% if project.projects_dates_deliver_end %}
-                                ['Collect:',"{{ project.projects_dates_deliver_end|date("j M Y h:ia")|escape("js") }}"],
+                                [{{ (DOCUMENTS.labels.collect ~ ':')|jsString }},"{{ project.projects_dates_deliver_end|date(DOCUMENTS.dateTimeFormat)|escape("js") }}"],
                             {% endif %}
                             {% if GET['totalmass'] and project.projectsTypes_config_assets == 1 %}
-                                ['Mass Estimate:',"{{FINANCIALS.mass|mass|escape("js") }}"],
+                                [{{ (DOCUMENTS.labels.massEstimate ~ ':')|jsString }},"{{FINANCIALS.mass|mass|escape("js") }}"],
                             {% endif %}
                             {% if GET['totalvalue'] and project.projectsTypes_config_assets == 1 %}
-                                ['Value Estimate:',"{{FINANCIALS.value|money|escape("js") }}"],
+                                [{{ (DOCUMENTS.labels.valueEstimate ~ ':')|jsString }},"{{FINANCIALS.value|money|escape("js") }}"],
                             {% endif %}
                         ],
                     },
@@ -90,7 +94,7 @@
                 {% if GET['venue'] and project.projectsTypes_config_venue == 1 %}
                 {
                     stack: [
-                        { text: 'Venue', style: {bold: true}},
+                        { text: {{ DOCUMENTS.labels.venue|jsString }}, style: {bold: true}},
                         "{{ project.locations_name|escape("js") }}",
                         "{{ project.locations_address|escape("js") }}"
                     ],
@@ -104,8 +108,11 @@
         layout: 'noBorders',
         margin: [ 0, 10, 0, 10 ]
     },
+    {% if DOCUMENTS.intro[documentType] != "" %}
+        { text: {{ DOCUMENTS.intro[documentType]|jsString }}, margin: [ 0, 0, 0, 10 ] },
+    {% endif %}
     {% if project.projects_invoiceNotes|length > 0 and GET['invoiceNotes'] %}
-        { text: "Notes", style: { fontSize: 20, bold: true } },
+        { text: {{ DOCUMENTS.labels.notes|jsString }}, style: { fontSize: 20, bold: true } },
         "{{ project.projects_invoiceNotes|escape("js") }}",
     {% endif %}
     {% if project.projects_deliveryNotes|length > 0 and GET['type'] == 'deliveryNote' %}
@@ -113,7 +120,7 @@
         "{{ project.projects_deliveryNotes|escape("js") }}",
     {% endif %}
     {% if GET['assets'] and project.projectsTypes_config_assets == 1 %}
-        { text: "Equipment", style: { fontSize: 20, bold: true }, pageBreak: 'before' },
+        { text: {{ DOCUMENTS.labels.equipment|jsString }}, style: { fontSize: 20, bold: true }, pageBreak: 'before' },
 
         {% set columnCount = 2 %}
         {% set priceColumnCount = 0 %}
@@ -138,13 +145,13 @@
         ]{% endset %}
         {% set tableHeader %}[
             {% if GET['checkboxes'] %}' ',{% endif %}
-            'Item',
+            {{ DOCUMENTS.labels.item|jsString }},
             {% if GET['comments'] %}' ',{% endif %}
             '{# Definable Fields #} ',
-            {% if GET['masses'] %}'Mass',{% endif %}
+            {% if GET['masses'] %}{{ DOCUMENTS.labels.mass|jsString }},{% endif %}
             {% if project.projectsTypes_config_finance == 1 %}
-                {% if GET['prices'] %}'Price {{ moneySymbol() }}',{% endif %}
-                {% if GET['discounts'] %}'Disc {{ moneySymbol() }}',{% endif %}
+                {% if GET['prices'] %}{{ (DOCUMENTS.labels.price ~ ' ' ~ moneySymbol())|jsString }},{% endif %}
+                {% if GET['discounts'] %}{{ (DOCUMENTS.labels.discount ~ ' ' ~ moneySymbol())|jsString }},{% endif %}
             {% endif %}
         ],{% endset %}
 
@@ -158,7 +165,8 @@
                         [{
                             text: "{{ section.projectsQuoteSections_name|escape("js") }}",
                             style: { bold: true, fontSize: 14 },
-                            fillColor: '#E8E8E8',
+                            fillColor: '{{ DOCUMENTS.accentColour ?: '#E8E8E8' }}',
+                            color: '{{ DOCUMENTS.accentText }}',
                             colSpan: {{ columnCount }},
                             margin: 3
                         },
@@ -259,9 +267,10 @@
                     widths: {{ tableWidths }},
                     body: [
                         [{
-                            text: "Other Items",
+                            text: {{ DOCUMENTS.labels.otherItems|jsString }},
                             style: { bold: true, fontSize: 14 },
-                            fillColor: '#E8E8E8',
+                            fillColor: '{{ DOCUMENTS.accentColour ?: '#E8E8E8' }}',
+                            color: '{{ DOCUMENTS.accentText }}',
                             colSpan: {{ columnCount }},
                             margin: 3
                         },
@@ -278,10 +287,10 @@
         {% endif %}
         {% if GET['flagsBlocks'] %}{ text: "[F] indicates asset flagged, [B] indicates asset blocked" },{% endif %}
         { text: "[L] indicates asset linked to another" },
-        { text: "{{ FINANCIALS.quote.typeCount }} Total Item{{ FINANCIALS.quote.typeCount != 1 ? 's' }}", style: { fontSize: 16, bold: true, alignment: 'right' } },
+        { text: "{{ FINANCIALS.quote.typeCount }} {% if DOCUMENTS.labels.totalItems == 'Total Items' %}Total Item{{ FINANCIALS.quote.typeCount != 1 ? 's' }}{% else %}{{ DOCUMENTS.labels.totalItems|escape("js") }}{% endif %}", style: { fontSize: 16, bold: true, alignment: 'right' } },
     {% endif %}
     {% if FINANCIALS.payments.subHire.ledger|length > 0 and project.projectsTypes_config_finance == 1 and GET['subHires']  %}
-        { text: "Additional Hire Items", style: { fontSize: 20, bold: true }, pageBreak: 'before' },
+        { text: {{ DOCUMENTS.labels.additionalHires|jsString }}, style: { fontSize: 20, bold: true }, pageBreak: 'before' },
         { 
             table: {
                 widths: ['auto', '*'{% if GET['prices'] %},'auto','auto'{% endif %}],
@@ -339,7 +348,7 @@
         {% endif %}
     {% endif %}
     {% if FINANCIALS.payments.sales.ledger|length > 0 and project.projectsTypes_config_finance == 1 and GET['sales'] %}
-        { text: "Sales", style: { fontSize: 20, bold: true } },
+        { text: {{ DOCUMENTS.labels.sales|jsString }}, style: { fontSize: 20, bold: true } },
         { 
             table: {
                 widths: ['auto', '*'{% if GET['prices'] %},'auto','auto'{% endif %}],
@@ -397,7 +406,7 @@
         {% endif %}
     {% endif %}
     {% if project.projectsTypes_config_finance == 1 and FINANCIALS.payments.staff.ledger|length > 0 and GET['staff'] %}
-        { text: "Staff", style: { fontSize: 20, bold: true } },
+        { text: {{ DOCUMENTS.labels.staff|jsString }}, style: { fontSize: 20, bold: true } },
         { 
             table: {
                 widths: ['auto', '*'{% if GET['prices'] %},'auto','auto'{% endif %}],
@@ -455,7 +464,7 @@
         {% endif %}
     {% endif %}
     {% if GET['finance'] and "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions and project.projectsTypes_config_finance == 1 %}
-    { text: "Summary", style: { fontSize: 20, bold: true }, margin: [ 0, 20, 0, 5 ] },
+    { text: {{ DOCUMENTS.labels.summary|jsString }}, style: { fontSize: 20, bold: true }, margin: [ 0, 20, 0, 5 ] },
     {
         table: {
             widths: [ "35%", "15%", "35%", "15%"],
@@ -495,7 +504,7 @@
                 [
                     { text: "" },
                     { text: "" },
-                    { text: "{% if GET['type'] == 'quote' %}Grand Total{% else %}Grand Total Outstanding{% endif %}", style: { bold: true } },
+                    { text: {{ (GET['type'] == 'quote' ? DOCUMENTS.labels.grandTotal : DOCUMENTS.labels.grandTotalOutstanding)|jsString }}, style: { bold: true } },
                     { text: "{{ FINANCIALS.payments.total|money|escape("js") }}", style: { alignment: 'right' } },
                 ],
             ],
@@ -527,5 +536,20 @@
         fillColor: '#F5F5F5',
         layout: 'noBorders',
         margin: [ 0, 10, 0, 0 ]
+    },
+    {% endif %}
+    {% if DOCUMENTS.signature[documentType] != "" %}
+    {
+        columns: [
+            { text: {{ (DOCUMENTS.signature[documentType] ~ ':')|jsString }}, width: 'auto' },
+            { canvas: [ { type: 'line', x1: 0, y1: 11, x2: 140, y2: 11, lineWidth: 0.5 } ], width: 140 },
+            { text: {{ (DOCUMENTS.labels.signature ~ ':')|jsString }}, width: 'auto' },
+            { canvas: [ { type: 'line', x1: 0, y1: 11, x2: 140, y2: 11, lineWidth: 0.5 } ], width: 140 },
+            { text: {{ (DOCUMENTS.labels.date ~ ':')|jsString }}, width: 'auto' },
+            { canvas: [ { type: 'line', x1: 0, y1: 11, x2: 70, y2: 11, lineWidth: 0.5 } ], width: 70 },
+        ],
+        columnGap: 6,
+        margin: [ 0, 40, 0, 0 ],
+        unbreakable: true
     },
     {% endif %}

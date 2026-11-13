@@ -582,38 +582,167 @@ function massFieldsToKg($array, $fields)
   }
   return $array;
 }
-const DOCUMENT_TYPES = ["invoice", "quote", "deliveryNote"];
-//The tick boxes on the generate PDF form that a business can save defaults for
-const DOCUMENT_OPTIONS = ["instancelogo", "addresses", "pmdetails", "totalmass", "totalvalue", "venue", "invoiceNotes", "assets", "showAll", "flagsBlocks", "checkboxes", "comments", "masses", "finance", "prices", "discounts", "subHires", "sales", "staff", "paymentTerms"];
 /**
- * A business's settings for generated documents, with anything it hasn't set (or that isn't valid) at its default
+ * The locale money is written in. Everything used to be en_GB, which writes dollars as US$10.00 -
+ * the dollar currencies get the locale where theirs is the plain $.
  */
-function documentSettings($instance = null)
+function moneyLocale($currency = null)
+{
+  global $AUTH;
+  if ($currency === null and isset($AUTH) and $AUTH->login and $AUTH->data['instance']) $currency = $AUTH->data['instance']['instances_config_currency'];
+  return ["USD" => "en_US", "CAD" => "en_CA", "AUD" => "en_AU", "NZD" => "en_NZ"][$currency] ?? "en_GB";
+}
+const DOCUMENT_TYPES = ["invoice", "quote", "deliveryNote"];
+//The tick boxes on the generate PDF form that defaults can be saved for
+const DOCUMENT_OPTIONS = ["instancelogo", "addresses", "pmdetails", "totalmass", "totalvalue", "venue", "invoiceNotes", "assets", "showAll", "flagsBlocks", "checkboxes", "comments", "masses", "finance", "prices", "discounts", "subHires", "sales", "staff", "paymentTerms"];
+const DOCUMENT_DATE_FORMATS = ["j M Y", "M j, Y", "d/m/Y", "m/d/Y", "Y-m-d"];
+const DOCUMENT_TIME_FORMATS = ["h:ia", "g:i A", "H:i"];
+const DOCUMENT_LOGO_WIDTHS = ["small" => 120, "medium" => 200, "large" => 300];
+//Wording on the documents that a business can change, and what it is otherwise
+const DOCUMENT_LABELS = [
+  "reference" => "Our Reference", "deliver" => "Deliver", "start" => "Start", "finish" => "Finish", "collect" => "Collect",
+  "massEstimate" => "Mass Estimate", "valueEstimate" => "Value Estimate", "venue" => "Venue", "notes" => "Notes",
+  "equipment" => "Equipment", "item" => "Item", "mass" => "Mass", "price" => "Price", "discount" => "Disc", "otherItems" => "Other Items",
+  "totalItems" => "Total Items", "additionalHires" => "Additional Hire Items", "sales" => "Sales", "staff" => "Staff", "summary" => "Summary",
+  "grandTotal" => "Grand Total", "grandTotalOutstanding" => "Grand Total Outstanding", "signature" => "Signature", "date" => "Date",
+];
+//Free text settings and how long each can be. Those ending _ are one for each type of document
+const DOCUMENT_TEXTS = ["headerText" => 100, "footerText" => 100, "deliveryNoteFooter" => 5000];
+const DOCUMENT_TEXTS_BY_TYPE = ["names" => 50, "intro" => 2000, "signature" => 50, "reference" => 50];
+/**
+ * Tick box defaults as stored, keeping only real options with true/false values
+ */
+function documentDefaultsNormalise($stored)
+{
+  $defaults = [];
+  foreach (DOCUMENT_TYPES as $type) {
+    $defaults[$type] = [];
+    foreach (DOCUMENT_OPTIONS as $option) {
+      if (is_array($stored) and isset($stored[$type]) and is_array($stored[$type]) and isset($stored[$type][$option]) and is_bool($stored[$type][$option])) $defaults[$type][$option] = $stored[$type][$option];
+    }
+  }
+  return $defaults;
+}
+/**
+ * Tick box defaults with those in a request (defaultsType, defaults and defaultsReset) applied, or false if it isn't valid
+ */
+function documentDefaultsFromInput($defaults, $input)
+{
+  if (!isset($input['defaultsType']) or !in_array($input['defaultsType'], DOCUMENT_TYPES, true)) return false;
+  if (isset($input['defaultsReset'])) $defaults[$input['defaultsType']] = [];
+  if (isset($input['defaults']) and is_array($input['defaults'])) {
+    foreach (DOCUMENT_OPTIONS as $option) {
+      if (isset($input['defaults'][$option]) and is_string($input['defaults'][$option])) $defaults[$input['defaultsType']][$option] = ($input['defaults'][$option] === "true" or $input['defaults'][$option] === "1");
+    }
+  }
+  return $defaults;
+}
+/**
+ * Document settings as stored (decoded JSON), with anything not set or not valid at its default
+ */
+function documentSettingsNormalise($stored)
+{
+  if (!is_array($stored)) $stored = [];
+  $settings = ["pageSize" => "A4", "firstPage" => ($stored['firstPage'] ?? false) === true, "logoAlign" => "center", "logoSize" => "medium", "accentColour" => "", "dateFormat" => DOCUMENT_DATE_FORMATS[0], "timeFormat" => DOCUMENT_TIME_FORMATS[0]];
+  foreach (["pageSize" => ["A4", "LETTER"], "logoAlign" => ["left", "center", "right"], "logoSize" => array_keys(DOCUMENT_LOGO_WIDTHS), "dateFormat" => DOCUMENT_DATE_FORMATS, "timeFormat" => DOCUMENT_TIME_FORMATS] as $key => $allowed) {
+    if (isset($stored[$key]) and in_array($stored[$key], $allowed, true)) $settings[$key] = $stored[$key];
+  }
+  if (isset($stored['accentColour']) and is_string($stored['accentColour']) and preg_match('/^#[0-9a-fA-F]{6}$/', $stored['accentColour'])) $settings['accentColour'] = $stored['accentColour'];
+  foreach (DOCUMENT_TEXTS as $key => $limit) {
+    $settings[$key] = (isset($stored[$key]) and is_string($stored[$key])) ? $stored[$key] : "";
+  }
+  foreach (DOCUMENT_TEXTS_BY_TYPE as $key => $limit) {
+    foreach (DOCUMENT_TYPES as $type) {
+      $settings[$key][$type] = (is_array($stored[$key] ?? null) and isset($stored[$key][$type]) and is_string($stored[$key][$type])) ? $stored[$key][$type] : "";
+    }
+  }
+  foreach (DOCUMENT_LABELS as $key => $default) {
+    $settings['labels'][$key] = (is_array($stored['labels'] ?? null) and isset($stored['labels'][$key]) and is_string($stored['labels'][$key])) ? $stored['labels'][$key] : "";
+  }
+  $settings['defaults'] = documentDefaultsNormalise($stored['defaults'] ?? null);
+  return $settings;
+}
+/**
+ * Document settings with the fields a request sent applied - only what is sent changes. Returns an error message instead if one isn't valid.
+ * Used to save them, and to preview them before they are saved.
+ */
+function documentSettingsFromInput($settings, $input)
+{
+  $text = function ($key, $limit) use ($input) {
+    if (!isset($input[$key]) or !is_string($input[$key])) return null;
+    return mb_substr(trim($input[$key]), 0, $limit);
+  };
+  foreach (["pageSize" => "Page size", "logoAlign" => "Logo position", "logoSize" => "Logo size", "dateFormat" => "Date format", "timeFormat" => "Time format", "accentColour" => "Colour"] as $key => $name) {
+    if (!isset($input[$key])) continue;
+    $attempt = documentSettingsNormalise([$key => $input[$key]]);
+    if ($attempt[$key] !== $input[$key]) return $name . " not recognised";
+    $settings[$key] = $input[$key];
+  }
+  if (isset($input['firstPage'])) $settings['firstPage'] = ($input['firstPage'] === "true" or $input['firstPage'] === "1");
+  foreach (DOCUMENT_TEXTS as $key => $limit) {
+    if ($text($key, $limit) !== null) $settings[$key] = $text($key, $limit);
+  }
+  foreach (DOCUMENT_TEXTS_BY_TYPE as $key => $limit) {
+    foreach (DOCUMENT_TYPES as $type) {
+      //Names are sent as name_quote, as they were before there were others
+      $field = ($key == "names" ? "name" : $key) . "_" . $type;
+      if ($text($field, $limit) !== null) $settings[$key][$type] = $text($field, $limit);
+    }
+  }
+  foreach (DOCUMENT_LABELS as $key => $default) {
+    if ($text("label_" . $key, 50) !== null) $settings['labels'][$key] = $text("label_" . $key, 50);
+  }
+  return $settings;
+}
+/**
+ * Settings worked out from the ones a business chooses, for the templates
+ */
+function documentSettingsForDisplay($settings)
+{
+  foreach (DOCUMENT_LABELS as $key => $default) {
+    if ($settings['labels'][$key] === "") $settings['labels'][$key] = $default;
+  }
+  $settings['dateTimeFormat'] = $settings['dateFormat'] . " " . $settings['timeFormat'];
+  $settings['logoWidth'] = DOCUMENT_LOGO_WIDTHS[$settings['logoSize']];
+  $settings['contentWidth'] = ($settings['pageSize'] == "LETTER" ? 612 : 595.28) - 80;
+  //Text on the accent colour is black or white, whichever is easier to read
+  $settings['accentText'] = "#000000";
+  if ($settings['accentColour'] !== "") {
+    [$r, $g, $b] = sscanf($settings['accentColour'], "#%02x%02x%02x");
+    if ((0.299 * $r + 0.587 * $g + 0.114 * $b) < 150) $settings['accentText'] = "#FFFFFF";
+  }
+  return $settings;
+}
+/**
+ * A business's settings for generated documents, as it stores them
+ */
+function documentSettingsStored($instance = null)
 {
   global $AUTH;
   if ($instance === null and isset($AUTH) and $AUTH->login and $AUTH->data['instance']) $instance = $AUTH->data['instance'];
-  $stored = json_decode(($instance ? ($instance['instances_config_documents'] ?? '') : '') ?: '[]', true);
-  if (!is_array($stored)) $stored = [];
-  $settings = ["pageSize" => "A4", "names" => [], "headerText" => "", "footerText" => "", "firstPage" => false, "deliveryNoteFooter" => "", "defaults" => []];
-  if (($stored['pageSize'] ?? null) === "LETTER") $settings['pageSize'] = "LETTER";
-  foreach (["headerText", "footerText", "deliveryNoteFooter"] as $key) {
-    if (isset($stored[$key]) and is_string($stored[$key])) $settings[$key] = $stored[$key];
-  }
-  $settings['firstPage'] = ($stored['firstPage'] ?? false) === true;
-  foreach (DOCUMENT_TYPES as $type) {
-    $settings['names'][$type] = (isset($stored['names'][$type]) and is_string($stored['names'][$type])) ? $stored['names'][$type] : "";
-    $settings['defaults'][$type] = [];
-    foreach (DOCUMENT_OPTIONS as $option) {
-      if (isset($stored['defaults'][$type][$option]) and is_bool($stored['defaults'][$type][$option])) $settings['defaults'][$type][$option] = $stored['defaults'][$type][$option];
-    }
-  }
-  return $settings;
+  return documentSettingsNormalise(json_decode(($instance ? ($instance['instances_config_documents'] ?? '') : '') ?: '[]', true));
+}
+/**
+ * A business's settings for generated documents, ready for a template
+ */
+function documentSettings($instance = null)
+{
+  return documentSettingsForDisplay(documentSettingsStored($instance));
+}
+/**
+ * The tick box defaults the current user has saved for themselves in the current business, which go on top of the business's
+ */
+function documentUserDefaults()
+{
+  global $AUTH;
+  $stored = (isset($AUTH) and $AUTH->login and $AUTH->data['instance']) ? ($AUTH->data['instance']['userInstances_documentDefaults'] ?? '') : '';
+  return documentDefaultsNormalise(json_decode($stored ?: '[]', true));
 }
 /**
  * What a business calls a type of document, or $fallback if it hasn't chosen a name
  */
 function documentName($type, $fallback)
 {
-  $settings = documentSettings();
+  $settings = documentSettingsStored();
   return (isset($settings['names'][$type]) and $settings['names'][$type] !== "") ? $settings['names'][$type] : $fallback;
 }

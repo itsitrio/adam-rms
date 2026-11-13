@@ -13,15 +13,18 @@ $PAGEDATA['GET']['quote'] = $isQuote;
 $PAGEDATA['GET']['deliveryNote'] = $isDeliveryNote;
 
 $typeId = 20;
+$PAGEDATA['documentType'] = "invoice";
 $PAGEDATA['GET']['fileType'] = documentName('invoice', 'Invoice');
 
 switch ($_GET['type']) {
     case 'quote':
         $typeId = 21;
+        $PAGEDATA['documentType'] = "quote";
         $PAGEDATA['GET']['fileType'] = documentName('quote', 'Quotation');
         break;
     case 'deliveryNote':
         $typeId = 22;
+        $PAGEDATA['documentType'] = "deliveryNote";
         $PAGEDATA['GET']['fileType'] = documentName('deliveryNote', 'Delivery Note');
         break;
     default:
@@ -48,5 +51,17 @@ if ($PAGEDATA['USERDATA']['instance']['instances_logo'] and $PAGEDATA['GET']['in
 } else $PAGEDATA['INSTANCELOGO'] = false;
 
 $PAGEDATA['DOCUMENTS'] = documentSettings();
+//A preview is shown in the page rather than downloaded or stored. The settings page previews settings before
+//they are saved by posting them - they change nothing, and go through the same checks as saving them does
+$PAGEDATA['PREVIEW'] = isset($_GET['preview']);
+if ($PAGEDATA['PREVIEW'] and count($_POST) > 0) {
+    $previewSettings = documentSettingsFromInput(documentSettingsStored(), $_POST);
+    if (is_array($previewSettings)) {
+        $PAGEDATA['DOCUMENTS'] = documentSettingsForDisplay($previewSettings);
+        foreach (['invoice' => 'Invoice', 'quote' => 'Quotation', 'deliveryNote' => 'Delivery Note'] as $type => $name) {
+            if ($type == $PAGEDATA['documentType']) $PAGEDATA['GET']['fileType'] = $previewSettings['names'][$type] !== "" ? $previewSettings['names'][$type] : $name;
+        }
+    }
+}
 
 echo $TWIG->render('project/pdf.twig', $PAGEDATA);

@@ -4,33 +4,13 @@ require_once __DIR__ . '/../apiHeadSecure.php';
 if (!$AUTH->instancePermissionCheck("BUSINESS:BUSINESS_SETTINGS:EDIT")) finish(false, ["code" => "AUTH-ERROR", "message" => "No auth for action"]);
 
 //Only what was sent is changed, so the settings page and the generate PDF form can each save their own part
-$settings = documentSettings();
-$text = function ($key, $limit) {
-    if (!isset($_POST[$key]) or !is_string($_POST[$key])) return null;
-    return mb_substr(trim($_POST[$key]), 0, $limit);
-};
-
-if (isset($_POST['pageSize'])) {
-    if (!in_array($_POST['pageSize'], ["A4", "LETTER"], true)) finish(false, ["code" => "PARAM-ERROR", "message" => "Page size not recognised"]);
-    $settings['pageSize'] = $_POST['pageSize'];
-}
-foreach (["headerText" => 100, "footerText" => 100, "deliveryNoteFooter" => 5000] as $key => $limit) {
-    if ($text($key, $limit) !== null) $settings[$key] = $text($key, $limit);
-}
-if (isset($_POST['firstPage'])) $settings['firstPage'] = ($_POST['firstPage'] === "true" or $_POST['firstPage'] === "1");
-foreach (DOCUMENT_TYPES as $type) {
-    if ($text("name_" . $type, 50) !== null) $settings['names'][$type] = $text("name_" . $type, 50);
-}
+$settings = documentSettingsFromInput(documentSettingsStored(), $_POST);
+if (!is_array($settings)) finish(false, ["code" => "PARAM-ERROR", "message" => $settings]);
 
 //The tick boxes to start with when generating one type of document
 if (isset($_POST['defaultsType'])) {
-    if (!in_array($_POST['defaultsType'], DOCUMENT_TYPES, true)) finish(false, ["code" => "PARAM-ERROR", "message" => "Document type not recognised"]);
-    if (isset($_POST['defaultsReset'])) $settings['defaults'][$_POST['defaultsType']] = [];
-    if (isset($_POST['defaults']) and is_array($_POST['defaults'])) {
-        foreach (DOCUMENT_OPTIONS as $option) {
-            if (isset($_POST['defaults'][$option]) and is_string($_POST['defaults'][$option])) $settings['defaults'][$_POST['defaultsType']][$option] = ($_POST['defaults'][$option] === "true" or $_POST['defaults'][$option] === "1");
-        }
-    }
+    $settings['defaults'] = documentDefaultsFromInput($settings['defaults'], $_POST);
+    if ($settings['defaults'] === false) finish(false, ["code" => "PARAM-ERROR", "message" => "Document type not recognised"]);
 }
 
 $DBLIB->where("instances_id", $AUTH->data['instance']["instances_id"]);
@@ -107,6 +87,30 @@ Requires Instance Permission BUSINESS:BUSINESS_SETTINGS:EDIT
  *         name="name_invoice",
  *         in="query",
  *         description="What invoices are called (also name_quote and name_deliveryNote). Empty for the default",
+ *         required="false", 
+ *         @OA\Schema(
+ *             type="string"), 
+ *         ), 
+ *     @OA\Parameter(
+ *         name="intro_invoice",
+ *         in="query",
+ *         description="Text for the start of an invoice (also intro_quote and intro_deliveryNote). signature_ (the label of a signature line at the end, empty for none) and reference_ (the reference to print, where {project} is the project's number and {version} the document's version) work the same way",
+ *         required="false", 
+ *         @OA\Schema(
+ *             type="string"), 
+ *         ), 
+ *     @OA\Parameter(
+ *         name="logoAlign",
+ *         in="query",
+ *         description="left, center or right. Also logoSize (small, medium or large), accentColour (#RRGGBB, or empty), dateFormat and timeFormat (PHP date formats from the lists the settings page offers)",
+ *         required="false", 
+ *         @OA\Schema(
+ *             type="string"), 
+ *         ), 
+ *     @OA\Parameter(
+ *         name="label_reference",
+ *         in="query",
+ *         description="Wording to use in place of Our Reference. Each label on the documents has one, listed on the settings page. Empty for the default",
  *         required="false", 
  *         @OA\Schema(
  *             type="string"), 

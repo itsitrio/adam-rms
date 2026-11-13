@@ -4,8 +4,9 @@
 {% if INSTANCELOGO %}
 {
     image: "{{ INSTANCELOGO|escape("js") }}",
-    width: 200,
-    margin: [{{ DOCUMENTS.pageSize == 'LETTER' ? 166 : 157 }}, 0, 0, 20]
+    width: {{ DOCUMENTS.logoWidth }},
+    alignment: '{{ DOCUMENTS.logoAlign }}',
+    margin: [0, 0, 0, 20]
 },
 {% endif %}
 {
@@ -25,7 +26,7 @@
                     "{{ project.projects_manager_name|escape("js") }}",
                     "{{ project.projects_manager_email|escape("js") }}",
                 {% endif %}
-                {% if fileNumber %}"v{{ fileNumber|escape("js") }}",{% endif %}
+                {% if fileNumber %}"{{ (DOCUMENTS.reference[documentType] ?: "v{version}")|replace({"{project}": project.projects_id, "{version}": fileNumber})|escape("js") }}",{% endif %}
             ],
             style: { alignment: "right" },
             width: "50%"
@@ -56,7 +57,7 @@
             {% for row in SUMMARY.rows %}
             [
                 "{{ row.project.projects_name|escape("js") }}{% if loop.first %} (shared){% endif %}",
-                "{% if row.project.projects_dates_use_start %}{{ row.project.projects_dates_use_start|date("j M Y")|escape("js") }}{% if row.project.projects_dates_use_end and row.project.projects_dates_use_end|date("j M Y") != row.project.projects_dates_use_start|date("j M Y") %} - {{ row.project.projects_dates_use_end|date("j M Y")|escape("js") }}{% endif %}{% endif %}",
+                "{% if row.project.projects_dates_use_start %}{{ row.project.projects_dates_use_start|date(DOCUMENTS.dateFormat)|escape("js") }}{% if row.project.projects_dates_use_end and row.project.projects_dates_use_end|date(DOCUMENTS.dateFormat) != row.project.projects_dates_use_start|date(DOCUMENTS.dateFormat) %} - {{ row.project.projects_dates_use_end|date(DOCUMENTS.dateFormat)|escape("js") }}{% endif %}{% endif %}",
                 {% if showMoney %}
                     { text: "{{ row.equipment|money|escape("js") }}", style: { alignment: 'right' } },
                     { text: "{{ row.other|money|escape("js") }}", style: { alignment: 'right' } },

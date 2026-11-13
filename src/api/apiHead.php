@@ -59,7 +59,7 @@ function apiMoney($variable) {
     global $AUTH;
     if (!is_object($variable)) $variable = new Money($variable, new Currency($AUTH->data['instance']['instances_config_currency']));
     $currencies = new ISOCurrencies();
-    $numberFormatter = new NumberFormatter('en_GB', NumberFormatter::CURRENCY);
+    $numberFormatter = new NumberFormatter(moneyLocale($variable->getCurrency()->getCode()), NumberFormatter::CURRENCY);
     $moneyFormatter = new IntlMoneyFormatter($numberFormatter, $currencies);
     return $moneyFormatter->format($variable);
 }

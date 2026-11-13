@@ -197,7 +197,7 @@ $TWIG->addFilter(new \Twig\TwigFilter('money', function ($variable,$currency = f
     global $AUTH;
     if (!is_object($variable)) $variable = new Money($variable, new Currency(($currency ?: $AUTH->data['instance']['instances_config_currency'])));
     $currencies = new ISOCurrencies();
-    $numberFormatter = new NumberFormatter('en_GB', NumberFormatter::CURRENCY);
+    $numberFormatter = new NumberFormatter(moneyLocale($variable->getCurrency()->getCode()), NumberFormatter::CURRENCY);
     $moneyFormatter = new IntlMoneyFormatter($numberFormatter, $currencies);
     return $moneyFormatter->format($variable);
 }));
@@ -217,7 +217,7 @@ $TWIG->addFilter(new \Twig\TwigFilter('moneyPositive', function ($variable) {
 $TWIG->addFunction(new \Twig\TwigFunction('moneySymbol', function ($currency = false) {
     global $AUTH;
     $currencyCode = $currency ?: $AUTH->data['instance']['instances_config_currency'];
-    $numberFormatter = new NumberFormatter('en_GB' . "@currency=$currencyCode", NumberFormatter::CURRENCY);
+    $numberFormatter = new NumberFormatter(moneyLocale($currencyCode) . "@currency=$currencyCode", NumberFormatter::CURRENCY);
     $symbol = $numberFormatter->getSymbol(NumberFormatter::CURRENCY_SYMBOL);
     return $symbol;
 }));
@@ -236,6 +236,25 @@ $TWIG->addFunction(new \Twig\TwigFunction('documentName', function ($type, $fall
 $TWIG->addFunction(new \Twig\TwigFunction('documentSettings', function () {
     return documentSettings();
 }));
+$TWIG->addFunction(new \Twig\TwigFunction('documentSettingsStored', function () {
+    return documentSettingsStored();
+}));
+$TWIG->addFunction(new \Twig\TwigFunction('documentDateFormats', function () {
+    return DOCUMENT_DATE_FORMATS;
+}));
+$TWIG->addFunction(new \Twig\TwigFunction('documentTimeFormats', function () {
+    return DOCUMENT_TIME_FORMATS;
+}));
+$TWIG->addFunction(new \Twig\TwigFunction('documentLabels', function () {
+    return DOCUMENT_LABELS;
+}));
+$TWIG->addFunction(new \Twig\TwigFunction('documentUserDefaults', function () {
+    return documentUserDefaults();
+}));
+//A string as a JavaScript string literal, quotes included, that reads the same in the page's source
+$TWIG->addFilter(new \Twig\TwigFilter('jsString', function ($string) {
+    return json_encode((string) $string, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE);
+}, ['is_safe' => ['html', 'js']]));
 $TWIG->addFilter(new \Twig\TwigFilter('nbsp', function ($string) {
     return str_replace(" ","&nbsp;", $string);
 }, [
