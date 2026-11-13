@@ -71,6 +71,11 @@ if (isset($array['assets_quantity']) or isset($array['assets_unserialized'])) {
         if (count($committed) > 0 and $array['assets_quantity'] < max($committed)) finish(false, ["code" => "PARAM-ERROR", "message" => "This asset already has " . max($committed) . " units assigned to a current project - remove them from that project before reducing the quantity held"]);
     }
 }
+if (isset($array['assets_linkedTo'])) {
+    $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
+    $DBLIB->where("assets_id", $array['assets_linkedTo']);
+    if (!$DBLIB->getOne("assets", ["assets_id"])) finish(false, ["code" => "PARAM-ERROR", "message"=> "Linked asset not found"]);
+}
 
 if (isset($array['assets_tag']) and $array['assets_tag'] != $asset['assets_tag']) {
     $DBLIB->where("assets.instances_id",$AUTH->data['instance']['instances_id']);

@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { TEST_USER } from "../env";
+import { cacheCdn } from "../cdn";
+
+test.beforeEach(async ({ page }) => {
+  await cacheCdn(page.context());
+});
 
 // The suite runs with DEV_MODE=true (as the devcontainer does), where headSecure.php
 // shows the auth failure and a login link instead of redirecting.
@@ -24,4 +29,16 @@ test("the API rejects requests without a session", async ({ request }) => {
     result: false,
     error: { message: "AUTH FAIL - No token found" },
   });
+});
+
+// The app login flow sends a token for the account to the app once the user has
+// logged in. A link from anyone else must not be able to choose where that token goes.
+test("app login sends the token to the app, not to a host named in the link", async ({ request }) => {
+  await request.get("/login/?app-oauth&returnHost=attacker.example");
+  const response = await request.post("/api/login/login.php", {
+    form: { formInput: TEST_USER.email, password: TEST_USER.password },
+  });
+  const body = await response.json();
+  expect(body.result).toBe(true);
+  expect(body.response.redirect).toMatch(/^com\.bstudios\.adamrms:\/\/oauth_callback\?token=/);
 });
