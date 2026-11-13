@@ -18,7 +18,7 @@ if (!$AUTH->instancePermissionCheck("PROJECTS:VIEW") or !isset($_GET['id'])) fin
 
 //The project itself
 function projectDetails($projectsId) {
-    global $DBLIB, $AUTH;
+    global $DBLIB, $AUTH, $bCMS;
     $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
     $DBLIB->where("projects.projects_deleted", 0);
     $DBLIB->where("projects.projects_id", $projectsId);
@@ -27,7 +27,8 @@ function projectDetails($projectsId) {
     $DBLIB->join("users", "projects.projects_manager=users.users_userid", "LEFT");
     $DBLIB->join("locations","locations.locations_id=projects.locations_id","LEFT");
     $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
-    return $DBLIB->getone("projects", ["projects.*", "projectsTypes.*", "clients.clients_id", "clients_name","clients_website","clients_email","clients_notes","clients_address","clients_phone","users.users_userid", "users.users_name1", "users.users_name2", "users.users_email","locations.locations_name","locations.locations_address","projectsStatuses.projectsStatuses_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour","projectsStatuses.projectsStatuses_backgroundColour","projectsStatuses.projectsStatuses_assetsReleased","projectsStatuses.projectsStatuses_description"]);
+    $personaColumns = $bCMS->projectManagerPersonaJoin();
+    return $DBLIB->getone("projects", [...$personaColumns, "projects.*", "projectsTypes.*", "clients.clients_id", "clients_name","clients_website","clients_email","clients_notes","clients_address","clients_phone","users.users_userid", "users.users_name1", "users.users_name2", "users.users_email","locations.locations_name","locations.locations_address","projectsStatuses.projectsStatuses_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour","projectsStatuses.projectsStatuses_backgroundColour","projectsStatuses.projectsStatuses_assetsReleased","projectsStatuses.projectsStatuses_description"]);
 }
 $PAGEDATA['project'] = projectDetails($_GET['id']);
 if (!$PAGEDATA['project']) $PAGEDATA['USE_TWIG_404'] ? die($TWIG->render('404.twig', $PAGEDATA)) : die("404");

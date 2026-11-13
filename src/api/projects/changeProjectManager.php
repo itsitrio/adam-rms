@@ -11,7 +11,7 @@ if (!$user) die("404");
 $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("projects.projects_deleted", 0);
 $DBLIB->where("projects.projects_id", $_POST['projects_id']);
-$project = $DBLIB->update("projects", ["projects.projects_manager" => $user['users_userid']]);
+$project = $DBLIB->update("projects", ["projects.projects_manager" => $user['users_userid'], "projects.projects_manager_persona" => null]); //A persona belongs to the manager who chose it
 if (!$project) finish(false);
 
 $bCMS->auditLog("CHANGE-MANAGER", "projects", "Set the project manager to ". $user['users_name1'] . " " . $user['users_name2'], $AUTH->data['users_userid'],null, $_POST['projects_id']);

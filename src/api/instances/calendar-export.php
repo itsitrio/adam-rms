@@ -25,7 +25,7 @@ $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.
 $DBLIB->join("users AS pmusers", "projects.projects_manager=pmusers.users_userid", "LEFT");
 $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
 $DBLIB->orderBy("projects.projects_dates_use_start", "ASC");
-$iCalProjects = $DBLIB->get("projects", null, ["pmusers.users_name1 AS pm_name1", "pmusers.users_name2 AS pm_name2","projects.projects_id", "projects.projects_description", "projects.projects_dates_use_start", "projects.projects_dates_use_end", "projects.projects_name", "clients.clients_name", "projectsStatuses.projectsStatuses_name", "locations.locations_name","locations.locations_address"]);
+$iCalProjects = $DBLIB->get("projects", null, [...$bCMS->projectManagerPersonaJoin("pmusers"),"projects.projects_id", "projects.projects_description", "projects.projects_dates_use_start", "projects.projects_dates_use_end", "projects.projects_name", "clients.clients_name", "projectsStatuses.projectsStatuses_name", "locations.locations_name","locations.locations_address"]);
 
 $vCalendar = new \Eluceo\iCal\Component\Calendar($CONFIG['ROOTURL']);
 
@@ -44,7 +44,7 @@ foreach ($iCalProjects as $event) {
         ->setSummary($event['projects_name'] . ($event['clients_name'] ? " (" . $event['clients_name'] . ")" : ""))
         ->setCategories(['events', 'AdamRMS'])
         ->setLocation($event['locations_name'] . "\n" . $event['locations_address'], $event['locations_name'] . "\n" . $event['locations_address'])
-        ->setDescription("Event Status: " . $event['projectsStatuses_name'] . "\n" . "Description: ". $event['projects_description'] . "\n" . "Project Manager: " . $event['pm_name1'] . " " . $event['pm_name2'])
+        ->setDescription("Event Status: " . $event['projectsStatuses_name'] . "\n" . "Description: ". $event['projects_description'] . "\n" . "Project Manager: " . $event['projects_manager_name'])
     ;
     $vCalendar->addComponent($vEvent);
 }

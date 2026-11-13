@@ -24,7 +24,7 @@ if ($argv[1] !== "snapshot") exit("Unknown command\n");
 $instance = (int) $argv[2];
 $byInstance = ["instancePositions", "clients", "locations", "manufacturers", "assetCategoriesGroups", "assetCategories", "assetTypes",
     "assetGroups", "assets", "projectsTypes", "projectsStatuses", "assetsAssignmentsStatus", "projects", "maintenanceJobs",
-    "maintenanceJobsStatuses", "cmsPages", "modules", "signupCodes", "s3files"];
+    "maintenanceJobsStatuses", "cmsPages", "modules", "signupCodes", "s3files", "usersPersonas"];
 $children = [ // table => SQL picking the rows that belong to the business through a parent row
     "assetsBarcodes" => "assets_id IN (SELECT assets_id FROM assets WHERE instances_id = ?)",
     "assetsBarcodesScans" => "assetsBarcodes_id IN (SELECT assetsBarcodes_id FROM assetsBarcodes JOIN assets USING (assets_id) WHERE instances_id = ?)",

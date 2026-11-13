@@ -404,6 +404,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimpleResponse'
+  /account/personas/delete.php:
+    post:
+      tags:
+        - account
+      summary: 'Delete Persona'
+      description: "Delete one of the signed-in user's personas in the current business. It can no longer be chosen for a project, but projects already using it keep it."
+      operationId: deletePersona
+      parameters:
+        -
+          name: usersPersonas_id
+          in: query
+          description: 'Persona ID'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+  /account/personas/save.php:
+    post:
+      tags:
+        - account
+      summary: 'Save Persona'
+      description: "Create a persona for the signed-in user in the current business, or edit one of theirs. A project can show its manager's persona in place of their name and email."
+      operationId: savePersona
+      parameters:
+        -
+          name: usersPersonas_id
+          in: query
+          description: 'Persona to edit - leave out to create one'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: usersPersonas_name
+          in: query
+          description: 'Name to show'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: usersPersonas_email
+          in: query
+          description: "Email to show - leave blank to show the user's own"
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
   /account/reSendVerificationEmail.php:
     get:
       tags:
@@ -6050,6 +6108,35 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/changeProjectManagerPersona.php:
+    post:
+      tags:
+        - projects
+      summary: 'Change Project Manager Persona'
+      description: "Choose which of the project manager's personas the project shows in place of their name and email, or none to show their own\nRequires Instance Permission PROJECTS:EDIT:LEAD, or being the project's manager\n"
+      operationId: changeProjectManagerPersona
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: usersPersonas_id
+          in: query
+          description: "Persona ID - leave blank to show the manager's own name and email"
+          required: 'false'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
   /projects/changeProjectType.php:
     post:
       tags:

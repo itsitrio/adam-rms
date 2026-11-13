@@ -34,7 +34,7 @@
                     <p class="text-sm">Project Manager
                         <b class="d-block">
                                 {% if "BUSINESS:USERS:VIEW:INDIVIDUAL_USER"|instancePermissions %}<a style="color: inherit; text-decoration: inherit;" href="{{ CONFIG.ROOTURL }}/user.php?id={{ role.projects_manager }}">{% endif %}
-                                {{role.users_name1 ~ " " ~ role.users_name2 ~ " (" ~ role.users_email ~ ")" }}
+                                {{ role.projects_manager_name ~ " (" ~ role.projects_manager_email ~ ")" }}
                             {% if "BUSINESS:USERS:VIEW:INDIVIDUAL_USER"|instancePermissions %}</a>{% endif %}
                         </b>
                     </p>
@@ -180,11 +180,11 @@
                     <hr/>
                     <p>Please check your application carefully before submitting, you cannot modify it after submission</p>
                     {% if role.projectsVacantRoles_privateToPM == 1 %}
-                    <p>This application will only be shared with the Project Manager of the Project who can choose who to share your application with later. Currently the project manager, {{ role.users_name1 ~ " " ~ role.users_name2 }}, has not chosen to share it with anyone, but they could change this or the project manager could change. Please contact them if you have any questions.</p>
+                    <p>This application will only be shared with the Project Manager of the Project who can choose who to share your application with later. Currently the project manager, {{ role.projects_manager_name }}, has not chosen to share it with anyone, but they could change this or the project manager could change. Please contact them if you have any questions.</p>
                     {% elseif role.canViewApplications %}
                     <p>This application will be shared the current project manager and whoever they chose to share it with - please contact them if you have any questions. <br/>Currently they are sharing it with:
                     <ul>
-                        <li>Project Manager: {{ role.users_name1 ~ " " ~ role.users_name2 }}</li>
+                        <li>Project Manager: {{ role.projects_manager_name }}</li>
                         {% for user in role.canViewApplications %}
                             <li>{{ user.users_name1 ~ " " ~ user.users_name2 }}</li>
                         {% endfor %}

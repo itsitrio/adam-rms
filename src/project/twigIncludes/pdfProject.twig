@@ -47,8 +47,8 @@
     },
     " ",
     {% if GET['pmdetails'] %}
-        { text: "{{ project.users_name1|escape("js") ~ " " ~ project.users_name2|escape("js")  }}", style: { bold: true, alignment: "right" } },
-        {text: "{{ project.users_email|escape("js") }}", style: { alignment: "right" } },
+        { text: "{{ project.projects_manager_name|escape("js") }}", style: { bold: true, alignment: "right" } },
+        {text: "{{ project.projects_manager_email|escape("js") }}", style: { alignment: "right" } },
     {% endif %}
     {% if fileNumber %}
         {text: "v{{ fileNumber|escape("js") }}", style: { alignment: "right" } },

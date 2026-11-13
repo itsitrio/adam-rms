@@ -90,6 +90,9 @@
                         {% endif %}
                         {% if user.crewAssignments|length > 0 %}<li class="nav-item"><a class="nav-link" href="#roles" data-toggle="tab">Crew Roles</a></li>{% endif %}
                         {% if user.projectManagement|length > 0 %}<li class="nav-item"><a class="nav-link" href="#projects" data-toggle="tab">Projects Managed</a></li>{% endif %}
+                        {% if user.users_userid == USERDATA.users_userid and USERDATA.instance %}
+                        <li class="nav-item"><a class="nav-link" href="#personas" data-toggle="tab">Personas</a></li>
+                        {% endif %}
                         {% if user.users_userid == USERDATA.users_userid %}
                         <li class="nav-item"><a class="nav-link" href="#export" data-toggle="tab">Export Calendar</a></li>
                         {% endif %}
@@ -503,6 +506,64 @@
                                 {% endfor %}
                             </table>
                         </div>
+                        {% if user.users_userid == USERDATA.users_userid and USERDATA.instance %}
+                        <div class="tab-pane p-3" id="personas">
+                            <p>A persona is another name you go by in {{ USERDATA.instance.instances_name }}, such as a stage or fandom name. On a project you manage you can choose a persona, and it's shown in place of your name (and, if you give one, your email) on quotes, invoices and delivery notes, to crew and in calendars.</p>
+                            <table class="table table-striped" id="personasTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for persona in personas %}
+                                        <tr data-personaid="{{ persona.usersPersonas_id }}">
+                                            <td><input type="text" class="form-control personaName" maxlength="255" value="{{ persona.usersPersonas_name }}"></td>
+                                            <td><input type="email" class="form-control personaEmail" maxlength="255" placeholder="{{ user.users_email }}" value="{{ persona.usersPersonas_email }}"></td>
+                                            <td class="text-right text-nowrap">
+                                                <button type="button" class="btn btn-default personaSave">Save</button>
+                                                <button type="button" class="btn btn-danger personaDelete" title="Delete persona"><i class="fas fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    <tr data-personaid="">
+                                        <td><input type="text" class="form-control personaName" maxlength="255" placeholder="New persona name"></td>
+                                        <td><input type="email" class="form-control personaEmail" maxlength="255" placeholder="Email (optional - {{ user.users_email }} if blank)"></td>
+                                        <td class="text-right"><button type="button" class="btn btn-success personaSave">Add</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <small class="text-muted">Deleting a persona stops it being offered for projects. Projects already showing it keep it until another is chosen.</small>
+                            <script>
+                                $(document).ready(function() {
+                                    if (window.location.hash === "#personas") $('.nav-link[href="#personas"]').tab("show");
+                                    $("#personasTable").on("click", ".personaSave", function () {
+                                        var row = $(this).closest("tr");
+                                        ajaxcall("account/personas/save.php", {
+                                            "usersPersonas_id": row.data("personaid"),
+                                            "usersPersonas_name": row.find(".personaName").val(),
+                                            "usersPersonas_email": row.find(".personaEmail").val()
+                                        }, function () {
+                                            window.location.hash = "personas";
+                                            location.reload();
+                                        });
+                                    });
+                                    $("#personasTable").on("click", ".personaDelete", function () {
+                                        var row = $(this).closest("tr");
+                                        bootbox.confirm("Delete this persona?", function (confirmed) {
+                                            if (!confirmed) return;
+                                            ajaxcall("account/personas/delete.php", {"usersPersonas_id": row.data("personaid")}, function () {
+                                                window.location.hash = "personas";
+                                                location.reload();
+                                            });
+                                        });
+                                    });
+                                });
+                            </script>
+                        </div>
+                        {% endif %}
                         <!-- /.tab-pane -->
                         <div class="active tab-pane" style="padding: 1.25rem" id="calendar">
                             {% embed 'assets/widgets/calendar.twig' with {'USER': true, 'projects': user.crewAssignments, 'useStartDate': true} %}

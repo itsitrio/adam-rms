@@ -19,7 +19,8 @@ $DBLIB->orderBy("projects.projects_dates_use_start","ASC");
 $DBLIB->orderBy("projectsVacantRoles.projects_id","ASC");
 $DBLIB->orderBy("projectsVacantRoles.projectsVacantRoles_deadline","ASC");
 $DBLIB->orderBy("projectsVacantRoles.projectsVacantRoles_added","ASC");
-$roles = $DBLIB->get("projectsVacantRoles",null,["projectsVacantRoles.*","projects.*", "clients.clients_name", "users.users_userid", "users.users_name1", "users.users_name2", "users.users_email"]);
+$personaColumns = $bCMS->projectManagerPersonaJoin();
+$roles = $DBLIB->get("projectsVacantRoles",null,[...$personaColumns, "projectsVacantRoles.*","projects.*", "clients.clients_name", "users.users_userid", "users.users_name1", "users.users_name2", "users.users_email"]);
 $PAGEDATA['roles'] = [];
 foreach($roles as $role) {
     $role['projectsVacantRoles_questions'] = json_decode($role['projectsVacantRoles_questions'],true);
