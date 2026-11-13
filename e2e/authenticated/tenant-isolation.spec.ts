@@ -169,6 +169,13 @@ const writeCases: WriteCase[] = [
   { endpoint: "/api/projects/assets/setStatusBarcode.php", params: (t) => ({ projects_id: t.projectId, text: t.barcodeValue, type: "CODE_128", assetsAssignments_status: t.assignmentStatusId }) },
   { endpoint: "/api/projects/assets/assign.php", params: (t, self) => ({ projects_id: t.projectId, assets_id: self.spareAssetId }) },
   { endpoint: "/api/projects/assets/swap.php", params: (t) => ({ assetsAssignments_id: t.assignmentId, assets_id: t.spareAssetId }) },
+  { endpoint: "/api/projects/quote/newSection.php", params: (t) => ({ projects_id: t.projectId, projectsQuoteSections_name: "Section by e2e" }) },
+  { endpoint: "/api/projects/quote/editSection.php", params: (t) => ({ projectsQuoteSections_id: t.quoteSectionId, projectsQuoteSections_name: "Renamed by e2e" }) },
+  { endpoint: "/api/projects/quote/deleteSection.php", params: (t) => ({ projectsQuoteSections_id: t.quoteSectionId }) },
+  { endpoint: "/api/projects/quote/newLine.php", params: (t) => ({ projects_id: t.projectId, projectsQuoteLines_text: "Line by e2e", projectsQuoteLines_price: "5.00" }) },
+  { endpoint: "/api/projects/quote/editLine.php", params: (t) => ({ projectsQuoteLines_id: t.quoteLineId, projectsQuoteLines_text: "Changed by e2e", projectsQuoteLines_price: "9.00" }) },
+  { endpoint: "/api/projects/quote/deleteLine.php", params: (t) => ({ projectsQuoteLines_id: t.quoteLineId }) },
+  { endpoint: "/api/projects/quote/allocate.php", params: (t) => ({ assetsAssignments: [t.assignmentId], projectsQuoteSections_id: t.quoteSectionId }) },
   // Assets
   { endpoint: "/api/assets/editAsset.php", params: (t) => ({ assets_id: t.assetId, assets_notes: "Changed by e2e", assets_value: "9999.00" }) },
   { endpoint: "/api/assets/archive.php", params: (t) => ({ assets_id: t.assetId, reason: "e2e", date: "2024-02-01" }) },
@@ -276,6 +283,9 @@ moveCases.push({
 
 const count = ([sql, params]: [string, unknown[]]) => Number(dbQuery<{ n: number }>(sql, params)[0].n);
 const linkCases: LinkCase[] = [
+  { endpoint: "/api/projects/quote/allocate.php", params: (t, a) => ({ assetsAssignments: [a.assignmentId], projectsQuoteSections_id: t.quoteSectionId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projectsQuoteAllocations WHERE assetsAssignments_id = ? AND projectsQuoteSections_id = ?", [a.assignmentId, b.quoteSectionId]] },
+  { endpoint: "/api/projects/quote/newLine.php", params: (t, a) => ({ projects_id: a.projectId, projectsQuoteLines_text: "Line by e2e", projectsQuoteSections_id: t.quoteSectionId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projectsQuoteLines WHERE projects_id = ? AND projectsQuoteSections_id = ? AND projectsQuoteLines_deleted = 0", [a.projectId, b.quoteSectionId]] },
+  { endpoint: "/api/projects/quote/editLine.php", params: (t, a) => ({ projectsQuoteLines_id: a.quoteLineId, projectsQuoteSections_id: t.quoteSectionId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projectsQuoteLines WHERE projectsQuoteLines_id = ? AND projectsQuoteSections_id = ?", [a.quoteLineId, b.quoteSectionId]] },
   { endpoint: "/api/projects/changeClient.php", params: (t, a) => ({ projects_id: a.projectId, clients_id: t.clientId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND clients_id = ?", [a.projectId, b.clientId]] },
   { endpoint: "/api/projects/changeVenue.php", params: (t, a) => ({ projects_id: a.projectId, locations_id: t.locationId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND locations_id = ?", [a.projectId, b.locationId]] },
   { endpoint: "/api/projects/changeProjectType.php", params: (t, a) => ({ projects_id: a.projectId, projectsTypes_id: t.projectTypeId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND projectsTypes_id = ?", [a.projectId, b.projectTypeId]] },

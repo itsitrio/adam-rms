@@ -237,6 +237,15 @@ function tenant(string $letter): array {
         "payments_amount" => 1234, "payments_quantity" => 1, "payments_type" => 1, "payments_date" => "2024-01-01 00:00:00",
         "payments_supplier" => null, "payments_method" => null, "payments_comment" => "$marker payment comment", "payments_deleted" => 0,
     ], $remembered['paymentId'] ?? null);
+    // A quote heading with a note line under it, and nothing placed under it yet
+    $t['quoteSectionId'] = upsert("projectsQuoteSections", "projectsQuoteSections_id", ["projects_id" => $t['projectId'], "projectsQuoteSections_name" => "$marker quote section"], [
+        "projectsQuoteSections_rank" => 1, "projectsQuoteSections_deleted" => 0,
+    ], $remembered['quoteSectionId'] ?? null);
+    $t['quoteLineId'] = upsert("projectsQuoteLines", "projectsQuoteLines_id", ["projects_id" => $t['projectId'], "projectsQuoteLines_text" => "$marker quote line"], [
+        "projectsQuoteSections_id" => $t['quoteSectionId'], "projectsQuoteLines_quantity" => 1, "projectsQuoteLines_price" => 0,
+        "projectsQuoteLines_rank" => 1, "projectsQuoteLines_deleted" => 0,
+    ], $remembered['quoteLineId'] ?? null);
+    $db->prepare("DELETE FROM projectsQuoteAllocations WHERE projectsQuoteSections_id = ?")->execute([$t['quoteSectionId']]);
     $t['crewAssignmentId'] = upsert("crewAssignments", "crewAssignments_id", ["projects_id" => $t['projectId'], "users_userid" => $manager], [
         "crewAssignments_role" => "$marker crew role", "crewAssignments_comment" => "$marker crew comment", "crewAssignments_deleted" => 0,
         "crewAssignments_personName" => null, "crewAssignments_rank" => 1,

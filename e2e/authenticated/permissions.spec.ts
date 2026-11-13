@@ -32,6 +32,16 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/projects/assets/setStatusBarcode.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS", params: (a) => ({ projects_id: a.projectId, text: a.barcodeValue, type: "CODE_128", assetsAssignments_status: a.assignmentStatusId }) },
   { endpoint: "/api/projects/assets/assign.php", permission: "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN", params: (a) => ({ projects_id: a.projectId, assets_id: a.spareAssetId }) },
   { endpoint: "/api/projects/assets/swap.php", permission: "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN", params: (a) => ({ assetsAssignments_id: a.assignmentId, assets_id: a.spareAssetId }) },
+  // Quote layout
+  ...([
+    ["newSection", (a: Tenant) => ({ projects_id: a.projectId, projectsQuoteSections_name: "Section by e2e" })],
+    ["editSection", (a: Tenant) => ({ projectsQuoteSections_id: a.quoteSectionId, projectsQuoteSections_name: "Renamed by e2e" })],
+    ["deleteSection", (a: Tenant) => ({ projectsQuoteSections_id: a.quoteSectionId })],
+    ["newLine", (a: Tenant) => ({ projects_id: a.projectId, projectsQuoteLines_text: "Line by e2e", projectsQuoteLines_price: "5.00" })],
+    ["editLine", (a: Tenant) => ({ projectsQuoteLines_id: a.quoteLineId, projectsQuoteLines_text: "Changed by e2e" })],
+    ["deleteLine", (a: Tenant) => ({ projectsQuoteLines_id: a.quoteLineId })],
+    ["allocate", (a: Tenant) => ({ assetsAssignments: [a.assignmentId], projectsQuoteSections_id: a.quoteSectionId })],
+  ] as const).map(([name, params]) => ({ endpoint: `/api/projects/quote/${name}.php`, permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params })),
   // Assets
   { endpoint: "/api/assets/newAssetFromType.php", permission: "ASSETS:CREATE", params: (a) => ({ formData: formData({ assetTypes_id: a.assetTypeId }) }) },
   { endpoint: "/api/assets/editAsset.php", permission: "ASSETS:EDIT", params: (a) => ({ assets_id: a.assetId, assets_notes: "Changed by e2e" }) },
