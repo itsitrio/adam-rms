@@ -91,7 +91,7 @@
                     layout: 'noBorders',
                     margin: 10
                 },
-                {% if GET['venue'] and project.projectsTypes_config_venue == 1 %}
+                {% if GET['venue'] and project.projectsTypes_config_venue == 1 and project.locations_name %}
                 {
                     stack: [
                         { text: {{ DOCUMENTS.labels.venue|jsString }}, style: {bold: true}},
@@ -525,7 +525,7 @@
         margin: [ 0, 10, 0, 0 ]
     },
     {% endif %}
-    {% if GET['paymentTerms'] and GET['type'] != 'deliveryNote'  %}
+    {% if GET['paymentTerms'] and GET['type'] != 'deliveryNote' and (GET['type'] == 'quote' ? USERDATA.instance.instances_quoteTerms : USERDATA.instance.instances_termsAndPayment)|striptags|trim != "" %}
     {
         table: {
             widths: [ "100%"],

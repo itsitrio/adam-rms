@@ -82,10 +82,15 @@
                     } else if (response.error && response.error.code) {
                         alert(response.error.message);
                     } else if (response.result && response.response && response.response.url) {
-                        pdf.download("{{ project['projects_name']|escape("js") }} - {{ GET['fileType']|escape("js") }} v{{ fileNumber|escape("js") }}.pdf", function() {
-                            // Firefox takes a bit longer to do file actions, so delay closing this tab a little
-                            setTimeout(() => {window.close()}, 100)
-                        });
+                        //Download the file that was just stored. Making the PDF a second time doesn't give the same
+                        //document: pdfmake moves the lines it has already drawn (the accent rule, signature lines)
+                        var link = document.createElement("a");
+                        link.href = URL.createObjectURL(blob);
+                        link.download = "{{ project['projects_name']|escape("js") }} - {{ GET['fileType']|escape("js") }} v{{ fileNumber|escape("js") }}.pdf";
+                        document.body.appendChild(link);
+                        link.click();
+                        // Firefox takes a bit longer to do file actions, so delay closing this tab a little
+                        setTimeout(() => {window.close()}, 500);
                     } else {
                         alert("Error loading PDF");
                     }
