@@ -41,3 +41,25 @@ test("projects/list.php lists projects with their sub-projects", async ({ asA, t
   // Sub-projects are listed under their parent, not on their own
   expect(response.json.response.map((p: { projects_id: number }) => p.projects_id)).not.toContain(a.subProjectId);
 });
+
+test("assets/searchAssets.php finds the business's assets by type, manufacturer, notes or the end of their tag", async ({ asA, tenants: { a } }) => {
+  const ids = async (term: string) => {
+    const response = await asA.api("/api/assets/searchAssets.php", { instances_id: a.instanceId, term });
+    return response.json.result ? response.json.response.map((row: { assets_id: number }) => row.assets_id) : [];
+  };
+  expect(await ids(`${a.marker} asset type`)).toEqual(expect.arrayContaining([a.assetId, a.spareAssetId]));
+  expect(await ids(`${a.marker} manufacturer`)).toEqual(expect.arrayContaining([a.assetId, a.spareAssetId]));
+  expect(await ids(`${a.marker} asset notes`)).toContain(a.assetId);
+  expect(await ids(a.assetTag.slice(-3))).toContain(a.assetId); // a tag only matches at its end
+  expect(await ids("no asset's called this")).toEqual([]);
+});
+
+test("assets/searchType.php finds asset types by name or description", async ({ asA, tenants: { a } }) => {
+  const ids = async (term: string) => {
+    const response = await asA.api("/api/assets/searchType.php", { instances_id: a.instanceId, term });
+    return response.json.result ? response.json.response.map((row: { assetTypes_id: number }) => row.assetTypes_id) : [];
+  };
+  expect(await ids(`${a.marker} asset type`)).toContain(a.assetTypeId);
+  expect(await ids(`${a.marker} asset type description`)).toContain(a.assetTypeId);
+  expect(await ids("no type's called this")).toEqual([]);
+});
