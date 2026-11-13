@@ -41,7 +41,7 @@ jobs:
           context: git
           labels: |
             maintainer=adam-rms
-            org.opencontainers.image.source=https://github.com/adam-rms/adam-rms
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.documentation=https://adam-rms.com/self-hosting
             org.opencontainers.image.url=https://adam-rms.com
             org.opencontainers.image.vendor="Bithell Studios Ltd."
@@ -105,7 +105,7 @@ jobs:
           context: workflow
           labels: |
             maintainer=adam-rms
-            org.opencontainers.image.source=https://github.com/adam-rms/adam-rms
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.documentation=https://adam-rms.com/self-hosting
             org.opencontainers.image.url=https://adam-rms.com
             org.opencontainers.image.vendor="Bithell Studios Ltd."

@@ -17,6 +17,8 @@ concurrency:
 jobs:
   sync:
     name: Upload docs to R2
+    # Uploads to the project's own R2 bucket with its secrets, which forks don't have
+    if: github.repository == 'adam-rms/adam-rms'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
