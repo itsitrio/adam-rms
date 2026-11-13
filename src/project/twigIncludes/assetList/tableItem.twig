@@ -50,6 +50,9 @@
         {% if assetAssignment.assetsAssignments_linkedTo %}
             <button class="btn btn-sm btn-secondary" title="Asset was assigned automatically because it's linked to another asset"><i class="fas fa-link"></i></button>
         {% endif %}
+        {% if assetAssignment.assetsAssignments_hidden == 1 %}
+            <span class="badge badge-secondary assignmentHiddenBadge" title="Left off quotes and invoices - still shown on delivery notes"><i class="fas fa-eye-slash"></i> Hidden</span>
+        {% endif %}
 
     </td>
     {% if assetAssignment.assetsAssignments_comment %}
@@ -81,7 +84,7 @@
     </td>
     <td>{{ assetAssignment.mass > 0 ? assetAssignment.mass|mass : "" }}</td>
     {% if project.projectsTypes_config_finance == 1 %}
-        <td>{{ assetAssignment.price|money }}{{ assetAssignment.assetsAssignments_customPrice > 0 ? '&nbsp;<span class="badge badge-info" title="Custom price set"><i class="fas fa-coins"></i></span>' :'' }}</td>
+        <td>{{ assetAssignment.price|money }}{{ assetAssignment.assetsAssignments_customPrice > 0 ? '&nbsp;<span class="badge badge-info" title="Custom price set"><i class="fas fa-coins"></i></span>' :'' }}{% if assetAssignment.assetsAssignments_excludedFromTotals == 1 %}&nbsp;<span class="badge badge-secondary assignmentExcludedBadge" title="Left out of the project's totals - would otherwise be {{ assetAssignment.chargeablePrice|money }}">Not charged</span>{% endif %}</td>
         <td>{{ assetAssignment.discountPrice|money }}{{  assetAssignment.assetsAssignments_discount > 0 ? " ("~assetAssignment.assetsAssignments_discount ~ "%)" : "" }}</td>
     {% endif %}
 </tr>

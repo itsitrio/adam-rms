@@ -65,7 +65,7 @@ if ($availability['available'] >= $quantity and $flagsBlocks['COUNT']['BLOCK'] <
         //Everything an assignment contributes is per unit, so scales with the number of units it took
         $projectFinanceCacher->adjust('projectsFinanceCache_mass', ($asset['assets_mass'] !== null ? $asset['assets_mass'] : $assetType['assetTypes_mass']) * $quantity, $subtract);
         $projectFinanceCacher->adjust('projectsFinanceCache_value', (new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $assetType['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity), $subtract);
-        if ($currentAsset['assetsAssignments_customPrice'] == null) { // A custom price stays the same whichever asset it's for
+        if ($currentAsset['assetsAssignments_customPrice'] == null and $currentAsset['assetsAssignments_excludedFromTotals'] != 1) { // A custom price stays the same whichever asset it's for, and an assignment left out of the totals isn't charged for
             $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
             $price = $price->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $assetType['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
             $price = $price->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $assetType['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));

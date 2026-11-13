@@ -278,7 +278,7 @@
         {% endif %}
         {% if GET['flagsBlocks'] %}{ text: "[F] indicates asset flagged, [B] indicates asset blocked" },{% endif %}
         { text: "[L] indicates asset linked to another" },
-        { text: "{{ (FINANCIALS.assetsAssigned|length + FINANCIALS.assetsAssignedSUB|length) }} Total Item{{ (FINANCIALS.assetsAssigned|length + FINANCIALS.assetsAssignedSUB|length) != 1 ? 's' }}", style: { fontSize: 16, bold: true, alignment: 'right' } },
+        { text: "{{ FINANCIALS.quote.typeCount }} Total Item{{ FINANCIALS.quote.typeCount != 1 ? 's' }}", style: { fontSize: 16, bold: true, alignment: 'right' } },
     {% endif %}
     {% if FINANCIALS.payments.subHire.ledger|length > 0 and project.projectsTypes_config_finance == 1 and GET['subHires']  %}
         { text: "Additional Hire Items", style: { fontSize: 20, bold: true }, pageBreak: 'before' },
