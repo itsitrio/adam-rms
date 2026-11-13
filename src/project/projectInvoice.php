@@ -75,5 +75,10 @@ $PAGEDATA['documentPlaceholders'] = [
 foreach (["cover" => "COVERTEXT", "intro" => "INTROTEXT"] as $setting => $key) {
     $PAGEDATA[$key] = documentFormattedText($PAGEDATA['DOCUMENTS'][$setting][$PAGEDATA['documentType']], $PAGEDATA['documentPlaceholders'], $PAGEDATA['DOCUMENTS']['contentWidth'], $PAGEDATA['DOCUMENTS']['accentColour'] ?: "#000000");
 }
+//The footer for this type of document, formatted the same way. The quote and invoice footers are stored as cleaned HTML
+$footer = $PAGEDATA['DOCUMENTS']['deliveryNoteFooter'];
+if ($PAGEDATA['documentType'] == "quote") $footer = html_entity_decode(strip_tags((string) $AUTH->data['instance']['instances_quoteTerms']), ENT_QUOTES | ENT_HTML5);
+elseif ($PAGEDATA['documentType'] == "invoice") $footer = html_entity_decode(strip_tags(str_replace(["</p>", "<br/>"], "\n", (string) $AUTH->data['instance']['instances_termsAndPayment'])), ENT_QUOTES | ENT_HTML5);
+$PAGEDATA['FOOTERTEXT'] = documentFormattedText(trim($footer), $PAGEDATA['documentPlaceholders'], $PAGEDATA['DOCUMENTS']['contentWidth'] - 10, $PAGEDATA['DOCUMENTS']['accentColour'] ?: "#000000");
 
 echo $TWIG->render('project/pdf.twig', $PAGEDATA);
