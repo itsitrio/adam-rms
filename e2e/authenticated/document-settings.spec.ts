@@ -282,3 +282,21 @@ test("the copy that is downloaded is the copy that is stored", async ({ page, as
     dbQuery("DELETE FROM config WHERE config_key = 'FILES_ENABLED'");
   }
 });
+
+test("a document can start with a cover page", async ({ asA, tenants: { a } }) => {
+  await ok(asA.api("/api/instances/editInstanceDocuments.php", { cover_quote: "Cover text by e2e", firstPage: "true" }), "saving the cover text");
+  const url = `/project/projectInvoice.php?id=${a.projectId}&type=quote&assets=1`;
+  const without = (await asA.page(url)).body;
+  expect(without).not.toContain('"Prepared for"');
+  expect(without).not.toContain("Cover text by e2e");
+  expect(without).toContain("if (currentPage <= 0) return null;");
+
+  const withCover = (await asA.page(`${url}&coverPage=on`)).body;
+  expect(withCover).toContain('"Prepared for"');
+  expect(withCover).toContain('"Cover text by e2e"');
+  // The cover comes before the rest, and has no page header or footer
+  expect(withCover.indexOf('"Prepared for"')).toBeLessThan(withCover.indexOf('"Our Reference:"'));
+  expect(withCover).toContain("if (currentPage <= 1) return null;");
+  // Its text is the quote's alone
+  expect((await asA.page(`/project/projectInvoice.php?id=${a.projectId}&type=invoice&coverPage=on`)).body).not.toContain("Cover text by e2e");
+});

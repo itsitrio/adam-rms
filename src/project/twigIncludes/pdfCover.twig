@@ -1,0 +1,30 @@
+{# Cover page of a PDF, when asked for - the document's title on a page of its own, before everything else #}
+{% if INSTANCELOGO %}
+{
+    image: "{{ INSTANCELOGO|escape("js") }}",
+    width: 260,
+    alignment: 'center',
+    margin: [0, 60, 0, 0]
+},
+{% endif %}
+{ text: "{{ project.projects_name|escape("js") }}", style: { bold: true, fontSize: 34, alignment: 'center' }, margin: [ 0, {{ INSTANCELOGO ? 90 : 220 }}, 0, 8 ] },
+{ text: "{{ GET['fileType']|escape("js") }}", style: { fontSize: 20, alignment: 'center' } },
+{ canvas: [ { type: 'line', x1: {{ DOCUMENTS.contentWidth / 2 - 100 }}, y1: 12, x2: {{ DOCUMENTS.contentWidth / 2 + 100 }}, y2: 12, lineWidth: 2, lineColor: '{{ DOCUMENTS.accentColour ?: '#000000' }}' } ] },
+{% if project.projectsTypes_config_client == 1 and project.clients_name %}
+    { text: {{ DOCUMENTS.labels.preparedFor|jsString }}, style: { fontSize: 10, alignment: 'center' }, margin: [ 0, 50, 0, 2 ] },
+    { text: "{{ project.clients_name|escape("js") }}", style: { bold: true, fontSize: 16, alignment: 'center' } },
+{% endif %}
+{ text: {{ DOCUMENTS.labels.preparedBy|jsString }}, style: { fontSize: 10, alignment: 'center' }, margin: [ 0, 30, 0, 2 ] },
+{ text: "{{ USERDATA['instance']['instances_name']|escape("js") }}", style: { bold: true, fontSize: 16, alignment: 'center' } },
+{% if GET['pmdetails'] %}
+    { text: "{{ project.projects_manager_name|escape("js") }}", style: { alignment: 'center' } },
+    { text: "{{ project.projects_manager_email|escape("js") }}", style: { alignment: 'center' } },
+{% endif %}
+{ text: "{{ "now"|date(DOCUMENTS.dateFormat)|escape("js") }}", style: { alignment: 'center' }, margin: [ 0, 30, 0, 0 ] },
+{% if fileNumber %}
+    { text: "{{ (DOCUMENTS.reference[documentType] ?: "v{version}")|replace({"{project}": project.projects_id, "{version}": fileNumber})|escape("js") }}", style: { alignment: 'center' } },
+{% endif %}
+{% if DOCUMENTS.cover[documentType] != "" %}
+    { text: {{ DOCUMENTS.cover[documentType]|jsString }}, style: { alignment: 'center' }, margin: [ 40, 50, 40, 0 ] },
+{% endif %}
+{ text: "", pageBreak: 'after' },

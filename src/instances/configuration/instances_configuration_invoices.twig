@@ -177,6 +177,12 @@
                                     <td><input type="text" class="form-control form-control-sm" name="signature_quote" maxlength="50" value="{{ stored.signature.quote }}" placeholder="e.g. Accepted by"></td>
                                     <td><input type="text" class="form-control form-control-sm" name="signature_deliveryNote" maxlength="50" value="{{ stored.signature.deliveryNote }}" placeholder="e.g. Received by"></td>
                                 </tr>
+                                <tr>
+                                    <td>Cover page text <i class="fas fa-info-circle" title="Printed on the cover page, when one is ticked while generating the document. The cover page also shows your logo, the project, who it is for and the date."></i></td>
+                                    {% for type, name in types %}
+                                        <td><textarea class="form-control form-control-sm" name="cover_{{ type }}" rows="3" maxlength="2000">{{ stored.cover[type] }}</textarea></td>
+                                    {% endfor %}
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -213,7 +219,11 @@
             <div class="card-header">
                 <h3 class="card-title">Preview</h3>
                 {% if previewProject %}
-                <div class="card-tools">
+                <div class="card-tools form-inline">
+                    <div class="form-check mr-3">
+                        <input class="form-check-input" type="checkbox" id="documentPreviewCover">
+                        <label class="form-check-label" for="documentPreviewCover">Cover page</label>
+                    </div>
                     <select class="form-control form-control-sm" id="documentPreviewType">
                         <option value="quote">Quote</option>
                         <option value="invoice">Invoice</option>
@@ -262,6 +272,7 @@
                 var type = $("#documentPreviewType").val();
                 var options = $.extend({}, previewOptions, previewDefaults[type]);
                 if (type == "deliveryNote") options = $.extend(options, { finance: false, prices: false, discounts: false });
+                options.coverPage = $("#documentPreviewCover").prop("checked");
                 var query = "id={{ previewProject.projects_id }}&type=" + type + "&preview=1";
                 $.each(options, function (name, on) { if (on) query += "&" + name + "=on"; });
                 var form = $("#documentPreviewForm").empty().attr("action", "{{ CONFIG.ROOTURL }}/project/projectInvoice.php?" + query);
@@ -274,7 +285,13 @@
             }, 500);
         }
         $("#documentSettings").on("change input", "input, select, textarea", documentPreviewRefresh);
-        $("#documentPreviewType").on("change", documentPreviewRefresh);
+        $("#documentPreviewType, #documentPreviewCover").on("change", documentPreviewRefresh);
+        //Show the cover page while its text is being written
+        $('#documentSettings textarea[name^="cover_"]').on("focus", function () {
+            $("#documentPreviewType").val($(this).attr("name").replace("cover_", ""));
+            $("#documentPreviewCover").prop("checked", true);
+            documentPreviewRefresh();
+        });
         documentPreviewRefresh();
         {% endif %}
     });

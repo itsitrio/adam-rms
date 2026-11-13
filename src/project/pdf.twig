@@ -8,6 +8,9 @@
     window.addEventListener("DOMContentLoaded", function () {
         var docDefinition = {
             content: [
+                {% if GET['coverPage'] %}
+                    {% include 'project/twigIncludes/pdfCover.twig' %}
+                {% endif %}
                 {% if CHILDREN|length > 0 %}
                     {% include 'project/twigIncludes/pdfSummary.twig' %}
                     { text: "", pageBreak: 'after' },
@@ -19,7 +22,9 @@
                 {% endfor %}
             ],
             header: function(currentPage) { 
-                if (currentPage === 1 && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
+                //Never on the cover page; the page after it is the first
+                if (currentPage <= {{ GET['coverPage'] ? 1 : 0 }}) return null;
+                if (currentPage === {{ GET['coverPage'] ? 2 : 1 }} && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
                 return {
                     columns: [
                         {text: "{{ (DOCUMENTS.headerText != "" ? DOCUMENTS.headerText : USERDATA['instance']['instances_name'])|escape("js") }}", width: "40%"},
@@ -30,7 +35,9 @@
                 };           
             },
             footer: function(currentPage, pageCount) { 
-                if (currentPage === 1 && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
+                //Never on the cover page; the page after it is the first
+                if (currentPage <= {{ GET['coverPage'] ? 1 : 0 }}) return null;
+                if (currentPage === {{ GET['coverPage'] ? 2 : 1 }} && !{{ DOCUMENTS.firstPage ? 'true' : 'false' }}) return null;
                 return {
                     columns: [
                         {text: "{{ "now"|date(DOCUMENTS.dateTimeFormat)|escape("js") }}", width: "40%"},

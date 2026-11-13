@@ -101,6 +101,8 @@
                     style: { alignment: "right" },
                     margin: 10
                 },
+                {% else %}
+                { text: "" },{# So the box is still the width of the page #}
                 {% endif %}
             ]],
         },
