@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../common/headSecure.php';
 if (!$AUTH->instancePermissionCheck("PROJECTS:VIEW") or !isset($_GET['id'])) die($TWIG->render('404.twig', $PAGEDATA));
+$QUOTE_OMIT_HIDDEN_ASSIGNMENTS = (!isset($_GET['type']) or $_GET['type'] != "deliveryNote"); //Hidden assignments are left off quotes and invoices, but delivery notes list everything
 require_once __DIR__ . '/../api/projects/data.php'; //Where most of the data comes from
 
 $PAGEDATA['GET'] = $_GET;

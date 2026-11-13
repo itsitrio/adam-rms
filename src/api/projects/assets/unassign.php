@@ -55,16 +55,18 @@ foreach ($assignmentsRemove["assignments"] as $assignment) {
         $projectFinanceCacher->adjust('projectsFinanceCache_value', (new Money(($assignment['assets_value'] !== null ? $assignment['assets_value'] : $assignment['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity), true);
 
 
-        if ($assignment['assetsAssignments_customPrice'] > 0) {
-            $price = new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency']));
-        } else {
-            $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-            $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-            $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+        if ($assignment['assetsAssignments_excludedFromTotals'] != 1) { //An assignment left out of the totals has no price in them to take off
+            if ($assignment['assetsAssignments_customPrice'] > 0) {
+                $price = new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency']));
+            } else {
+                $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
+                $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+                $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+            }
+            $price = $price->multiply($quantity);
+            $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, true);
+            if ($assignment['assetsAssignments_discount'] > 0) $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $price->subtract($price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))), true);
         }
-        $price = $price->multiply($quantity);
-        $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, true);
-        if ($assignment['assetsAssignments_discount'] > 0) $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $price->subtract($price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))), true);
 
         $usersNotified = []; //If user follows multiple groups which this asset is in they'll be notified multiple times otherwise
         foreach (explode(",", $assignment['assets_assetGroups']) as $group) {

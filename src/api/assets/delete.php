@@ -28,7 +28,7 @@ else {
     $DBLIB->where("assets_id",$asset['assets_id']);
     $DBLIB->where("assetsAssignments_deleted",0);
     $DBLIB->join("projects","assetsAssignments.projects_id=projects.projects_id","LEFT");
-    $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity']);
+    $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity','assetsAssignments_excludedFromTotals']);
     foreach ($assetAssignments as $assignment) {
         $projectFinanceHelper = new projectFinance();
         $priceMaths = $projectFinanceHelper->durationMaths($assignment['projects_id']);
@@ -40,7 +40,9 @@ else {
         $projectFinanceCacher->adjust('projectsFinanceCache_mass',($asset['assets_mass'] !== null ? $asset['assets_mass'] : $asset['assetTypes_mass']) * $quantity,true);
         $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),true);
 
-        if ($assignment['assetsAssignments_customPrice'] > 0) {
+        if ($assignment['assetsAssignments_excludedFromTotals'] == 1) {
+            //Left out of the totals, so there's no price in them to take off
+        } elseif ($assignment['assetsAssignments_customPrice'] > 0) {
             $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', (new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity), true);
         } else {
             $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));

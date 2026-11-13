@@ -86,6 +86,15 @@ By default a quote lists equipment under its asset categories. The **Quote Layou
 
 The layout also applies to invoices and delivery notes.
 
+### Hiding Lines from Quotes and Invoices
+
+Some assets only matter for picking and checking, not to the client - cases, cables and accessories that come with other equipment. Select them in the Assets List and click the *Hide from quotes & invoices* (eye icon) button to:
+
+- **Hide them** from quotes and invoices. They are still listed on delivery notes, and everywhere else in the project, marked *Hidden*. You need the `PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES` permission.
+- **Leave them out of the project's totals**, so they aren't charged for. Their price counts as nothing (marked *Not charged* - hover over it to see what it would have been), but their mass and value still count. You need the `PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE` permission.
+
+The two can be used together or on their own. A line that is hidden but still charged for is included in the quote's totals without being listed - useful when its cost is bundled into what it comes with.
+
 ### Quoting Sub-Projects Together
 
 When a project has sub-projects - such as a festival with a sub-project for each stage, and costs shared between the stages on the parent project - you can tick **Include Sub-Projects, with a Summary Page** when creating a quote or invoice for the parent project. The PDF then starts with a summary page listing the parent project and each sub-project with its dates and totals, and a grand total, followed by the parent project's quote and each sub-project's quote in turn.

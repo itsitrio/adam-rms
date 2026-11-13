@@ -47,6 +47,10 @@
                         <button type="button" class="btn btn-tool" title="Place in quote section" id="setAssetAssignmentQuoteSection">
                             <i class="fas fa-layer-group"></i></button>
                     {% endif %}
+                    {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions or ("PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions and project.projectsTypes_config_finance == 1) %}
+                        <button type="button" class="btn btn-tool" title="Hide from quotes & invoices" id="setAssetAssignmentHidden">
+                            <i class="fas fa-eye-slash"></i></button>
+                    {% endif %}
                     {% if "PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS"|instancePermissions %}
                         <button type="button" class="btn btn-tool" title="Set status" id="setAllAssetStatus">
                             <i class="fas fa-clipboard-check"></i></button>
@@ -416,6 +420,41 @@
                     }
                 });
             }
+        });
+        {% endif %}
+        {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions or ("PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions and project.projectsTypes_config_finance == 1) %}
+        $("#setAssetAssignmentHidden").click(function () {
+            //Cases, accessories and the like matter for picking but not to the client, so can be left off quotes and invoices, and out of the totals
+            var selected = getSelected();
+            if (selected.length < 1) {
+                Toast.fire({ type: 'error', title: 'Please select some assets.' });
+                return;
+            }
+            var form = '<p>Hidden assets are left off quotes and invoices, but still show on delivery notes and everywhere else in the project.</p>';
+            {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions %}
+            form += '<div class="form-group"><label for="assignmentHidden">On quotes &amp; invoices</label><select class="form-control" id="assignmentHidden"><option value="">Leave as they are</option><option value="1">Hide</option><option value="0">Show</option></select></div>';
+            {% endif %}
+            {% if "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions and project.projectsTypes_config_finance == 1 %}
+            form += '<div class="form-group"><label for="assignmentExcludedFromTotals">In the project\'s totals</label><select class="form-control" id="assignmentExcludedFromTotals"><option value="">Leave as they are</option><option value="1">Leave out - don\'t charge for them</option><option value="0">Include - charge for them</option></select><small class="form-text text-muted">Their mass and value still count.</small></div>';
+            {% endif %}
+            bootbox.dialog({
+                title: "Hide from Quotes & Invoices",
+                message: form,
+                buttons: {
+                    cancel: { label: 'Cancel', className: 'btn-default' },
+                    confirm: {
+                        label: 'Save', className: 'btn-primary', callback: function () {
+                            var data = { "assetsAssignments": selected };
+                            if ($("#assignmentHidden").val()) data.assetsAssignments_hidden = $("#assignmentHidden").val();
+                            if ($("#assignmentExcludedFromTotals").val()) data.assetsAssignments_excludedFromTotals = $("#assignmentExcludedFromTotals").val();
+                            if (data.assetsAssignments_hidden === undefined && data.assetsAssignments_excludedFromTotals === undefined) return true;
+                            ajaxcall("projects/assets/setHidden.php", data, function () {
+                                location.reload();
+                            });
+                        }
+                    }
+                }
+            });
         });
         {% endif %}
         {% if "PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS"|instancePermissions %}

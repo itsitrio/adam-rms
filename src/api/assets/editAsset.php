@@ -125,7 +125,7 @@ else {
         $DBLIB->where("assets_id",$array['assets_id']);
         $DBLIB->where("assetsAssignments_deleted",0);
         $DBLIB->join("projects","assetsAssignments.projects_id=projects.projects_id","LEFT");
-        $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity']);
+        $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity','assetsAssignments_excludedFromTotals']);
         foreach ($assetAssignments as $assignment) {
             $projectFinanceHelper = new projectFinance();
             $priceMaths = $projectFinanceHelper->durationMaths($assignment['projects_id']);
@@ -141,8 +141,8 @@ else {
             $projectFinanceCacher->adjust('projectsFinanceCache_mass',($newAsset['assets_mass'] !== null ? $newAsset['assets_mass'] : $newAsset['assetTypes_mass']) * $quantity,false);
             $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($newAsset['assets_value'] !== null ? $newAsset['assets_value'] : $newAsset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),false);
 
-            if ($assignment['assetsAssignments_customPrice'] > 0) {
-                //Old price stands so ignore it
+            if ($assignment['assetsAssignments_customPrice'] > 0 or $assignment['assetsAssignments_excludedFromTotals'] == 1) {
+                //Old price stands (or isn't charged for) so ignore it
             } else {
                 $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
                 $oldPrice = $oldPrice->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));

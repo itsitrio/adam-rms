@@ -49,19 +49,25 @@ $PAGEDATA['project']['subProjects'] = $DBLIB->get("projects", null, ["projects.*
  * Each entry is a copy of the assignment covering just the units shown there, so an assignment split across two
  * sections appears in both. The last part of an assignment takes whatever's left of its price, so the parts
  * always add up to the assignment's price.
+ *
+ * With $omitHidden, assignments marked as hidden (cases, accessories and the like) are left out, as quotes and
+ * invoices leave them out. Their price stays in the project's totals unless they're also excluded from them.
  */
-function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsAssignedSUB, $moneyFormatter) {
+function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsAssignedSUB, $moneyFormatter, $omitHidden = false) {
     global $DBLIB, $AUTH;
     $currency = new Currency($AUTH->data['instance']['instances_config_currency']);
     $totals = function () use ($currency) {
         return ["quantity" => 0, "price" => new Money(0, $currency), "discountPrice" => new Money(0, $currency), "mass" => 0.0];
     };
-    $return = ["sections" => [], "unsectioned" => [], "unsectionedSUB" => [], "lines" => [], "linesTotal" => new Money(0, $currency)];
+    $return = ["sections" => [], "unsectioned" => [], "unsectionedSUB" => [], "lines" => [], "linesTotal" => new Money(0, $currency), "typeCount" => 0];
+    $typesShown = []; //Asset types of this business, and other businesses, that are shown - for the number of items
     foreach ($sections as $section) {
         $return['sections'][$section['projectsQuoteSections_id']] = $section + ["types" => [], "lines" => [], "totals" => $totals()];
     }
 
     foreach ($assets as $asset) {
+        if ($omitHidden and $asset['assetsAssignments_hidden'] == 1) continue;
+        $typesShown[($asset['instances_id'] != $project['instances_id'] ? "instance" . $asset['instances_id'] : "type" . $asset['assetTypes_id'])] = true;
         //Split the assignment's units into the sections they've been allocated to, with anything left over going under its category
         $remaining = $asset['assetsAssignments_quantity'];
         $parts = [];
@@ -160,13 +166,14 @@ function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsA
         $return['sections'][$sectionId] = $section;
     }
     $return['sections'] = array_values($return['sections']);
+    $return['typeCount'] = count($typesShown);
     $return['formattedLinesTotal'] = $moneyFormatter->format($return['linesTotal']);
     return $return;
 }
 
 //Payments and also
 function projectFinancials($project) {
-    global $DBLIB,$AUTH,$bCMS;
+    global $DBLIB,$AUTH,$bCMS,$QUOTE_OMIT_HIDDEN_ASSIGNMENTS; //Set by the quote and invoice PDFs, which leave hidden assignments off
     $projectFinanceHelper = new projectFinance();
     $return = [];
 
@@ -265,6 +272,14 @@ function projectFinancials($project) {
         $asset['unitPrice'] = $asset['price'];
         $asset['price'] = $asset['price']->multiply($asset['assetsAssignments_quantity']);
 
+        //An assignment left out of the totals isn't charged for, so counts as nothing towards them - its mass and value still count
+        $asset['chargeablePrice'] = $asset['price'];
+        $asset['formattedChargeablePrice'] = $moneyFormatter->format($asset['chargeablePrice']);
+        if ($asset['assetsAssignments_excludedFromTotals'] == 1) {
+            $asset['unitPrice'] = new Money(0, new Currency($AUTH->data['instance']['instances_config_currency']));
+            $asset['price'] = new Money(0, new Currency($AUTH->data['instance']['instances_config_currency']));
+        }
+
         $return['prices']['subTotal'] = $asset['price']->add($return['prices']['subTotal']);
 
         if ($asset['assetsAssignments_discount'] > 0) $asset['discountPrice'] = $asset['price']->multiply(1 - ($asset['assetsAssignments_discount'] / 100));
@@ -335,7 +350,7 @@ function projectFinancials($project) {
         }
     }
 
-    $return['quote'] = projectQuoteLayout($project, $quoteSections, $quoteAllocations, $quoteAssets, $return['assetsAssignedSUB'], $moneyFormatter);
+    $return['quote'] = projectQuoteLayout($project, $quoteSections, $quoteAllocations, $quoteAssets, $return['assetsAssignedSUB'], $moneyFormatter, !empty($QUOTE_OMIT_HIDDEN_ASSIGNMENTS));
     //Priced note lines are charged alongside the equipment
     $return['prices']['subTotal'] = $return['prices']['subTotal']->add($return['quote']['linesTotal']);
     $return['prices']['total'] = $return['prices']['total']->add($return['quote']['linesTotal']);
