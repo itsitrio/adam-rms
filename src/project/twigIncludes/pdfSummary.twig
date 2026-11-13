@@ -22,8 +22,8 @@
             stack: [
                 { text: "{{ USERDATA['instance']['instances_name']|escape("js") }}", style: { bold: true } },
                 {% if GET['pmdetails'] %}
-                    "{{ project.users_name1|escape("js") ~ " " ~ project.users_name2|escape("js") }}",
-                    "{{ project.users_email|escape("js") }}",
+                    "{{ project.projects_manager_name|escape("js") }}",
+                    "{{ project.projects_manager_email|escape("js") }}",
                 {% endif %}
                 {% if fileNumber %}"v{{ fileNumber|escape("js") }}",{% endif %}
             ],

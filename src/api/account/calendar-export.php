@@ -27,7 +27,7 @@ $DBLIB->join("users AS pmusers", "projects.projects_manager=pmusers.users_userid
 $DBLIB->where("projectsStatuses.projectsStatuses_assetsReleased", 0);
 $DBLIB->orderBy("projects.projects_id", "ASC");
 $DBLIB->orderBy("crewAssignments.crewAssignments_rank", "ASC");
-$assignments = $DBLIB->get("crewAssignments", null, ["pmusers.users_name1 AS pm_name1", "pmusers.users_name2 AS pm_name2","projects.projects_id","crewAssignments.crewAssignments_role", "projects.projects_description", "projects.projects_dates_use_start", "projects.projects_dates_use_end", "projects.projects_name", "clients.clients_name", "projectsStatuses.projectsStatuses_name", "locations.locations_name","locations.locations_address"]);
+$assignments = $DBLIB->get("crewAssignments", null, [...$bCMS->projectManagerPersonaJoin("pmusers"),"projects.projects_id","crewAssignments.crewAssignments_role", "projects.projects_description", "projects.projects_dates_use_start", "projects.projects_dates_use_end", "projects.projects_name", "clients.clients_name", "projectsStatuses.projectsStatuses_name", "locations.locations_name","locations.locations_address"]);
 
 $thisProject = null;
 $iCalAssignments = [];
@@ -53,7 +53,7 @@ foreach ($iCalAssignments as $event) {
         ->setSummary($event['projects_name'] . ($event['clients_name'] ? " (" . $event['clients_name'] . ")" : ""))
         ->setCategories(['events', 'AdamRMS'])
         ->setLocation($event['locations_name'] . "\n" . $event['locations_address'], $event['locations_name'] . "\n" . $event['locations_address'])
-        ->setDescription('Role: ' . $event['crewAssignments_role'] . "\n" . "Event Status: " . $event['projectsStatuses_name'] . "\n" . "Description: ". $event['projects_description'] . "\n" . "Project Manager: " . $event['pm_name1'] . " " . $event['pm_name2'])
+        ->setDescription('Role: ' . $event['crewAssignments_role'] . "\n" . "Event Status: " . $event['projectsStatuses_name'] . "\n" . "Description: ". $event['projects_description'] . "\n" . "Project Manager: " . $event['projects_manager_name'])
         ->setMsBusyStatus("FREE")
     ;
     $vCalendar->addComponent($vEvent);

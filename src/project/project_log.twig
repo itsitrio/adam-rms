@@ -5,7 +5,7 @@
             <div class="timeline">
                 {% set currentDate = '' %}
                 {% for event in project.auditLog %}
-                    {% if event.auditLog_actionType in ['QUICKCOMMENT', 'INSERT', 'ARCHIVE','UNARCHIVE','CHANGE-MANAGER','UPDATE-NAME','UPDATE-STATUS','CHANGE-DATE','CHANGE-DATE-FINANCE','UPDATE-DESCRIPTION','CHANGE-CLIENT'] %}
+                    {% if event.auditLog_actionType in ['QUICKCOMMENT', 'INSERT', 'ARCHIVE','UNARCHIVE','CHANGE-MANAGER','CHANGE-MANAGER-PERSONA','UPDATE-NAME','UPDATE-STATUS','CHANGE-DATE','CHANGE-DATE-FINANCE','UPDATE-DESCRIPTION','CHANGE-CLIENT'] %}
                         {% if event.auditLog_timestamp|date("Y-m-d") != currentDate %}
                             <div class="time-label">
                                 <span class="bg-red">{{ event.auditLog_timestamp|date("D jS M Y") }}</span>
@@ -31,7 +31,7 @@
                                         archived the project
                                     {% elseif event.auditLog_actionType == "UNARCHIVE" %}
                                         removed the project from the archive
-                                    {% elseif event.auditLog_actionType in ['CHANGE-MANAGER','UPDATE-NAME','UPDATE-STATUS','CHANGE-CLIENT'] %}
+                                    {% elseif event.auditLog_actionType in ['CHANGE-MANAGER','CHANGE-MANAGER-PERSONA','UPDATE-NAME','UPDATE-STATUS','CHANGE-CLIENT'] %}
                                         {{ event.auditLog_actionData }}
                                     {% else %}
                                         edited the project
@@ -39,7 +39,7 @@
                                 </h3>
                                 {% if event.auditLog_actionType == "QUICKCOMMENT" %}
                                     <div class="timeline-body">{{ event.auditLog_actionData|raw }}</div>
-                                {% elseif event.auditLog_actionType in ['INSERT', 'ARCHIVE','UNARCHIVE','CHANGE-MANAGER','UPDATE-NAME','UPDATE-STATUS','CHANGE-CLIENT'] %}
+                                {% elseif event.auditLog_actionType in ['INSERT', 'ARCHIVE','UNARCHIVE','CHANGE-MANAGER','CHANGE-MANAGER-PERSONA','UPDATE-NAME','UPDATE-STATUS','CHANGE-CLIENT'] %}
                                     {# Blank #}
                                 {% else %}
                                     <div class="timeline-body" style="font-style: italic;">{{event.auditLog_actionData|nl2br }}</div>

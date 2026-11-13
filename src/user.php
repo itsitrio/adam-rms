@@ -83,5 +83,15 @@ $PAGEDATA['pageConfig'] = ["TITLE" => $PAGEDATA['user']['users_name1'] . " " . $
 
 $PAGEDATA['NOTIFICATIONTYPES'] = $NOTIFICATIONTYPES;
 
+//Personas are per business, and only managed by their own user
+$PAGEDATA['personas'] = [];
+if ($PAGEDATA['user']['users_userid'] == $AUTH->data['users_userid'] and $AUTH->data['instance']) {
+   $DBLIB->where("users_userid", $AUTH->data['users_userid']);
+   $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
+   $DBLIB->where("usersPersonas_deleted", 0);
+   $DBLIB->orderBy("usersPersonas_name", "ASC");
+   $PAGEDATA['personas'] = $DBLIB->get("usersPersonas", null, ["usersPersonas_id", "usersPersonas_name", "usersPersonas_email"]);
+}
+
 echo $TWIG->render('user.twig', $PAGEDATA);
 ?>

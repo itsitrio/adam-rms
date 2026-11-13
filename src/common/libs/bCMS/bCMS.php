@@ -487,6 +487,18 @@ class bCMS
       return false;
     return true;
   }
+  function projectManagerPersonaJoin($usersTable = "users")
+  { //Joins the persona a project's manager goes by on it. Call alongside a join of the manager's row as $usersTable, and add the columns this returns to the query's.
+    global $DBLIB;
+    //A persona only counts if it belongs to the project's manager in the project's business; otherwise the manager's own name and email are shown
+    $DBLIB->join("usersPersonas", "usersPersonas.usersPersonas_id=projects.projects_manager_persona AND usersPersonas.users_userid=projects.projects_manager AND usersPersonas.instances_id=projects.instances_id", "LEFT");
+    return [
+      "COALESCE(usersPersonas.usersPersonas_name, CONCAT_WS(' ', " . $usersTable . ".users_name1, " . $usersTable . ".users_name2)) AS projects_manager_name",
+      "COALESCE(NULLIF(usersPersonas.usersPersonas_email, ''), " . $usersTable . ".users_email) AS projects_manager_email",
+      "usersPersonas.usersPersonas_id",
+      "usersPersonas.usersPersonas_name",
+    ];
+  }
   function userIsInInstance($userid, $instanceid)
   { //Whether the user is a current (not deleted, removed or archived) member of the business
     global $DBLIB;

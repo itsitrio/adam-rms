@@ -203,6 +203,24 @@
                                                                     </b>
                                                                 </p>
                                                             {% endif %}
+                                                            {% if "PROJECTS:EDIT:LEAD"|instancePermissions or project.projects_manager == USERDATA.users_userid %}
+                                                                <p class="text-sm mb-1 mt-2">Shown on quotes, invoices &amp; to crew as</p>
+                                                                <select class="form-control" id="editProjectManagerPersona">
+                                                                    <option value="" {{ project.usersPersonas_id ? '' : 'selected' }}>{{ project.users_name1 ~ " " ~ project.users_name2 }} (their own name)</option>
+                                                                    {% for persona in potentialManagerPersonas %}
+                                                                        <option value="{{ persona.usersPersonas_id }}" {{ project.usersPersonas_id == persona.usersPersonas_id ? 'selected' }}>{{ persona.usersPersonas_name }}{{ persona.usersPersonas_email ? " (" ~ persona.usersPersonas_email ~ ")" }}</option>
+                                                                    {% endfor %}
+                                                                </select>
+                                                                {% if project.projects_manager == USERDATA.users_userid %}
+                                                                    <small class="form-text text-muted"><a href="{{ CONFIG.ROOTURL }}/user.php#personas">Manage your personas</a></small>
+                                                                {% elseif potentialManagerPersonas|length == 0 %}
+                                                                    <small class="form-text text-muted">The project manager can add personas from their account page</small>
+                                                                {% endif %}
+                                                            {% elseif project.usersPersonas_id %}
+                                                                <p class="text-sm">Shown on quotes, invoices &amp; to crew as
+                                                                    <b class="d-block">{{ project.projects_manager_name ~ " (" ~ project.projects_manager_email ~ ")" }}</b>
+                                                                </p>
+                                                            {% endif %}
                                                         </div>
                                                         <div id="projectVenueContainer">
                                                             {% if "PROJECTS:EDIT:ADDRESS"|instancePermissions and project.projectsTypes_config_venue == 1  %}
@@ -985,6 +1003,16 @@
                     "users_userid": $(this).val(),
                     "projects_id": "{{ project.projects_id }}"
                 }, function (data) {
+                    location.reload();
+                });
+            });
+            {% endif %}
+            {% if "PROJECTS:EDIT:LEAD"|instancePermissions or project.projects_manager == USERDATA.users_userid %}
+            $('#editProjectManagerPersona').on("change", function () {
+                ajaxcall("projects/changeProjectManagerPersona.php", {
+                    "usersPersonas_id": $(this).val(),
+                    "projects_id": "{{ project.projects_id }}"
+                }, function () {
                     location.reload();
                 });
             });

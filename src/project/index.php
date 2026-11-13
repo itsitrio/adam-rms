@@ -120,6 +120,13 @@ $DBLIB->where("userInstances.userInstances_deleted",  0);
 $DBLIB->where("(userInstances.userInstances_archived IS NULL OR userInstances.userInstances_archived >= '" . date('Y-m-d H:i:s') . "')");
 $PAGEDATA['potentialProjectManagers'] = $DBLIB->get('users', null, ["users.users_name1", "users.users_name2", "users.users_userid"]);
 
+//Edit options - the manager's personas the project can show them as, plus the one it shows if that has since been deleted
+$DBLIB->where("users_userid", $PAGEDATA['project']['projects_manager']);
+$DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
+$DBLIB->where("(usersPersonas_deleted = 0 OR usersPersonas_id = ?)", [$PAGEDATA['project']['usersPersonas_id'] ?? 0]);
+$DBLIB->orderBy("usersPersonas_name", "ASC");
+$PAGEDATA['potentialManagerPersonas'] = $DBLIB->get("usersPersonas", null, ["usersPersonas_id", "usersPersonas_name", "usersPersonas_email"]);
+
 
 //Edit Options - can create sub projects?
 $PAGEDATA['canCreateSubProjects'] = $bCMS->instanceHasProjectCapacity($AUTH->data['instance']['instances_id']);
