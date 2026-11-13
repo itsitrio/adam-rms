@@ -340,3 +340,13 @@ test("the cover's text can start new pages, which are part of the cover", async 
   // Three pages of cover without the page header and footer
   expect(body).toContain("var coverPages = 3;");
 });
+
+test("a cover can hold pages of terms", async ({ asA, tenants: { a } }) => {
+  const long = "Terms ".repeat(4500).trim(); // 26,999 characters
+  await ok(asA.api("/api/instances/editInstanceDocuments.php", { cover_quote: long, cover_invoice: long, cover_deliveryNote: long }), "saving long covers");
+  const stored = JSON.parse(dbQuery<{ json: string }>("SELECT instances_config_documents json FROM instances WHERE instances_id = ?", [a.instanceId])[0].json);
+  expect(stored.cover.deliveryNote).toBe(long);
+  await ok(asA.api("/api/instances/editInstanceDocuments.php", { cover_quote: "x".repeat(30010) }), "saving a cover that is too long");
+  const cut = JSON.parse(dbQuery<{ json: string }>("SELECT instances_config_documents json FROM instances WHERE instances_id = ?", [a.instanceId])[0].json);
+  expect(cut.cover.quote).toHaveLength(30000);
+});

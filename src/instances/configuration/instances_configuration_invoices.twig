@@ -180,7 +180,7 @@
                                 <tr>
                                     <td>Cover page text <i class="fas fa-info-circle" title="Printed on the cover page, when one is ticked while generating the document."></i></td>
                                     {% for type, name in types %}
-                                        <td><textarea class="form-control form-control-sm" name="cover_{{ type }}" rows="8" maxlength="5000">{{ stored.cover[type] }}</textarea></td>
+                                        <td><textarea class="form-control form-control-sm" name="cover_{{ type }}" rows="8" maxlength="30000">{{ stored.cover[type] }}</textarea></td>
                                     {% endfor %}
                                 </tr>
                             </tbody>
