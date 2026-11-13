@@ -41,7 +41,12 @@ else {
         $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity),true);
 
         if ($assignment['assetsAssignments_customPrice'] > 0) {
-            $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', (new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity), true);
+            $oldPrice = (new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity);
+            $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $oldPrice, true);
+            if ($assignment['assetsAssignments_discount'] > 0) {
+                //If there was already a discount, remove it
+                $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $oldPrice->subtract($oldPrice->multiply(1 - ($assignment['assetsAssignments_discount'] / 100))),true);
+            }
         } else {
             $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
             $oldPrice = $oldPrice->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));

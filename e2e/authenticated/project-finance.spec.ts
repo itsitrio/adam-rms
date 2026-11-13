@@ -139,7 +139,23 @@ test("a project's finances add up, and its running totals keep up, through every
   });
 });
 
-test("custom days and weeks can't be negative, and -1 for both goes back to charging by the dates", async ({ asA, tenants: { a } }) => {
+test("deleting an asset with a custom price and a discount takes both off the projects it's on", async ({ asA, tenants: { a } }) => {
+  const api = (endpoint: string, params: Parameters<Session["api"]>[1]) => asA.api(endpoint, { instances_id: a.instanceId, ...params });
+  const project = await newProject(asA, a, a.users.full.id, { start: "2036-05-01 09:00:00", end: "2036-05-03 18:00:00" });
+  const asset = await newAsset(asA, a);
+  expect(await assign(asA, a, project, asset)).toMatchObject({ json: { result: true } });
+  const [{ id }] = dbQuery<{ id: number }>("SELECT assetsAssignments_id id FROM assetsAssignments WHERE projects_id = ? AND assets_id = ?", [project, asset]);
+  await ok(api("/api/projects/assets/setPrice.php", { assetsAssignments: [id], assetsAssignments_customPrice: "20.00" }), "setting a custom price");
+  await ok(api("/api/projects/assets/setDiscount.php", { assetsAssignments: [id], assetsAssignments_discount: 50 }), "setting a discount");
+  const none = { received: 0, sales: 0, subHire: 0, staff: 0 };
+  // £20.00, half off
+  await expectFinances(asA, a, project, { ...none, subTotal: 2000, discounts: 1000, total: 1000, grandTotal: 1000, value: 10000, mass: 1 });
+
+  await ok(api("/api/assets/delete.php", { assets_id: asset }), "deleting the asset");
+  await expectFinances(asA, a, project, { ...none, subTotal: 0, discounts: 0, total: 0, grandTotal: 0, value: 0, mass: 0 });
+});
+
+test("custom days and weeks can't be negative,and -1 for both goes back to charging by the dates", async ({ asA, tenants: { a } }) => {
   const api = (endpoint: string, params: Parameters<Session["api"]>[1]) => asA.api(endpoint, { instances_id: a.instanceId, ...params });
   const created = await api("/api/projects/new.php", { projects_name: "Duration test", projects_manager: a.users.full.id, projectsType_id: a.projectTypeId });
   const project: number = created.json.response.projects_id;
