@@ -212,6 +212,7 @@ AdamRMS uses AWS S3 (or S3-compatible storage) for file uploads. These settings 
 | Setting | Key | Type | Default | Required | Description |
 |---------|-----|------|---------|----------|-------------|
 | File storage enabled | `FILES_ENABLED` | Select | `Disabled` | No | Whether S3 file storage is enabled. If disabled, users will not be able to upload files. Options: `Enabled`, `Disabled`. |
+| File transfer mode | `FILES_TRANSFER_MODE` | Select | `Direct` | No | `Direct`: browsers upload to and download from the bucket themselves, using the browser endpoint. `Server`: every upload and download goes through AdamRMS, which uses the server endpoint, so browsers never see the bucket. Server mode limits uploads to 25MB. See [File & Image Storage](./s3-storage#file-transfer-mode). |
 | AWS Server Key | `AWS_S3_KEY` | Text | -- | No | The AWS (or S3-compatible) access key. |
 | AWS Server Secret Key | `AWS_S3_SECRET` | Text | -- | No | The AWS (or S3-compatible) secret key. |
 | AWS S3 Bucket Name | `AWS_S3_BUCKET` | Text | -- | No | The name of the S3 bucket to store files in. |
@@ -220,6 +221,7 @@ AdamRMS uses AWS S3 (or S3-compatible storage) for file uploads. These settings 
 | Setting | Env Fallback |
 |---------|--------------|
 | File storage enabled | -- |
+| File transfer mode | `CONFIG_FILES_TRANSFER_MODE` |
 | AWS Server Key | `CONFIG_AWS_S3_KEY` |
 | AWS Server Secret Key | `CONFIG_AWS_S3_SECRET` |
 | AWS S3 Bucket Name | `CONFIG_AWS_S3_BUCKET` |
@@ -229,7 +231,7 @@ AdamRMS uses AWS S3 (or S3-compatible storage) for file uploads. These settings 
 
 | Setting | Key | Type | Default | Required | Description |
 |---------|-----|------|---------|----------|-------------|
-| AWS S3 Bucket Browser Endpoint | `AWS_S3_BROWSER_ENDPOINT` | Text | `https://s3.us-east-1.amazonaws.com` | No | The S3 endpoint accessible over the internet for user browsers to upload files. |
+| AWS S3 Bucket Browser Endpoint | `AWS_S3_BROWSER_ENDPOINT` | Text | `https://s3.us-east-1.amazonaws.com` | No | The S3 endpoint accessible over the internet for user browsers to upload files. Not used when the file transfer mode is `Server`. |
 | AWS S3 Bucket Server Endpoint | `AWS_S3_SERVER_ENDPOINT` | Text | `https://s3.us-east-1.amazonaws.com` | No | The S3 endpoint for the server to use for uploads. Almost always the same as the browser endpoint, except in specific circumstances such as Docker networking. |
 | Path-style requests | `AWS_S3_ENDPOINT_PATHSTYLE` | Select | `Disabled` | No | Whether path-style requests should be sent to the upload endpoint. Should be disabled for almost all providers. Options: `Enabled`, `Disabled`. |
 
@@ -328,6 +330,7 @@ Many configuration values can be set via environment variables as a fallback whe
 | `AUTH_SIGNUP_ENABLED` | `CONFIG_SIGNUP_ENABLED` |
 | `AUTH_JWTKey` | `CONFIG_AUTH_JWTKey` |
 | `PROJECT_NAME` | `CONFIG_PROJECT_NAME` |
+| `FILES_TRANSFER_MODE` | `CONFIG_FILES_TRANSFER_MODE` |
 | `AWS_S3_KEY` | `CONFIG_AWS_S3_KEY` |
 | `AWS_S3_SECRET` | `CONFIG_AWS_S3_SECRET` |
 | `AWS_S3_BUCKET` | `CONFIG_AWS_S3_BUCKET` |

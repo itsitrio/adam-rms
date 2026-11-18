@@ -674,6 +674,27 @@ $configStructureArray = [
     "default" => "Disabled",
     "envFallback" => false,
   ],
+  "FILES_TRANSFER_MODE" => [
+    "form" => [
+      "type" => "select",
+      "default" => function () {
+        return "Direct";
+      },
+      "name" => "File transfer mode",
+      "group" => "File Storage",
+      "description" => "Direct: browsers upload to and download from the storage bucket themselves, using the browser endpoint. Server: every upload and download goes through AdamRMS, which talks to the bucket using the server endpoint, so the bucket never needs to be reachable from (or visible to) browsers. Server mode limits uploads to 25MB and uses more of this server's bandwidth.",
+      "required" => false,
+      "maxlength" => 6,
+      "minlength" => 6,
+      "options" => ["Direct", "Server"],
+      "verifyMatch" => function ($value, $options) {
+        return ["valid" => in_array($value, $options), "value" => $value, "error" => in_array($value, $options) ? '' : "Invalid option selected"];
+      }
+    ],
+    "specialRequest" => false,
+    "default" => "Direct",
+    "envFallback" => "CONFIG_FILES_TRANSFER_MODE",
+  ],
   "AWS_S3_KEY" => [
     "form" => [
       "type" => "text",

@@ -12,6 +12,15 @@ To set up the file storage, you need to set the following settings in the [confi
 File storage enabled
 Whether AWS S3 file storage is enabled or disabled. If disabled, AdamRMS will not allow users to upload files.
 
+### File transfer mode
+
+How files get between users' browsers and the bucket:
+
+- **Direct** (the default): browsers upload files straight to the bucket, and download them from it, using pre-signed links to the **browser endpoint**. The bucket's endpoint must be reachable from users' browsers, and needs a CORS policy that allows uploads (see below).
+- **Server**: every upload and download goes through AdamRMS. Browsers send files to AdamRMS, which stores them in the bucket using the **server endpoint**, and fetch them from AdamRMS with signed links that expire, as pre-signed links do. Browsers are never told the bucket's address, the bucket can stay private, and it needs no CORS policy. Files can be up to 25MB, and all file traffic passes through your AdamRMS server, so allow for the extra bandwidth. Browsers keep the files they're sent for up to an hour, so a file shown on many pages is only fetched from the bucket once an hour per browser. As a result, links are valid until the end of the hour after they're made rather than for exactly as long as requested.
+
+Server mode is the simplest way to use [Cloudflare R2](#cloudflare-r2), whose uploads only work through its API endpoint.
+
 ### AWS Server Key
 
 The AWS server key.
@@ -92,6 +101,20 @@ https://cdn.yourdomain.com/cdn-cgi/image/onerror=redirect,width=100,fit=scale-do
 Non-image files are not affected and will continue to be served directly from S3 or CloudFront.
 
 ## Setting up a bucket
+
+### Cloudflare R2
+
+1. Create a bucket in the Cloudflare dashboard. It doesn't need public access or a custom domain.
+2. Under **R2 → Manage R2 API Tokens**, create a token with **Object Read & Write** for the bucket, and note its access key ID and secret access key.
+3. Set:
+   - **File transfer mode**: `Server`
+   - **AWS Server Key** and **AWS Server Secret Key**: the token's access key ID and secret access key
+   - **AWS S3 Bucket Name**: the bucket's name
+   - **AWS S3 Bucket Server Endpoint**: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`, the S3 API endpoint shown on the bucket's settings page
+   - **AWS S3 Bucket Region**: `auto`
+   - **Should path-style requests be sent to the upload endpoint?**: `Enabled`
+
+The browser endpoint and CDN settings aren't used in server mode.
 
 ### BackBlaze B2
 

@@ -250,13 +250,23 @@ class bCMS
     $DBLIB->where("(s3files_meta_deleteOn >= '" . date("Y-m-d H:i:s") . "' OR s3files_meta_deleteOn IS NULL)"); //If the file is to be deleted soon or has been deleted don't let them download it
     $DBLIB->where("s3files_meta_physicallyStored", 1); //If we've lost the file or deleted it we can't actually let them download it
     $DBLIB->where("s3files_meta_size", 10485760, "<="); //Limit files to 10mb for this function
-    $file = $DBLIB->getone("s3files", ["s3files_extension", "s3files_id"]);
+    $file = $DBLIB->getone("s3files", ["s3files_extension", "s3files_id", "s3files_path", "s3files_filename"]);
     if (!$file) return false;
 
     $url = $this->s3URL($file["s3files_id"], false);
     if (!$url) return false;
 
-    $data = file_get_contents($url);
+    if ($this->s3ServerTransfer()) {
+      // Read it from the bucket directly rather than through this server's own stream endpoint
+      try {
+        $data = (string) $this->s3ServerClient()->getObject([
+          'Bucket' => $GLOBALS['CONFIGCLASS']->get('AWS_S3_BUCKET'),
+          'Key' => $this->s3ObjectKey($file),
+        ])['Body'];
+      } catch (Exception $e) {
+        return false;
+      }
+    } else $data = file_get_contents($url);
     if (!$data) return false;
 
     return [
@@ -264,6 +274,72 @@ class bCMS
       "type" => $file["s3files_extension"],
       "url" => $url
     ];
+  }
+  /** The largest file api/s3files/upload.php accepts when files go through this server */
+  const S3_SERVER_UPLOAD_MAX_BYTES = 26214400; // 25MB
+  /** Links to api/file/stream.php expire on the hour, so they stay the same, and cached, for up to this long */
+  const S3_SERVER_LINK_WINDOW = 3600;
+
+  /**
+   * The ETag api/file/stream.php sends for a file. A stored file is never changed (each upload gets a new key), so
+   * this needn't come from the bucket, and a browser checking its copy can be answered without asking the bucket.
+   * The name is included because it is sent in the Content-Disposition header, and a file can be renamed.
+   */
+  function s3StreamETag($file)
+  {
+    return '"' . hash('sha256', $file['s3files_id'] . "|" . $this->s3ObjectKey($file) . "|" . $file['s3files_name']) . '"';
+  }
+
+  /** Whether uploads and downloads go through this server (FILES_TRANSFER_MODE = Server) rather than straight between the browser and the bucket */
+  function s3ServerTransfer()
+  {
+    global $CONFIG;
+    return ($CONFIG['FILES_TRANSFER_MODE'] ?? 'Direct') === 'Server';
+  }
+  /** An S3 client for the server's own requests to the bucket, using the server endpoint */
+  function s3ServerClient()
+  {
+    global $CONFIGCLASS;
+    return new Aws\S3\S3Client([
+      'version' => 'latest',
+      'region' => $CONFIGCLASS->get('AWS_S3_REGION'),
+      'endpoint' => $CONFIGCLASS->get('AWS_S3_SERVER_ENDPOINT'),
+      'use_path_style_endpoint' => $CONFIGCLASS->get('AWS_S3_ENDPOINT_PATHSTYLE') === 'Enabled',
+      'credentials' => [
+        'key' => $CONFIGCLASS->get('AWS_S3_KEY'),
+        'secret' => $CONFIGCLASS->get('AWS_S3_SECRET'),
+      ]
+    ]);
+  }
+  /** Where an s3files row's file is kept in the bucket */
+  function s3ObjectKey($file)
+  {
+    return $file['s3files_path'] . "/" . $file['s3files_filename'] . '.' . $file['s3files_extension'];
+  }
+  /** The signature on an api/file/stream.php link, made with a key derived from the JWT key so it can't be used for anything else */
+  function s3StreamSignature($fileid, $forceDownload, $expires)
+  {
+    global $CONFIGCLASS;
+    $key = hash_hmac('sha256', 'adamrms-file-stream-v1', (string) $CONFIGCLASS->get('AUTH_JWTKey'), true);
+    return hash_hmac('sha256', intval($fileid) . "|" . ($forceDownload ? 1 : 0) . "|" . intval($expires), $key);
+  }
+  /**
+   * The Content-Type to serve a file with, worked out from its extension rather than what the uploader said, and
+   * whether it is safe to show in the browser. Files served through this server come from AdamRMS's own origin, so
+   * anything that could run script there (HTML, SVG, XML...) is only ever downloaded.
+   */
+  function s3ContentType($extension)
+  {
+    $inline = [
+      'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'jfif' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif',
+      'webp' => 'image/webp', 'avif' => 'image/avif', 'bmp' => 'image/bmp', 'ico' => 'image/x-icon', 'heic' => 'image/heic',
+      'heif' => 'image/heif', 'tif' => 'image/tiff', 'tiff' => 'image/tiff', 'pdf' => 'application/pdf',
+      'mp4' => 'video/mp4', 'webm' => 'video/webm', 'mov' => 'video/quicktime', 'mp3' => 'audio/mpeg', 'wav' => 'audio/wav',
+      'ogg' => 'audio/ogg', 'm4a' => 'audio/mp4', 'txt' => 'text/plain; charset=utf-8', 'csv' => 'text/csv; charset=utf-8',
+    ];
+    $extension = strtolower((string) $extension);
+    if (isset($inline[$extension])) return ["type" => $inline[$extension], "inline" => true];
+    return ["type" => "application/octet-stream", "inline" => false];
   }
   function s3URL($fileid, $forceDownload = false, $expire = '+10 minutes', $shareKey = false, $size = null)
   {
@@ -312,7 +388,25 @@ class bCMS
     // attachment header is preserved and the documented `d` parameter keeps working.
     $useCloudflareTransform = (!$forceDownload && $this->isCloudflareImageTransformable($file['s3files_extension']));
 
-    if ($CONFIGCLASS->get('AWS_CLOUDFRONT_ENABLED') === 'Enabled') {
+    if ($this->s3ServerTransfer()) {
+      // The browser never sees the bucket: hand out a link to api/file/stream.php, which fetches the file from the
+      // bucket itself. The checks above have been made, so the link carries an expiry and a signature, as a
+      // pre-signed S3 link would, and works without a session (emails, the app, Cloudflare image transformation).
+      $expires = strtotime($file['expiry']);
+      if (!$expires or $expires <= time()) $expires = strtotime('+1 minute');
+      // Round the expiry up to the end of the hour, so the same file gets the same link all hour and the browser can
+      // use its cached copy instead of fetching the file again on every page. A link so lasts up to an hour longer
+      // than asked for, which is no longer than it may be kept in the browser's cache anyway.
+      $expires = (int) (ceil($expires / self::S3_SERVER_LINK_WINDOW) * self::S3_SERVER_LINK_WINDOW);
+      $expires = min($expires, time() + 604800); // S3 pre-signed links can't last longer than a week either
+      $url = $CONFIG['ROOTURL'] . "/api/file/stream.php?" . http_build_query([
+        "f" => $file['s3files_id'],
+        "d" => $forceDownload ? 1 : 0,
+        "exp" => $expires,
+        "sig" => $this->s3StreamSignature($file['s3files_id'], $forceDownload, $expires),
+      ]);
+      return $useCloudflareTransform ? $this->applyCloudflareImageTransform($url, $file['s3files_extension'], $size) : $url;
+    } elseif ($CONFIGCLASS->get('AWS_CLOUDFRONT_ENABLED') === 'Enabled') {
       // Create a CloudFront Client to sign the string
       $CloudFrontClient = new Aws\CloudFront\CloudFrontClient([
         'profile' => 'default',
