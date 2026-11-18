@@ -17,6 +17,11 @@ use Money\Parser\DecimalMoneyParser;
 $currencies = new ISOCurrencies();
 $moneyParser = new DecimalMoneyParser($currencies);
 $array['payments_amount'] = $moneyParser->parse($array['payments_amount'], $AUTH->data['instance']['instances_config_currency'])->getAmount();
+//What one unit costs the business, for sales, additional hire and staff lines - optional, and never for payments received
+if (isset($array['payments_cost']) and $array['payments_cost'] !== "" and $array['payments_type'] != 1) {
+    if (!preg_match('/^\d+(\.\d+)?$/', trim((string) $array['payments_cost']))) finish(false, ["code" => "PARAM-ERROR", "message" => "The cost must be a number"]);
+    $array['payments_cost'] = $moneyParser->parse(trim((string) $array['payments_cost']), $AUTH->data['instance']['instances_config_currency'])->getAmount();
+} else $array['payments_cost'] = null;
 
 
 

@@ -39,6 +39,7 @@ export type Tenant = {
   assignmentId: number;
   noteId: number;
   paymentId: number;
+  expenseId: number;
   quoteSectionId: number;
   quoteLineId: number;
   crewAssignmentId: number;

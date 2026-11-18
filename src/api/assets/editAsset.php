@@ -31,6 +31,20 @@ foreach (['assets_value', 'assets_dayRate', 'assets_weekRate'] as $moneyField) {
     $array[$moneyField] = ($array[$moneyField] == null ? null : $moneyParser->parse($array[$moneyField], $AUTH->data['instance']['instances_config_currency'])->getAmount());
 }
 
+//What the asset was bought for and when, and how long to depreciate it over - sent from the asset's Purchase tab
+if (array_key_exists('assets_purchaseCost', $array) and $array['assets_purchaseCost'] !== null) {
+    if (!preg_match('/^\d+(\.\d+)?$/', trim((string) $array['assets_purchaseCost']))) finish(false, ["code" => "PARAM-ERROR", "message" => "The purchase cost must be a number"]);
+    $array['assets_purchaseCost'] = $moneyParser->parse(trim((string) $array['assets_purchaseCost']), $AUTH->data['instance']['instances_config_currency'])->getAmount();
+}
+if (array_key_exists('assets_purchaseDate', $array) and $array['assets_purchaseDate'] !== null) {
+    $purchaseDate = (string) $array['assets_purchaseDate'];
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $purchaseDate) or !checkdate(intval(substr($purchaseDate, 5, 2)), intval(substr($purchaseDate, 8, 2)), intval(substr($purchaseDate, 0, 4)))) finish(false, ["code" => "PARAM-ERROR", "message" => "The purchase date isn't a date"]);
+}
+if (array_key_exists('assets_depreciationMonths', $array) and $array['assets_depreciationMonths'] !== null) {
+    if (!preg_match('/^\d+$/', (string) $array['assets_depreciationMonths']) or intval($array['assets_depreciationMonths']) < 1 or intval($array['assets_depreciationMonths']) > 600) finish(false, ["code" => "PARAM-ERROR", "message" => "Depreciate an asset over between 1 and 600 months"]);
+    $array['assets_depreciationMonths'] = intval($array['assets_depreciationMonths']);
+}
+
 $DBLIB->where("assets_id", $array['assets_id']);
 $DBLIB->where("assets.instances_id",$AUTH->data['instance']["instances_id"]);
 $DBLIB->join("assetTypes","assets.assetTypes_id=assetTypes.assetTypes_id","LEFT");
@@ -95,7 +109,7 @@ if (isset($array['assets_tag']) and $array['assets_tag'] != $asset['assets_tag']
 
 $DBLIB->where("assets_id", $array['assets_id']);
 $DBLIB->where("assets.instances_id",$AUTH->data['instance']["instances_id"]);
-$result = $DBLIB->update("assets", array_intersect_key($array, array_flip(['assets_linkedTo', 'assetTypes_id', 'assets_notes', 'assets_tag', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_value', 'assets_dayRate', 'assets_weekRate', 'assets_mass', 'assets_storageLocation', 'assets_unserialized', 'assets_quantity'])));
+$result = $DBLIB->update("assets", array_intersect_key($array, array_flip(['assets_linkedTo', 'assetTypes_id', 'assets_notes', 'assets_tag', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_value', 'assets_dayRate', 'assets_weekRate', 'assets_mass', 'assets_storageLocation', 'assets_unserialized', 'assets_quantity', 'assets_purchaseCost', 'assets_purchaseDate', 'assets_depreciationMonths'])));
 if (!$result) finish(false, ["code" => "UPDATE-FAIL", "message"=> "Could not update asset"]);
 else {
     //What an asset contributes to a project's cached finances is its own override where it has one and

@@ -18,8 +18,19 @@ if (array_key_exists('instances_config_paymentDueDays', $array)) {
     $array['instances_config_paymentDueDays'] = intval($array['instances_config_paymentDueDays']);
 }
 
+if (array_key_exists('instances_config_financialYearStart', $array)) {
+    //The month the business's financial year starts in
+    if (!preg_match('/^\d+$/', (string) $array['instances_config_financialYearStart']) or intval($array['instances_config_financialYearStart']) < 1 or intval($array['instances_config_financialYearStart']) > 12) finish(false, ["code" => "PARAM-ERROR", "message" => "The financial year must start in a month from 1 to 12"]);
+    $array['instances_config_financialYearStart'] = intval($array['instances_config_financialYearStart']);
+}
+if (array_key_exists('instances_config_depreciationMonths', $array)) {
+    //How long assets are depreciated over, unless they have their own
+    if (!preg_match('/^\d+$/', (string) $array['instances_config_depreciationMonths']) or intval($array['instances_config_depreciationMonths']) < 1 or intval($array['instances_config_depreciationMonths']) > 600) finish(false, ["code" => "PARAM-ERROR", "message" => "Depreciate assets over between 1 and 600 months"]);
+    $array['instances_config_depreciationMonths'] = intval($array['instances_config_depreciationMonths']);
+}
+
 $DBLIB->where("instances_id",$AUTH->data['instance']["instances_id"]);
-$result = $DBLIB->update("instances", array_intersect_key( $array, array_flip( ["instances_config_massUnit","instances_config_paymentDueDays","instances_name","instances_address","instances_phone","instances_email","instances_website","instances_weekStartDates","instances_logo","instances_emailHeader","instances_termsAndPayment", "instances_quoteTerms", "instances_cableColours"] ) ));
+$result = $DBLIB->update("instances", array_intersect_key( $array, array_flip( ["instances_config_massUnit","instances_config_paymentDueDays","instances_config_financialYearStart","instances_config_depreciationMonths","instances_name","instances_address","instances_phone","instances_email","instances_website","instances_weekStartDates","instances_logo","instances_emailHeader","instances_termsAndPayment", "instances_quoteTerms", "instances_cableColours"] ) ));
 echo $DBLIB->getLastError();
 if (!$result) finish(false, ["code" => "UPDATE-FAIL", "message"=> "Could not update instance"]);
 else {

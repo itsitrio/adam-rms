@@ -109,6 +109,10 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/locations/archive.php", permission: "LOCATIONS:EDIT", params: (a) => ({ locations_id: a.locationId }) },
   // Maintenance
   { endpoint: "/api/maintenance/job/changeName.php", permission: "MAINTENANCE_JOBS:EDIT:NAME", params: (a) => ({ maintenanceJobs_id: a.maintenanceJobId, maintenanceJobs_title: "Renamed by e2e" }) },
+  { endpoint: "/api/maintenance/job/changeCost.php", permission: "MAINTENANCE_JOBS:EDIT:COST", params: (a) => ({ maintenanceJobs_id: a.maintenanceJobId, maintenanceJobs_cost: "12.34" }) },
+  // Reports
+  { endpoint: "/api/reports/expenses/save.php", permission: "FINANCE:EXPENSES:EDIT", params: () => ({ expenses_date: "2024-02-01", expenses_category: "Added by e2e", expenses_amount: "1.00" }) },
+  { endpoint: "/api/reports/expenses/delete.php", permission: "FINANCE:EXPENSES:EDIT", params: (a) => ({ expenses_id: a.expenseId }) },
   { endpoint: "/api/maintenance/job/deleteJob.php", permission: "MAINTENANCE_JOBS:DELETE", params: (a) => ({ maintenanceJobs_id: a.maintenanceJobId }) },
   { endpoint: "/api/maintenance/job/sendMessage.php", permission: "MAINTENANCE_JOBS:EDIT:ADD_MESSAGE_TO_JOB", params: (a) => ({ maintenanceJobs_id: a.maintenanceJobId, maintenanceJobsMessages_text: "Message by e2e" }) },
 ];
@@ -119,6 +123,10 @@ const refusedPages: { file: string; url: string | ((a: Tenant) => string); permi
   { file: "newAsset.php", url: "/newAsset.php", permission: "ASSETS:CREATE" },
   { file: "ledger.php", url: "/ledger.php", permission: "FINANCE:PAYMENTS_LEDGER:VIEW" },
   { file: "receivables.php", url: "/receivables.php", permission: "FINANCE:PAYMENTS_LEDGER:VIEW" },
+  { file: "reports/index.php", url: "/reports/", permission: "FINANCE:REPORTS:VIEW" },
+  { file: "reports/expenses.php", url: "/reports/expenses.php", permission: "FINANCE:EXPENSES:VIEW" },
+  { file: "reports/report.php?report=profit-and-loss", url: "/reports/report.php?report=profit-and-loss", permission: "FINANCE:REPORTS:VIEW" },
+  { file: "reports/report.php?report=utilisation", url: "/reports/report.php?report=utilisation", permission: "REPORTS:VIEW" },
   { file: "instances/users.php", url: "/instances/users.php", permission: "BUSINESS:USERS:VIEW:LIST" },
   { file: "instances/settings.php", url: "/instances/settings.php", permission: "BUSINESS:BUSINESS_SETTINGS:VIEW" },
   { file: "instances/permissions.php", url: "/instances/permissions.php", permission: "BUSINESS:ROLES_AND_PERMISSIONS:VIEW" },

@@ -57,7 +57,7 @@ function realValue(param: string, a: Tenant): string | number {
     clients_id: a.clientId, locations_id: a.locationId, manufacturers_id: a.manufacturerId, assetCategories_id: a.categoryId,
     assetCategoriesGroups_id: a.categoryGroupId, assetGroups_id: a.assetGroupId, assetsAssignments_id: a.assignmentId,
     maintenanceJobs_id: a.maintenanceJobId, maintenanceJobsMessages_id: a.maintenanceMessageId, cmsPages_id: a.cmsPageId,
-    modules_id: a.moduleId, modulesSteps_id: a.moduleStepId, payments_id: a.paymentId, crewAssignments_id: a.crewAssignmentId,
+    modules_id: a.moduleId, modulesSteps_id: a.moduleStepId, payments_id: a.paymentId, expenses_id: a.expenseId, crewAssignments_id: a.crewAssignmentId,
     projectsVacantRoles_id: a.vacantRoleId, projectsVacantRolesApplications_id: a.vacancyApplicationId, users_userid: a.users.limited.id,
     instancePositions_id: a.positions.limited, projectsStatuses_id: a.projectStatusIds.second, projectsTypes_id: a.projectTypeId,
     projectsType_id: a.projectTypeId, s3files_id: a.fileId, assetsBarcodes_id: a.barcodeId, barcodes_id: a.barcodeId,
