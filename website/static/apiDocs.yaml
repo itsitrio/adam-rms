@@ -6101,6 +6101,44 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/changePaymentCollection.php:
+    post:
+      tags:
+        - projects
+      summary: 'Change Payment Collection'
+      description: "Set when a project's payment is due, and whether it's in collections or written off\nRequires Instance Permission PROJECTS:EDIT:PAYMENT_COLLECTION\n"
+      operationId: changePaymentCollection
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: projects_paymentDueDate
+          in: query
+          description: "The date the project's payment is due (YYYY-MM-DD), or blank to use the business's payment terms"
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: projects_collectionStatus
+          in: query
+          description: 'COLLECTIONS, WRITTEN_OFF, or blank if the project is being paid as normal'
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '404':
+          description: 'Permission Error'
   /projects/changeProjectDates.php:
     post:
       tags:
