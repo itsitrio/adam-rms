@@ -126,6 +126,14 @@
                         <li class="list-group-item">
                             <b>Week Rate</b> <span class="float-right text-primary">{{ asset.assetTypes_weekRate|money(ASSET_INSTANCE['instances_config_currency']) }}</span>
                         </li>
+                        {% if assets|length == 1 and ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id and "PROJECTS:VIEW"|instancePermissions %}
+                        <li class="list-group-item" title="From past projects for {{ assets[0].assets_tag|aTag }}, not counting lost or cancelled ones">
+                            <b>Revenue to date</b> <span class="float-right text-success" id="assetRevenueEarned">{{ assets[0].revenue.earned|money }}</span>
+                        </li>
+                        <li class="list-group-item" title="From upcoming and current projects for {{ assets[0].assets_tag|aTag }}, not counting lost or cancelled ones">
+                            <b>Booked revenue</b> <span class="float-right text-primary" id="assetRevenueBooked">{{ assets[0].revenue.booked|money }}</span>
+                        </li>
+                        {% endif %}
                     </ul>
                     {% if asset.oneasset %}
                         <a href="?id={{asset.assetTypes_id}}" class="btn btn-info btn-block"><b>View All</b></a>
@@ -198,6 +206,7 @@
                 <div class="card-header p-2">
                     <ul class="nav nav-pills">
                         <li class="nav-item"><a class="nav-link active" href="#calendarBoxAsset" data-toggle="tab"><i class="far fa-calendar-alt"></i></a></li>
+                        <li class="nav-item"><a class="nav-link" href="#bookingsListAsset" data-toggle="tab" title="Bookings as a list"><i class="fas fa-list"></i> Bookings</a></li>
                         {% if "ASSETS:EDIT"|instancePermissions %}<li class="nav-item"><a class="nav-link" href="#editAsset" data-toggle="tab">Edit {{ assets[0].assets_tag|aTag }}</a></li>{% endif %}
                         {% if CONFIG.FILES_ENABLED == "Enabled" and USERDATA.instance.instances_storageEnabled == 1 and "ASSETS:ASSET_FILE_ATTACHMENTS:VIEW"|instancePermissions %}<li class="nav-item"><a class="nav-link" href="#files" data-toggle="tab">Asset Files</a></li>{% endif %}
                         <li class="nav-item"><a class="nav-link" href="#location" data-toggle="tab">Location</a></li>
@@ -270,6 +279,50 @@
                                     calendar.render();
                                 })
                             </script>
+                        </div>
+                        <div class="tab-pane" style="padding:0" id="bookingsListAsset">
+                            {% set showRevenue = "PROJECTS:VIEW"|instancePermissions %}
+                            {% for section in [{"title": "Upcoming & current", "past": false}, {"title": "Past", "past": true}] %}
+                                {% set sectionAssignments = assets[0].assignments|filter(a => a.isPast == section.past) %}
+                                {% if section.past %}{% set sectionAssignments = sectionAssignments|reverse %}{% endif %}
+                                <h5 class="p-2 mb-0 bg-light border-bottom">{{ section.title }} <span class="badge badge-secondary">{{ sectionAssignments|length }}</span></h5>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped mb-0">
+                                        <thead>
+                                        <tr>
+                                            <th>Project</th>
+                                            <th>Status</th>
+                                            <th>Dates</th>
+                                            <th>Qty</th>
+                                            {% if showRevenue %}<th class="text-right">Revenue</th>{% endif %}
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {% for assignment in sectionAssignments %}
+                                            <tr{% if assignment.isLost %} class="text-muted"{% endif %}>
+                                                <td><a href="{{ CONFIG.ROOTURL }}/project/?id={{ assignment.projects_id }}">{{ assignment.projects_name }}</a></td>
+                                                <td><span class="badge" style="background-color: {{ assignment.projectsStatuses_backgroundColour }}; color: {{ assignment.projectsStatuses_foregroundColour }};">{{ assignment.projectsStatuses_name }}</span></td>
+                                                <td>{{ assignment.projects_dates_deliver_start|date("d M Y") }} - {{ assignment.projects_dates_deliver_end|date("d M Y") }}</td>
+                                                <td>{{ assignment.assetsAssignments_quantity > 1 ? assignment.assetsAssignments_quantity : 1 }}</td>
+                                                {% if showRevenue %}
+                                                    <td class="text-right">
+                                                        {% if not assignment.isOwnBusiness %}
+                                                            <span title="Booked by another business">-</span>
+                                                        {% elseif assignment.isLost %}
+                                                            <s title="Lost/cancelled - not counted as revenue">{{ assignment.revenue|money }}</s>
+                                                        {% else %}
+                                                            {{ assignment.revenue|money }}
+                                                        {% endif %}
+                                                    </td>
+                                                {% endif %}
+                                            </tr>
+                                        {% else %}
+                                            <tr><td colspan="{{ showRevenue ? 5 : 4 }}" class="text-center text-muted">No bookings</td></tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% endfor %}
                         </div>
                         {% if "ASSETS:EDIT"|instancePermissions %}
                             <div class="tab-pane" style="padding:0"  id="editAsset">
@@ -930,6 +983,7 @@
                                     <th>Value</th>
                                     <th>Cost/day</th>
                                     <th>Cost/week</th>
+                                    {% if ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id and "PROJECTS:VIEW"|instancePermissions %}<th title="Revenue to date from past projects, not counting lost or cancelled ones">Revenue</th>{% endif %}
                                     <th title="File attachments"><i class="fas fa-paperclip"></i></th>
                                     <th style="width:1%"><i class="fas fa-flag"></i></th>
                                     <th style="width:1%"><i class="fas fa-ban"></i></th>
@@ -952,6 +1006,7 @@
                                         <td>
                                             {{ (thisasset.assets_weekRate ?: asset.assetTypes_weekRate)|money(ASSET_INSTANCE['instances_config_currency']) }}
                                         </td>
+                                        {% if ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id and "PROJECTS:VIEW"|instancePermissions %}<td>{{ thisasset.revenue.earned|money }}</td>{% endif %}
                                         <td>{{ thisasset.files|length > 0 ?: "" }}</td>
 
                                         <td>

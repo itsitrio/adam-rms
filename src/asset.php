@@ -1,11 +1,15 @@
 <?php
 require_once __DIR__ . '/common/headSecure.php';
+require_once __DIR__ . '/common/libs/bCMS/projectFinance.php';
+
+use Money\Currency;
+use Money\Money;
 
 // Assets can be from another instance
 if (isset($_GET['instance']) and in_array($_GET['instance'], $AUTH->data['instance_ids']) and $_GET['instance'] != $AUTH->data['instance']['instances_id']) {
     $DBLIB->where("instances_id", $_GET['instance']);
     $DBLIB->where("instances_deleted", 0);
-    $PAGEDATA['ASSET_INSTANCE'] = $DBLIB->getone("instances", ["instances_id", "instances_name"]);
+    $PAGEDATA['ASSET_INSTANCE'] = $DBLIB->getone("instances", ["instances_id", "instances_name", "instances_config_currency"]);
 } else $PAGEDATA['ASSET_INSTANCE'] = $AUTH->data['instance'];
 
 $DBLIB->orderBy("assetCategories.assetCategories_id", "ASC");
@@ -54,7 +58,36 @@ foreach ($assets as $asset) {
     $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
     $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
     $DBLIB->where("projects.projects_deleted", 0);
-    $asset['assignments'] = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "projects.projects_name", "projects_dates_deliver_start", "projects_dates_deliver_end", "assetsAssignments.assetsAssignmentsStatus_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour"]);
+    $DBLIB->orderBy("projects.projects_dates_deliver_start", "ASC");
+    $asset['assignments'] = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "projects.projects_name", "projects_dates_deliver_start", "projects_dates_deliver_end", "assetsAssignments.assetsAssignmentsStatus_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour", "projectsStatuses.projectsStatuses_assetsReleased", "projects.instances_id AS projects_instances_id", "projects.projects_dates_finances_days", "projects.projects_dates_finances_weeks", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals"]);
+
+    //Revenue - priced the same way as projects/data.php prices an assignment (including its loose check on the custom price, which is 0 when there isn't one). Lost/cancelled projects (statuses that release their assets) don't count, nor do other businesses' projects
+    $currency = new Currency($PAGEDATA['ASSET_INSTANCE']['instances_config_currency']);
+    $asset['revenue'] = ["earned" => new Money(0, $currency), "booked" => new Money(0, $currency), "lost" => new Money(0, $currency)];
+    foreach ($asset['assignments'] as $key => $assignment) {
+        $assignment['isPast'] = strtotime($assignment['projects_dates_deliver_end']) < time();
+        $assignment['isLost'] = $assignment['projectsStatuses_assetsReleased'] == 1;
+        $assignment['isOwnBusiness'] = $assignment['projects_instances_id'] == $PAGEDATA['ASSET_INSTANCE']['instances_id'];
+        $assignment['revenue'] = null;
+        if ($assignment['isOwnBusiness']) {
+            $quantity = (intval($assignment['assetsAssignments_quantity']) > 0 ? intval($assignment['assetsAssignments_quantity']) : 1);
+            if ($assignment['assetsAssignments_excludedFromTotals'] == 1) $price = new Money(0, $currency);
+            elseif ($assignment['assetsAssignments_customPrice'] != null) $price = (new Money($assignment['assetsAssignments_customPrice'], $currency))->multiply($quantity);
+            else {
+                if ($assignment['projects_dates_finances_days'] !== null and $assignment['projects_dates_finances_weeks'] !== null) $duration = ["days" => $assignment['projects_dates_finances_days'], "weeks" => $assignment['projects_dates_finances_weeks']];
+                else $duration = (new projectFinance())->durationMathsByDates($assignment['projects_dates_deliver_start'], $assignment['projects_dates_deliver_end']);
+                $price = (new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $PAGEDATA['asset']['assetTypes_dayRate']), $currency))->multiply($duration['days']);
+                $price = $price->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $PAGEDATA['asset']['assetTypes_weekRate']), $currency))->multiply($duration['weeks']));
+                $price = $price->multiply($quantity);
+            }
+            if ($assignment['assetsAssignments_discount'] > 0) $price = $price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100));
+            $assignment['revenue'] = $price;
+            if ($assignment['isLost']) $asset['revenue']['lost'] = $asset['revenue']['lost']->add($price);
+            elseif ($assignment['isPast']) $asset['revenue']['earned'] = $asset['revenue']['earned']->add($price);
+            else $asset['revenue']['booked'] = $asset['revenue']['booked']->add($price);
+        }
+        $asset['assignments'][$key] = $assignment;
+    }
 
     //Files
     $asset['files'] = $bCMS->s3List(4, $asset['assets_id']);
