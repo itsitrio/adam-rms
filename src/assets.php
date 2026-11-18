@@ -19,6 +19,7 @@ $SEARCH = [
     "PROJECT_ID" => $_GET['project'] ?: false,
     "PROJECT_REFERER" => $_GET['project_referer'] ?: false,
     "PAGE" =>  $_GET['page'] ? intval($_GET['page']) : 1,
+    "VIEW" => ($_GET['view'] == "table" ? "table" : "grid"),
     "PAGE_LIMIT" => $_GET['resultsperpage'] ? intval($_GET['resultsperpage']) : 20,
     "SETTINGS" => [
         "SHOWLINKED" => ($_GET['showlinked'] == 1 ? true : false),
