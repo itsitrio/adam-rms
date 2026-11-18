@@ -490,7 +490,7 @@ ignoreURLs: ['searchUser.php'] // Ignore user searches
 												</li>
 											{% endif %}
 
-											{% if "FINANCE:REPORTS:VIEW"|instancePermissions or "REPORTS:VIEW"|instancePermissions or "FINANCE:EXPENSES:VIEW"|instancePermissions %}
+											{% if "FINANCE:REPORTS:VIEW"|instancePermissions or "REPORTS:VIEW"|instancePermissions or "FINANCE:EXPENSES:VIEW"|instancePermissions or "FINANCE:LIABILITIES:VIEW"|instancePermissions %}
 												<li class="nav-item">
 													<a href="{{ CONFIG.ROOTURL }}/reports/" class="nav-link">
 														<i class="nav-icon fas fa-file-invoice-dollar"></i>

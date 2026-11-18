@@ -28,13 +28,22 @@
                                     <div class="text-muted small">Add the business's rent, vehicles, insurance and other costs that aren't part of a project, for the profit &amp; loss.</div>
                                 </li>
                             {% endif %}
+                            {% if groupKey == "finance" and "FINANCE:LIABILITIES:VIEW"|instancePermissions %}
+                                <li class="list-group-item">
+                                    <a href="{{ CONFIG.ROOTURL }}/reports/liabilities.php" id="reportLink_liabilitiesLedger"><strong>Record loans &amp; finance</strong></a>
+                                    <div class="text-muted small">Loans, equipment bought on finance or credit, and money lent by suppliers or members - with their repayments, interest and fees.</div>
+                                </li>
+                            {% endif %}
                         </ul>
                     </div>
                 </div>
             </div>
         {% endfor %}
         {% if groups|length == 0 %}
-            <div class="col-12"><a href="{{ CONFIG.ROOTURL }}/reports/expenses.php">Record overheads</a></div>
+            <div class="col-12">
+                {% if "FINANCE:EXPENSES:VIEW"|instancePermissions %}<a href="{{ CONFIG.ROOTURL }}/reports/expenses.php">Record overheads</a><br/>{% endif %}
+                {% if "FINANCE:LIABILITIES:VIEW"|instancePermissions %}<a href="{{ CONFIG.ROOTURL }}/reports/liabilities.php">Record loans &amp; finance</a>{% endif %}
+            </div>
         {% endif %}
     </div>
 {% endblock %}

@@ -24,13 +24,14 @@ if ($argv[1] !== "snapshot") exit("Unknown command\n");
 $instance = (int) $argv[2];
 $byInstance = ["instancePositions", "clients", "locations", "manufacturers", "assetCategoriesGroups", "assetCategories", "assetTypes",
     "assetGroups", "assets", "projectsTypes", "projectsStatuses", "assetsAssignmentsStatus", "projects", "maintenanceJobs",
-    "maintenanceJobsStatuses", "cmsPages", "modules", "signupCodes", "s3files", "usersPersonas", "expenses"];
+    "maintenanceJobsStatuses", "cmsPages", "modules", "signupCodes", "s3files", "usersPersonas", "expenses", "liabilities"];
 $children = [ // table => SQL picking the rows that belong to the business through a parent row
     "assetsBarcodes" => "assets_id IN (SELECT assets_id FROM assets WHERE instances_id = ?)",
     "assetsBarcodesScans" => "assetsBarcodes_id IN (SELECT assetsBarcodes_id FROM assetsBarcodes JOIN assets USING (assets_id) WHERE instances_id = ?)",
     "assetsAssignments" => "projects_id IN (SELECT projects_id FROM projects WHERE instances_id = ?)",
     "projectsNotes" => "projects_id IN (SELECT projects_id FROM projects WHERE instances_id = ?)",
     "payments" => "projects_id IN (SELECT projects_id FROM projects WHERE instances_id = ?)",
+    "liabilityTransactions" => "liabilities_id IN (SELECT liabilities_id FROM liabilities WHERE instances_id = ?)",
     "projectsQuoteSections" => "projects_id IN (SELECT projects_id FROM projects WHERE instances_id = ?)",
     "projectsQuoteLines" => "projects_id IN (SELECT projects_id FROM projects WHERE instances_id = ?)",
     "projectsQuoteAllocations" => "projectsQuoteSections_id IN (SELECT projectsQuoteSections_id FROM projectsQuoteSections JOIN projects USING (projects_id) WHERE instances_id = ?)",

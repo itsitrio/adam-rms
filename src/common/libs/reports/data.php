@@ -308,7 +308,7 @@ function reportAssets(ReportContext $ctx)
     $rows = $DBLIB->get("assets", null, [
         "assets.assets_id", "assets.assets_tag", "assets.assetTypes_id", "assets.assets_inserted", "assets.assets_endDate", "assets.assets_archived",
         "assets.assets_value", "assets.assets_mass", "assets.assets_dayRate", "assets.assets_weekRate", "assets.assets_unserialized", "assets.assets_quantity",
-        "assets.assets_purchaseCost", "assets.assets_purchaseDate", "assets.assets_depreciationMonths", "assets.assets_storageLocation",
+        "assets.assets_purchaseCost", "assets.assets_purchaseDate", "assets.assets_depreciationMonths", "assets.assets_storageLocation", "assets.liabilities_id",
         "assetTypes.assetTypes_name", "assetTypes.assetTypes_value", "assetTypes.assetTypes_mass", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate",
         "assetCategories.assetCategories_name", "manufacturers.manufacturers_name", "locations.locations_name",
     ]);

@@ -1,0 +1,206 @@
+{% extends "assets/template.twig" %}
+
+{% block content %}
+    {% set canEdit = "FINANCE:LIABILITIES:EDIT"|instancePermissions %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><a href="{{ CONFIG.ROOTURL }}/reports/liabilities.php" class="text-muted">Loans &amp; finance</a> &rsaquo; {{ liability.liabilities_name }}</h3>
+            {% if canEdit %}
+                <div class="card-tools">
+                    <button type="button" class="btn btn-sm btn-default" id="liabilityEdit"><i class="fas fa-pencil-alt"></i> Edit</button>
+                    <button type="button" class="btn btn-sm btn-danger" id="liabilityDelete"><i class="fas fa-trash"></i> Delete</button>
+                </div>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-6 col-md-3"><div class="small-box bg-light"><div class="inner"><h3 id="liabilityBorrowed">{{ liability.position.borrowed|money }}</h3><p>Borrowed</p></div></div></div>
+                <div class="col-6 col-md-3"><div class="small-box bg-light"><div class="inner"><h3 id="liabilityRepaid">{{ liability.position.repaid|money }}</h3><p>Paid off</p></div></div></div>
+                <div class="col-6 col-md-3"><div class="small-box bg-light"><div class="inner"><h3 id="liabilityCosts">{{ liability.position.costs|money }}</h3><p>Interest &amp; fees</p></div></div></div>
+                <div class="col-6 col-md-3"><div class="small-box bg-info"><div class="inner"><h3 id="liabilityBalance">{{ liability.position.balance|money }}</h3><p>Still owed</p></div></div></div>
+            </div>
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Kind</dt><dd class="col-sm-9">{{ liability.typeName }}</dd>
+                <dt class="col-sm-3">Owed to</dt><dd class="col-sm-9">{{ liability.lenderName }}{% if liability.memberName and liability.liabilities_lender %} ({{ liability.liabilities_lender }}){% endif %}</dd>
+                <dt class="col-sm-3">Started</dt><dd class="col-sm-9">{{ liability.liabilities_startDate|date("d M Y") }}{% if liability.liabilities_endDate %}, to be paid off by {{ liability.liabilities_endDate|date("d M Y") }}{% endif %}</dd>
+                {% if liability.liabilities_interestRate is not null %}<dt class="col-sm-3">Interest rate</dt><dd class="col-sm-9">{{ liability.liabilities_interestRate + 0 }}% a year</dd>{% endif %}
+                {% if liability.repaymentAmount %}<dt class="col-sm-3">Repayments</dt><dd class="col-sm-9">{{ liability.repaymentAmount|money }} {{ frequencies[liability.liabilities_repaymentFrequency]|lower }}{% if liability.liabilities_firstRepaymentDate %}, from {{ liability.liabilities_firstRepaymentDate|date("d M Y") }}{% endif %}</dd>{% endif %}
+                {% if liability.liabilities_reference %}<dt class="col-sm-3">Reference</dt><dd class="col-sm-9">{{ liability.liabilities_reference }}</dd>{% endif %}
+                {% if liability.liabilities_notes %}<dt class="col-sm-3">Notes</dt><dd class="col-sm-9">{{ liability.liabilities_notes|nl2br }}</dd>{% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Transactions</h3>
+                    {% if canEdit %}<div class="card-tools"><button type="button" class="btn btn-sm btn-primary" id="transactionAdd"><i class="fas fa-plus"></i> Record a repayment or charge</button></div>{% endif %}
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-striped mb-0" id="liabilityLedger">
+                        <thead><tr><th>Date</th><th>What</th><th>Reference</th><th class="text-right">Change</th><th class="text-right">Of which interest</th><th class="text-right">Still owed</th><th></th></tr></thead>
+                        <tbody>
+                        {% for row in liability.ledger %}
+                            <tr {% if row.transaction %}id="transaction_{{ row.transaction.liabilityTransactions_id }}"{% endif %}>
+                                <td>{{ row.date|date("d M Y") }}</td>
+                                <td>{{ row.typeName }}{% if row.transaction and row.transaction.liabilityTransactions_notes %}<br/><small class="text-muted">{{ row.transaction.liabilityTransactions_notes }}</small>{% endif %}</td>
+                                <td>{{ row.transaction ? row.transaction.liabilityTransactions_reference }}</td>
+                                <td class="text-right">{{ row.change|money }}</td>
+                                <td class="text-right">{{ row.interest ? row.interest|money }}</td>
+                                <td class="text-right">{{ row.balance|money }}</td>
+                                <td class="text-right" style="white-space: nowrap;">
+                                    {% if canEdit and row.transaction %}
+                                        <button type="button" class="btn btn-sm btn-default transactionEdit" title="Edit" data-transaction="{{ {"liabilityTransactions_id": row.transaction.liabilityTransactions_id, "liabilityTransactions_type": row.transaction.liabilityTransactions_type, "liabilityTransactions_date": row.transaction.liabilityTransactions_date, "liabilityTransactions_amount": row.transaction.amount|moneyDecimal, "liabilityTransactions_interest": row.transaction.interest|moneyDecimal, "liabilityTransactions_reference": row.transaction.liabilityTransactions_reference, "liabilityTransactions_notes": row.transaction.liabilityTransactions_notes}|json_encode }}"><i class="fas fa-pencil-alt"></i></button>
+                                        <button type="button" class="btn btn-sm btn-danger transactionDelete" title="Delete" data-id="{{ row.transaction.liabilityTransactions_id }}"><i class="fas fa-trash"></i></button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">Assets it paid for</h3></div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush" id="liabilityAssets">
+                        {% for asset in liability.assets %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center" id="liabilityAsset_{{ asset.assets_id }}">
+                                <span><a href="{{ CONFIG.ROOTURL }}/asset.php?id={{ asset.assetTypes_id }}&asset={{ asset.assets_id }}">{{ asset.assets_tag|aTag }} {{ asset.assetTypes_name }}</a>
+                                    <br/><small class="text-muted">{% if asset.nbv is not null %}Book value {{ asset.nbv|money }}{% else %}No purchase cost recorded{% endif %}</small></span>
+                                {% if canEdit %}<button type="button" class="btn btn-sm btn-default liabilityAssetRemove" data-id="{{ asset.assets_id }}" title="Not paid for with this"><i class="fas fa-unlink"></i></button>{% endif %}
+                            </li>
+                        {% else %}
+                            <li class="list-group-item text-muted">No assets are linked to this.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% if canEdit %}
+                    <div class="card-footer">
+                        <select class="form-control" id="liabilityAssetAdd" style="width: 100%;"></select>
+                    </div>
+                {% endif %}
+                {% if liability.assetsValue is not null %}<div class="card-footer small">Their book value today: <b id="liabilityAssetsValue">{{ liability.assetsValue|money }}</b></div>{% endif %}
+            </div>
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">Repayments to come</h3></div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0" id="liabilitySchedule">
+                        <tbody>
+                        {% for payment in liability.schedule|slice(0, 24) %}
+                            <tr><td>{{ payment.date|date("d M Y") }}</td><td class="text-right">{{ payment.amount|money }}</td></tr>
+                        {% else %}
+                            <tr><td class="text-muted">{{ liability.position.balance|moneyPositive ? "Add a regular repayment and its first date to see the schedule." : "Paid off." }}</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if liability.schedule|length > 24 %}<div class="card-footer small text-muted">And {{ liability.schedule|length - 24 }} more, the last on {{ (liability.schedule|last).date|date("d M Y") }}.</div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if canEdit %}
+        {% include "reports/twigIncludes/liability_form.twig" %}
+        <div class="modal fade" id="transactionModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="transactionModalTitle">Record a repayment or charge</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="transactionForm">
+                            <input type="hidden" name="liabilities_id" value="{{ liability.liabilities_id }}"/>
+                            <input type="hidden" name="liabilityTransactions_id" value=""/>
+                            <div class="form-group">
+                                <label for="transactionType">What</label>
+                                <select class="form-control" id="transactionType" name="liabilityTransactions_type">{% for key, name in transactionTypes %}<option value="{{ key }}">{{ name }}</option>{% endfor %}</select>
+                            </div>
+                            <div class="form-group"><label for="transactionDate">Date</label><input type="date" class="form-control" id="transactionDate" name="liabilityTransactions_date" required/></div>
+                            <div class="form-group">
+                                <label for="transactionAmount">Amount</label>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" min="0" class="form-control" id="transactionAmount" name="liabilityTransactions_amount" required/></div>
+                            </div>
+                            <div class="form-group" id="transactionInterestGroup">
+                                <label for="transactionInterest">Of which interest</label>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" min="0" class="form-control" id="transactionInterest" name="liabilityTransactions_interest" placeholder="0.00"/></div>
+                                <small class="text-muted">The part of the repayment that's interest or a fee, from the lender's statement. It's a cost; the rest pays off what's owed.</small>
+                            </div>
+                            <div class="form-group"><label for="transactionReference">Reference</label><input type="text" class="form-control" id="transactionReference" name="liabilityTransactions_reference" maxlength="200"/></div>
+                            <div class="form-group"><label for="transactionNotes">Notes</label><input type="text" class="form-control" id="transactionNotes" name="liabilityTransactions_notes" maxlength="500"/></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="transactionSave">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            $(document).ready(function () {
+                var liabilityId = {{ liability.liabilities_id }};
+                $("#liabilityEdit").on("click", function () {
+                    liabilityOpen({{ {
+                        "liabilities_id": liability.liabilities_id, "liabilities_name": liability.liabilities_name, "liabilities_type": liability.liabilities_type,
+                        "liabilities_lender": liability.liabilities_lender, "users_userid": liability.users_userid, "liabilities_amount": liability.amount|moneyDecimal,
+                        "liabilities_startDate": liability.liabilities_startDate, "liabilities_interestRate": liability.liabilities_interestRate is not null ? liability.liabilities_interestRate + 0 : null,
+                        "liabilities_repaymentAmount": liability.repaymentAmount ? liability.repaymentAmount|moneyDecimal : null, "liabilities_repaymentFrequency": liability.liabilities_repaymentFrequency,
+                        "liabilities_firstRepaymentDate": liability.liabilities_firstRepaymentDate, "liabilities_endDate": liability.liabilities_endDate,
+                        "liabilities_reference": liability.liabilities_reference, "liabilities_notes": liability.liabilities_notes
+                    }|json_encode|raw }}, "Change " + {{ liability.liabilities_name|json_encode|raw }});
+                });
+                $("#liabilityDelete").on("click", function () {
+                    bootbox.confirm("Delete this liability and its transactions? The assets it paid for are kept.", function (yes) {
+                        if (yes) ajaxcall("reports/liabilities/delete.php", {"liabilities_id": liabilityId}, function () { window.location.href = "{{ CONFIG.ROOTURL }}/reports/liabilities.php"; });
+                    });
+                });
+                var form = $("#transactionForm");
+                var showInterest = function () { $("#transactionInterestGroup").toggle($("#transactionType").val() === "REPAYMENT"); };
+                $("#transactionType").on("change", showInterest);
+                var openTransaction = function (transaction, title) {
+                    form[0].reset();
+                    $.each(transaction, function (name, value) { form.find("[name='" + name + "']").val(value === null ? "" : value); });
+                    showInterest();
+                    $("#transactionModalTitle").text(title);
+                    $("#transactionModal").modal("show");
+                };
+                $("#transactionAdd").on("click", function () {
+                    openTransaction({"liabilityTransactions_id": "", "liabilityTransactions_type": "REPAYMENT", "liabilityTransactions_date": moment().format("YYYY-MM-DD"), "liabilityTransactions_amount": {{ liability.repaymentAmount ? liability.repaymentAmount|moneyDecimal|json_encode|raw : '""' }}}, "Record a repayment or charge");
+                });
+                $(".transactionEdit").on("click", function () { openTransaction($(this).data("transaction"), "Change a transaction"); });
+                $("#transactionSave").on("click", function () {
+                    var data = {};
+                    $.each(form.serializeArray(), function (i, field) { data[field.name] = field.value; });
+                    ajaxcall("reports/liabilities/transaction.php", data, function () { location.reload(); }, false);
+                });
+                $(".transactionDelete").on("click", function () {
+                    var id = $(this).data("id");
+                    bootbox.confirm("Delete this transaction?", function (yes) {
+                        if (yes) ajaxcall("reports/liabilities/deleteTransaction.php", {"liabilityTransactions_id": id}, function () { location.reload(); });
+                    });
+                });
+                $(".liabilityAssetRemove").on("click", function () {
+                    ajaxcall("reports/liabilities/asset.php", {"assets_id": $(this).data("id"), "liabilities_id": ""}, function () { location.reload(); });
+                });
+                $("#liabilityAssetAdd").select2({
+                    theme: "bootstrap4", width: "100%", minimumInputLength: 1, placeholder: "Add an asset it paid for…",
+                    ajax: {
+                        url: "{{ CONFIG.ROOTURL }}/api/assets/searchAssets.php", dataType: "json", type: "POST",
+                        data: function (params) { return {term: params.term}; },
+                        processResults: function (data) {
+                            return {results: (data && data.result && data.response) ? $.map(data.response, function (item) { return {text: item['tag'] + " | " + item.assetTypes_name, id: item['assets_id']}; }) : []};
+                        }
+                    }
+                }).on("select2:select", function (event) {
+                    ajaxcall("reports/liabilities/asset.php", {"assets_id": event.params.data.id, "liabilities_id": liabilityId}, function () { location.reload(); });
+                });
+            });
+        </script>
+    {% endif %}
+{% endblock %}

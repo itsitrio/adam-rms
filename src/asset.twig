@@ -509,6 +509,16 @@
                                                         </div>
                                                     </form>
                                                     <button class="btn btn-default float-right" id="editAssetPurchaseButton" style="margin-top:10px;margin-bottom:10px;">Save</button>
+                                                    {% if "FINANCE:LIABILITIES:VIEW"|instancePermissions %}
+                                                        <div style="clear: both; padding-top: 10px;">
+                                                            <label for="editAssetLiability">Paid for with a loan or finance</label>
+                                                            <select class="form-control" id="editAssetLiability" {{ not ("FINANCE:LIABILITIES:EDIT"|instancePermissions) ? "disabled" }}>
+                                                                <option value="">No - paid for outright</option>
+                                                                {% for liability in liabilities %}<option value="{{ liability.liabilities_id }}" {{ assets[0].liabilities_id == liability.liabilities_id ? "selected" }}>{{ liability.liabilities_name }}</option>{% endfor %}
+                                                            </select>
+                                                            <small class="text-muted">Loans and finance are recorded on <a href="{{ CONFIG.ROOTURL }}/reports/liabilities.php">the Loans &amp; finance page</a>.</small>
+                                                        </div>
+                                                    {% endif %}
                                                 </div>
                                             {% endif %}
                                             <div class="tab-pane" style="padding: 1.25rem" id="editAssetType">
@@ -1770,6 +1780,13 @@
                     }, false);
                 });
                 {% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+                {% if "FINANCE:LIABILITIES:EDIT"|instancePermissions %}
+                $('#editAssetLiability').on('change', function() {
+                    ajaxcall("reports/liabilities/asset.php", {"assets_id": "{{assets[0]['assets_id']}}", "liabilities_id": this.value}, function (data) {
+                        location.reload();
+                    });
+                });
+                {% endif %}
                 $('#editAssetPurchaseButton').on('click', function() {
                     var formData = $("#editAssetPurchaseForm").serializeArray();
                     formData.push({"name": "assets_id", "value": "{{assets[0]['assets_id']}}"});

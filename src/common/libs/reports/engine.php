@@ -21,6 +21,7 @@ require_once __DIR__ . '/financial.php';
 require_once __DIR__ . '/sales.php';
 require_once __DIR__ . '/assets.php';
 require_once __DIR__ . '/operations.php';
+require_once __DIR__ . '/liabilities.php';
 
 const REPORT_GROUPS = [
     "finance" => ["name" => "Profit & loss", "icon" => "fas fa-balance-scale"],
@@ -49,6 +50,8 @@ function reportDefinitions()
             "description" => "The business's overheads by category and month, and every expense in the period."],
         "discounts" => ["title" => "Discounts given", "group" => "finance", "permission" => "FINANCE:REPORTS:VIEW", "params" => ["period"], "defaultPeriod" => "fy-to-date", "builder" => "reportDiscounts",
             "description" => "How far below its rates equipment was hired out - discounts and custom prices - by client, project manager and project."],
+        "liabilities" => ["title" => "Loans & finance", "group" => "finance", "permission" => "FINANCE:LIABILITIES:VIEW", "params" => ["asAt"], "builder" => "reportLiabilitiesReport",
+            "description" => "What the business owes on loans, finance and credit - borrowed, paid off, interest and fees, what's still owed, and the repayments due over the next year."],
         "cash-receipts" => ["title" => "Cash received", "group" => "cash", "permission" => "FINANCE:REPORTS:VIEW", "params" => ["period"], "defaultPeriod" => "last-month", "builder" => "reportCashReceipts",
             "description" => "Payments received by month, payment method and client, and every payment in the period."],
         "aged-debtors" => ["title" => "Aged debtors", "group" => "cash", "permission" => "FINANCE:REPORTS:VIEW", "params" => [], "builder" => "reportAgedDebtors",
