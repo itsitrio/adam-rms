@@ -20,6 +20,20 @@ x-amz-meta-size
     {% set thisElementID = ('uppy' ~ random()) %}
     {# With FILES_TRANSFER_MODE = Server, files are sent to api/s3files/upload.php, which names and stores them, rather than straight to the bucket #}
     {% set serverTransfer = (CONFIG.FILES_TRANSFER_MODE == 'Server') %}
+    {# Optional: images are resized, and a plain background made transparent, in the browser before they're uploaded #}
+    <div class="form-inline small mb-2" id="{{ thisElementID }}ImageOptions">
+        <label class="mr-2 mb-1" for="{{ thisElementID }}Resize">Resize images</label>
+        <select class="form-control form-control-sm mr-3 mb-1" id="{{ thisElementID }}Resize">
+            <option value="0" selected>Keep original size</option>
+            <option value="2560">Large (2560px)</option>
+            <option value="1600">Medium (1600px)</option>
+            <option value="800">Small (800px)</option>
+        </select>
+        <div class="custom-control custom-checkbox mb-1" title="Makes a white or single-colour background around the edge of a JPEG, PNG or WebP image transparent. The image is saved as a PNG.">
+            <input type="checkbox" class="custom-control-input" id="{{ thisElementID }}RemoveBackground">
+            <label class="custom-control-label" for="{{ thisElementID }}RemoveBackground">Remove plain background</label>
+        </div>
+    </div>
     <div id="{{ thisElementID }}"></div>
     <script>
         var {{ thisElementID }}Keys = {}; // The key the server chose for each file, which uploadSuccess.php needs
@@ -204,6 +218,129 @@ x-amz-meta-size
             });
             {% endif %}
         })
+
+        // Resize and remove the background of images, if asked to, once the upload button is pressed
+        ;(function (uppy, resizeSelect, backgroundBox) {
+            var editableTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']; // Not GIFs, which may be animated
+            var extensions = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'};
+            function loadImage(blob) {
+                return new Promise(function (resolve, reject) {
+                    var url = URL.createObjectURL(blob);
+                    var image = new Image();
+                    image.onload = function () { URL.revokeObjectURL(url); resolve(image); };
+                    image.onerror = function () { URL.revokeObjectURL(url); reject(new Error("The image couldn't be read")); };
+                    image.src = url;
+                });
+            }
+            // A cheap background removal: the most common colour around the edge is taken to be the background, and
+            // everything of that colour reachable from the edge, or in a large enclosed patch, is made transparent.
+            // Returns false if the edge isn't one colour.
+            function removeBackground(context, width, height) {
+                var imageData = context.getImageData(0, 0, width, height), px = imageData.data;
+                var border = [], counts = {}, bestKey = null;
+                for (var x = 0; x < width; x++) { border.push(x, (height - 1) * width + x); }
+                for (var y = 1; y < height - 1; y++) { border.push(y * width, y * width + width - 1); }
+                border.forEach(function (i) {
+                    var key = (px[i * 4] >> 4) + ',' + (px[i * 4 + 1] >> 4) + ',' + (px[i * 4 + 2] >> 4);
+                    counts[key] = (counts[key] || 0) + 1;
+                    if (bestKey === null || counts[key] > counts[bestKey]) bestKey = key;
+                });
+                if (counts[bestKey] < border.length * 0.6) return false;
+                var background = [0, 0, 0], matching = 0;
+                border.forEach(function (i) {
+                    if ((px[i * 4] >> 4) + ',' + (px[i * 4 + 1] >> 4) + ',' + (px[i * 4 + 2] >> 4) !== bestKey) return;
+                    background[0] += px[i * 4]; background[1] += px[i * 4 + 1]; background[2] += px[i * 4 + 2]; matching++;
+                });
+                background = background.map(function (total) { return total / matching; });
+                var tolerance = 32;
+                function distance(i) {
+                    return Math.max(Math.abs(px[i * 4] - background[0]), Math.abs(px[i * 4 + 1] - background[1]), Math.abs(px[i * 4 + 2] - background[2]));
+                }
+                var total = width * height, removed = new Uint8Array(total), seen = new Uint8Array(total), stack = new Int32Array(total);
+                // Finds the pixels of the background's colour joined to the starting ones
+                function fill(starts) {
+                    var region = [], top = 0;
+                    starts.forEach(function (i) { if (!seen[i] && distance(i) < tolerance) { seen[i] = 1; stack[top++] = i; } });
+                    while (top > 0) {
+                        var i = stack[--top], x = i % width;
+                        region.push(i);
+                        var neighbours = [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, i - width, i + width];
+                        for (var n = 0; n < 4; n++) {
+                            var j = neighbours[n];
+                            if (j >= 0 && j < total && !seen[j] && distance(j) < tolerance) { seen[j] = 1; stack[top++] = j; }
+                        }
+                    }
+                    return region;
+                }
+                function remove(region) { region.forEach(function (i) { removed[i] = 1; px[i * 4 + 3] = 0; }); }
+                remove(fill(border));
+                // Background showing through a gap in the subject (such as the middle of a coiled cable) can't be reached
+                // from the edge, so large enclosed patches of its colour go too. Small ones, like highlights, are kept.
+                var minimumArea = total * 0.005;
+                for (var i = 0; i < total; i++) {
+                    if (seen[i] || distance(i) >= tolerance) continue;
+                    var region = fill([i]);
+                    if (region.length >= minimumArea) remove(region);
+                }
+                // Soften the edge: pixels next to the background that are close to its colour are made partly transparent
+                for (var i = 0; i < total; i++) {
+                    if (removed[i]) continue;
+                    var x = i % width;
+                    if (!((x > 0 && removed[i - 1]) || (x < width - 1 && removed[i + 1]) || (i >= width && removed[i - width]) || (i + width < total && removed[i + width]))) continue;
+                    var alpha = Math.round(255 * Math.max(0, Math.min(1, (distance(i) - tolerance) / tolerance)));
+                    px[i * 4 + 3] = Math.min(px[i * 4 + 3], alpha);
+                }
+                context.putImageData(imageData, 0, 0);
+                return true;
+            }
+            function processFile(file, maxSide, removeBg) {
+                return loadImage(file.data).then(function (image) {
+                    var width = image.naturalWidth, height = image.naturalHeight;
+                    var scale = maxSide > 0 ? Math.min(1, maxSide / Math.max(width, height)) : 1;
+                    if (scale === 1 && !removeBg) return;
+                    var canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(width * scale));
+                    canvas.height = Math.max(1, Math.round(height * scale));
+                    var context = canvas.getContext('2d');
+                    context.imageSmoothingQuality = 'high';
+                    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+                    var removed = removeBg && removeBackground(context, canvas.width, canvas.height);
+                    if (removeBg && !removed) uppy.info("The background of " + (file.data.name || "an image") + " isn't one plain colour, so it's been left as it is", 'warning', 5000);
+                    if (scale === 1 && !removed) return;
+                    var type = removed ? 'image/png' : (file.type === 'image/jpg' ? 'image/jpeg' : file.type);
+                    return new Promise(function (resolve) { canvas.toBlob(resolve, type, 0.9); }).then(function (blob) {
+                        if (!blob) return;
+                        var rename = function (name) { return name.replace(/(\.[^.\/]*)?$/, '.' + extensions[blob.type]); };
+                        if (!extensions[blob.type]) return;
+                        uppy.setFileState(file.id, {
+                            data: new File([blob], rename(file.data.name || file.name), {type: blob.type}),
+                            name: rename(file.name),
+                            extension: extensions[blob.type],
+                            type: blob.type,
+                            size: blob.size
+                        });
+                        uppy.setFileMeta(file.id, {name: rename(file.meta.name || file.name), type: blob.type});
+                    });
+                });
+            }
+            uppy.addPreProcessor(function (fileIDs) {
+                var maxSide = parseInt(resizeSelect.value, 10) || 0, removeBg = backgroundBox.checked;
+                if (!maxSide && !removeBg) return Promise.resolve();
+                // One at a time, so large photos don't all sit in memory at once
+                return fileIDs.reduce(function (previous, fileID) {
+                    return previous.then(function () {
+                        var file = uppy.getFile(fileID);
+                        if (!file || editableTypes.indexOf(file.type) === -1) return;
+                        uppy.emit('preprocess-progress', file, {mode: 'indeterminate', message: 'Preparing image'});
+                        return processFile(file, maxSide, removeBg).catch(function (error) {
+                            uppy.log(error); // Upload the image as it is
+                        }).then(function () {
+                            uppy.emit('preprocess-complete', uppy.getFile(fileID));
+                        });
+                    });
+                }, Promise.resolve());
+            });
+        })({{ thisElementID }}, document.getElementById('{{ thisElementID }}Resize'), document.getElementById('{{ thisElementID }}RemoveBackground'));
 
         //Update the theme when a themChange is triggered.
         $(document).on('themeChange', function(event, theme) {

@@ -305,3 +305,27 @@ test("documents get the business's logo straight from the bucket", async ({ asA,
   expect(document.body).toContain("base64");
   expect(document.body).toContain(PNG.toString("base64").slice(0, 40));
 });
+
+test("an image whose background the uploader removed is stored as a PNG", async ({ page, tenants: { a, password } }) => {
+  await cacheCdn(page.context());
+  await login(page, a.users.full.email, password);
+  await page.goto(`/asset.php?id=${a.assetTypeId}`, { waitUntil: "domcontentloaded" });
+  await page.locator('a[href="#typeFiles"]').click();
+  const photo = Buffer.from(await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 100;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, 200, 100);
+    context.fillStyle = "#0000ff";
+    context.fillRect(50, 25, 100, 50);
+    return canvas.toDataURL("image/jpeg", 0.95).split(",")[1];
+  }), "base64");
+  await page.locator('#typeFiles label[for$="RemoveBackground"]').click();
+  await page.locator("#typeFiles input.uppy-Dashboard-input").first().setInputFiles({ name: "e2e-server-cutout.jpg", mimeType: "image/jpeg", buffer: photo });
+  await page.locator("#typeFiles .uppy-StatusBar-actionBtn--upload").click();
+  await expect.poll(() => dbQuery("SELECT s3files_id FROM s3files WHERE s3files_original_name = 'e2e-server-cutout.png' AND instances_id = ?", [a.instanceId]).length).toBe(1);
+  const [row] = dbQuery<{ s3files_extension: string }>("SELECT s3files_extension FROM s3files WHERE s3files_original_name = 'e2e-server-cutout.png' AND instances_id = ?", [a.instanceId]);
+  expect(row.s3files_extension).toBe("png");
+});
