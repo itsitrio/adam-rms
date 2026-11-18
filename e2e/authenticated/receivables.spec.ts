@@ -1,6 +1,6 @@
 import { assign, newAsset, newProject, pipelineStatus } from "../projects";
 import { BASE_URL } from "../env";
-import { dbQuery, expect, formData, newSession, type Session, type Tenant, test } from "../tenants";
+import { dbQuery, expect, formData, newSession, seedTenants, type Session, type Tenant, test } from "../tenants";
 
 /**
  * Whether won work has been paid for. A project's payment falls due a number of days after it ends (the business's
@@ -142,4 +142,20 @@ test("the receivables page keeps the sidebar's list of projects", async ({ asA, 
   const sidebarEntry = `<p title="${a.marker} project">`;
   expect((await asA.page("/ledger.php")).body, "control: another page's sidebar").toContain(sidebarEntry);
   expect((await asA.page("/receivables.php")).body).toContain(sidebarEntry);
+});
+
+test("the Finance tab says which permission marks a project as in collections, to those without it", async ({ asA, asLimitedA, tenants: { a } }) => {
+  // The limited user can't see payments at all; let them, for this test
+  dbQuery("UPDATE instancePositions SET instancePositions_actions = CONCAT(instancePositions_actions, ',PROJECTS:PROJECT_PAYMENTS:VIEW') WHERE instancePositions_id = ?", [a.positions.limited]);
+  try {
+    const limited = (await asLimitedA.page(`/project/?id=${a.projectId}`)).body;
+    expect(limited).toContain('id="paymentCollection"');
+    expect(limited).toContain('id="paymentCollectionNoPermission"');
+    expect(limited).not.toContain('id="paymentCollectionForm"');
+  } finally {
+    seedTenants();
+  }
+  const full = (await asA.page(`/project/?id=${a.projectId}`)).body;
+  expect(full).toContain('id="paymentCollectionForm"');
+  expect(full).not.toContain('id="paymentCollectionNoPermission"');
 });
