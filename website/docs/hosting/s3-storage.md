@@ -17,7 +17,7 @@ Whether AWS S3 file storage is enabled or disabled. If disabled, AdamRMS will no
 How files get between users' browsers and the bucket:
 
 - **Direct** (the default): browsers upload files straight to the bucket, and download them from it, using pre-signed links to the **browser endpoint**. The bucket's endpoint must be reachable from users' browsers, and needs a CORS policy that allows uploads (see below).
-- **Server**: every upload and download goes through AdamRMS. Browsers send files to AdamRMS, which stores them in the bucket using the **server endpoint**, and fetch them from AdamRMS with signed links that expire, as pre-signed links do. Browsers are never told the bucket's address, the bucket can stay private, and it needs no CORS policy. Files can be up to 25MB, and all file traffic passes through your AdamRMS server, so allow for the extra bandwidth.
+- **Server**: every upload and download goes through AdamRMS. Browsers send files to AdamRMS, which stores them in the bucket using the **server endpoint**, and fetch them from AdamRMS with signed links that expire, as pre-signed links do. Browsers are never told the bucket's address, the bucket can stay private, and it needs no CORS policy. Files can be up to 25MB, and all file traffic passes through your AdamRMS server, so allow for the extra bandwidth. Browsers keep the files they're sent for up to an hour, so a file shown on many pages is only fetched from the bucket once an hour per browser. As a result, links are valid until the end of the hour after they're made rather than for exactly as long as requested.
 
 Server mode is the simplest way to use [Cloudflare R2](#cloudflare-r2), whose uploads only work through its API endpoint.
 

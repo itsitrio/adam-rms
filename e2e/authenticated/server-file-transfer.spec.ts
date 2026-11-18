@@ -90,7 +90,7 @@ test("a file is downloaded through a signed link to the server, which needs no s
     expect(headers["content-disposition"]).toBe('inline; filename="e2e-server-pixel.png"');
     expect(headers["x-content-type-options"]).toBe("nosniff");
     expect(headers["content-security-policy"]).toContain("sandbox");
-    expect(headers["cache-control"]).toMatch(/^private, max-age=\d+$/);
+    expect(headers["cache-control"]).toMatch(/^private, max-age=\d+, immutable$/);
 
     // A second look, with the copy the browser kept, isn't sent again
     expect((await anonymous.get(url, { headers: { "If-None-Match": headers["etag"] } })).status()).toBe(304);
@@ -114,6 +114,72 @@ test("a file is downloaded through a signed link to the server, which needs no s
     expect(redirect.headers()["location"]).toMatch(new RegExp(`^${BASE_URL}/api/file/stream\\.php\\?f=${id}&d=0&exp=\\d+&sig=[0-9a-f]{64}$`));
   } finally {
     await anonymous.dispose();
+  }
+});
+
+/** The requests the app has made to the bucket for an object since the log was cleared */
+async function bucketReads(key: string) {
+  const log: { method: string; path: string }[] = await (await fetch(`${FAKE_S3_URL}/_log`)).json();
+  return log.filter((entry) => entry.method === "GET" && entry.path === `/${BUCKET}/${key}`).length;
+}
+
+test("a file's link stays the same for the hour, and the browser's copy is used instead of the bucket", async ({ playwright, asA, tenants: { a } }) => {
+  const id = (await upload(asA, assetTypeFile(a.assetTypeId), { name: "e2e-server-pixel.png", buffer: PNG })).json.response.id;
+  const key = objectKey(row(id));
+  const first = await link(asA, id);
+  expect(await link(asA, id), "asking again gives the same link").toBe(first);
+  const expires = Number(new URL(first).searchParams.get("exp"));
+  expect(expires % 3600, "it expires on the hour").toBe(0);
+  expect(expires).toBeGreaterThan(Date.now() / 1000 + 59);
+  expect(expires).toBeLessThanOrEqual(Date.now() / 1000 + 3600 + 60);
+
+  await fetch(`${FAKE_S3_URL}/_log`, { method: "DELETE" });
+  const anonymous = await playwright.request.newContext();
+  try {
+    const response = await anonymous.get(first);
+    expect(response.status()).toBe(200);
+    const etag = response.headers()["etag"];
+    expect(etag).toMatch(/^"[0-9a-f]{64}"$/);
+    // A reload checks the copy it has, which is answered without asking the bucket
+    expect((await anonymous.get(first, { headers: { "If-None-Match": etag } })).status()).toBe(304);
+    expect((await anonymous.get(first, { headers: { "If-None-Match": `W/"other", W/${etag}` } })).status(), "a list of tags, weak").toBe(304);
+    expect(await bucketReads(key), "only the first request read the bucket").toBe(1);
+
+    // Renaming the file changes the name it's downloaded with, so the browser's copy is out of date
+    expect(succeeded(await asA.api("/api/file/rename.php", { s3files_id: id, s3files_name: "e2e-server-renamed" }))).toBe(true);
+    const renamed = await anonymous.get(first, { headers: { "If-None-Match": etag } });
+    expect(renamed.status()).toBe(200);
+    expect(renamed.headers()["content-disposition"]).toBe('inline; filename="e2e-server-renamed.png"');
+
+    // The redirect pages use for <img> tags may be kept until shortly before its link expires
+    const redirect = await asA.request.get(`/api/file/index.php?r&f=${id}`, { maxRedirects: 0 });
+    if (expires - Date.now() / 1000 > 360) expect(redirect.headers()["cache-control"]).toMatch(/^private, max-age=\d+$/);
+  } finally {
+    await anonymous.dispose();
+  }
+});
+
+test("a browser showing a file again uses its cached copy, not the bucket", async ({ browser, asA, tenants: { a } }) => {
+  const id = (await upload(asA, assetTypeFile(a.assetTypeId), { name: "e2e-server-pixel.png", buffer: PNG })).json.response.id;
+  // Playwright turns the browser's cache off while requests are being routed (as cacheCdn does), so this context
+  // isn't routed: it has A's session and fetches the file from a page that needs nothing from a CDN
+  const context = await browser.newContext({ baseURL: BASE_URL, storageState: await asA.request.storageState() });
+  try {
+    await fetch(`${FAKE_S3_URL}/_log`, { method: "DELETE" });
+    const page = await context.newPage();
+    await page.goto(`/api/file/index.php?f=${id}`); // A page on the site to fetch from (the file itself is sandboxed)
+    const sizes = await page.evaluate(async (fileId) => {
+      const sizes: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1100)); // Seconds apart, as page views would be
+        sizes.push((await (await fetch(`/api/file/index.php?r&f=${fileId}`)).arrayBuffer()).byteLength);
+      }
+      return sizes;
+    }, id);
+    expect(sizes).toEqual([PNG.length, PNG.length, PNG.length]);
+    expect(await bucketReads(objectKey(row(id))), "fetched three times, read from the bucket once").toBe(1);
+  } finally {
+    await context.close();
   }
 });
 

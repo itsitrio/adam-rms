@@ -33,13 +33,25 @@ $file = $DBLIB->getone("s3files", ["s3files_id", "s3files_path", "s3files_filena
 if (!$file) streamRefuse(404, "File not found");
 
 $contentType = $bCMS->s3ContentType($file['s3files_extension']);
+// A link's file never changes, so the browser may keep it until the link expires without checking. When it does
+// check (a reload), its copy is answered here from the database, without asking the bucket.
+$cacheControl = "Cache-Control: private, max-age=" . max(0, intval($expires) - time()) . ", immutable";
+$etag = $bCMS->s3StreamETag($file);
+if (isset($_SERVER['HTTP_IF_NONE_MATCH']) and in_array($etag, array_map(function ($tag) {
+    return preg_replace('/^W\//', '', trim($tag));
+}, explode(",", $_SERVER['HTTP_IF_NONE_MATCH'])), true)) {
+    header_remove("Pragma");
+    http_response_code(304);
+    header("ETag: " . $etag);
+    header($cacheControl);
+    die();
+}
 $request = [
     'Bucket' => $CONFIGCLASS->get('AWS_S3_BUCKET'),
     'Key' => $bCMS->s3ObjectKey($file),
 ];
-// Pass on a single byte range (so video can be scrubbed) and the browser's cached copy, if it has one
+// Pass on a single byte range, so video can be scrubbed
 if (isset($_SERVER['HTTP_RANGE']) and preg_match('/^bytes=\d*-\d*$/', $_SERVER['HTTP_RANGE'])) $request['Range'] = $_SERVER['HTTP_RANGE'];
-if (isset($_SERVER['HTTP_IF_NONE_MATCH']) and strlen($_SERVER['HTTP_IF_NONE_MATCH']) < 200) $request['IfNoneMatch'] = $_SERVER['HTTP_IF_NONE_MATCH'];
 
 $head = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD';
 try {
@@ -51,7 +63,7 @@ try {
     }
 } catch (Aws\S3\Exception\S3Exception $e) {
     $status = $e->getStatusCode();
-    if ($status === 304 or $status === 416) {
+    if ($status === 416) {
         http_response_code($status);
         die();
     } elseif ($status === 404) streamRefuse(404, "File not found");
@@ -64,12 +76,6 @@ header_remove("Pragma");
 header_remove("Access-Control-Allow-Methods");
 header_remove("Access-Control-Allow-Headers");
 $status = $object['@metadata']['statusCode'] ?? 200;
-if ($status === 304) { // The browser's copy is current
-    http_response_code(304);
-    if (isset($object['ETag'])) header("ETag: " . $object['ETag']);
-    header("Cache-Control: private, max-age=" . max(0, intval($expires) - time()));
-    die();
-}
 http_response_code($status === 206 ? 206 : 200);
 header("Content-Type: " . $contentType['type']);
 $name = preg_replace('/[^A-Za-z0-9 _\-]/', '_', (string) $file['s3files_name']) . '.' . preg_replace('/[^A-Za-z0-9]/', '', $file['s3files_extension']);
@@ -78,9 +84,9 @@ header("X-Content-Type-Options: nosniff");
 // The file comes from this site's own origin, so stop anything in it running script with the visitor's session.
 // Chrome won't show a PDF in a sandboxed page, and PDF script runs in the viewer rather than the page, so they're left out.
 if ($contentType['type'] !== 'application/pdf') header("Content-Security-Policy: sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'");
-header("Cache-Control: private, max-age=" . max(0, intval($expires) - time()));
+header($cacheControl);
 header("Accept-Ranges: bytes");
-if (isset($object['ETag'])) header("ETag: " . $object['ETag']);
+header("ETag: " . $etag);
 if (isset($object['LastModified'])) header("Last-Modified: " . $object['LastModified']->format(DATE_RFC7231));
 if (isset($object['ContentRange'])) header("Content-Range: " . $object['ContentRange']);
 if (isset($object['ContentLength'])) header("Content-Length: " . $object['ContentLength']);
