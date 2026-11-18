@@ -233,7 +233,8 @@ x-amz-meta-size
                 });
             }
             // A cheap background removal: the most common colour around the edge is taken to be the background, and
-            // everything of that colour reachable from the edge is made transparent. Returns false if the edge isn't one colour.
+            // everything of that colour reachable from the edge, or in a large enclosed patch, is made transparent.
+            // Returns false if the edge isn't one colour.
             function removeBackground(context, width, height) {
                 var imageData = context.getImageData(0, 0, width, height), px = imageData.data;
                 var border = [], counts = {}, bestKey = null;
@@ -255,24 +256,38 @@ x-amz-meta-size
                 function distance(i) {
                     return Math.max(Math.abs(px[i * 4] - background[0]), Math.abs(px[i * 4 + 1] - background[1]), Math.abs(px[i * 4 + 2] - background[2]));
                 }
-                var removed = new Uint8Array(width * height), queued = new Uint8Array(width * height), stack = new Int32Array(width * height), top = 0;
-                border.forEach(function (i) { if (!queued[i]) { queued[i] = 1; stack[top++] = i; } });
-                while (top > 0) {
-                    var i = stack[--top];
-                    if (distance(i) >= tolerance) continue;
-                    removed[i] = 1;
-                    px[i * 4 + 3] = 0;
-                    var x = i % width;
-                    var neighbours = [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, i - width, i + width];
-                    for (var n = 0; n < 4; n++) {
-                        var j = neighbours[n];
-                        if (j >= 0 && j < width * height && !queued[j]) { queued[j] = 1; stack[top++] = j; }
+                var total = width * height, removed = new Uint8Array(total), seen = new Uint8Array(total), stack = new Int32Array(total);
+                // Finds the pixels of the background's colour joined to the starting ones
+                function fill(starts) {
+                    var region = [], top = 0;
+                    starts.forEach(function (i) { if (!seen[i] && distance(i) < tolerance) { seen[i] = 1; stack[top++] = i; } });
+                    while (top > 0) {
+                        var i = stack[--top], x = i % width;
+                        region.push(i);
+                        var neighbours = [x > 0 ? i - 1 : -1, x < width - 1 ? i + 1 : -1, i - width, i + width];
+                        for (var n = 0; n < 4; n++) {
+                            var j = neighbours[n];
+                            if (j >= 0 && j < total && !seen[j] && distance(j) < tolerance) { seen[j] = 1; stack[top++] = j; }
+                        }
                     }
+                    return region;
+                }
+                function remove(region) { region.forEach(function (i) { removed[i] = 1; px[i * 4 + 3] = 0; }); }
+                remove(fill(border));
+                // Background showing through a gap in the subject (such as the middle of a coiled cable) can't be reached
+                // from the edge, so large enclosed patches of its colour go too. Small ones, like highlights, are kept.
+                var minimumArea = total * 0.005;
+                for (var i = 0; i < total; i++) {
+                    if (seen[i] || distance(i) >= tolerance) continue;
+                    var region = fill([i]);
+                    if (region.length >= minimumArea) remove(region);
                 }
                 // Soften the edge: pixels next to the background that are close to its colour are made partly transparent
-                for (var i = 0; i < width * height; i++) {
-                    if (removed[i] || !queued[i]) continue; // queued but not removed = touches the background
-                    var alpha = Math.round(255 * Math.min(1, (distance(i) - tolerance) / tolerance));
+                for (var i = 0; i < total; i++) {
+                    if (removed[i]) continue;
+                    var x = i % width;
+                    if (!((x > 0 && removed[i - 1]) || (x < width - 1 && removed[i + 1]) || (i >= width && removed[i - width]) || (i + width < total && removed[i + width]))) continue;
+                    var alpha = Math.round(255 * Math.max(0, Math.min(1, (distance(i) - tolerance) / tolerance)));
                     px[i * 4 + 3] = Math.min(px[i * 4 + 3], alpha);
                 }
                 context.putImageData(imageData, 0, 0);
