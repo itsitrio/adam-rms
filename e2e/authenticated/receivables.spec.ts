@@ -75,7 +75,8 @@ test("an asset's revenue to date is split by how much has been collected, and th
   expect(section(report, "WRITTEN_OFF")).toContain(link(writtenOff));
   expect(section(report, "NOT_DUE")).toContain(link(notDue));
   expect(section(report, "NOT_CALCULATED")).toContain(link(neverOpened));
-  expect(report).not.toContain(link(paid));
+  // Paid, so in none of the report's sections (the sidebar lists projects too, so not the whole page)
+  for (const state of ["NOT_DUE", "PAST_DUE", "COLLECTIONS", "WRITTEN_OFF", "NOT_CALCULATED"]) expect(section(report, state), state).not.toContain(link(paid));
 
   // The project's Finance tab shows where its payment is up to
   const finance = (await asA.page(`/project/?id=${halfPaid}`)).body;
@@ -134,4 +135,11 @@ test("the receivables report only lists the business's own projects", async ({ a
   dbQuery("UPDATE projectsFinanceCache SET projectsFinanceCache_grandTotal = 1000 WHERE projects_id = ?", [project]);
   expect((await asB.page("/receivables.php")).body).toContain(`/project/?id=${project}"`);
   expect((await asA.page("/receivables.php")).body).not.toContain(`/project/?id=${project}"`);
+});
+
+test("the receivables page keeps the sidebar's list of projects", async ({ asA, tenants: { a } }) => {
+  // The sidebar lists projects from the same page data, so the page mustn't replace it with its own list
+  const sidebarEntry = `<p title="${a.marker} project">`;
+  expect((await asA.page("/ledger.php")).body, "control: another page's sidebar").toContain(sidebarEntry);
+  expect((await asA.page("/receivables.php")).body).toContain(sidebarEntry);
 });
