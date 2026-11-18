@@ -29,7 +29,7 @@
                     <div class="form-row">
                         <div class="form-group col-md-4">
                             <label for="liabilityAmount">Amount borrowed</label>
-                            <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" min="0" class="form-control" id="liabilityAmount" name="liabilities_amount" required/></div>
+                            <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="text" inputmode="decimal" autocomplete="off" class="form-control" id="liabilityAmount" name="liabilities_amount" required/></div>
                         </div>
                         <div class="form-group col-md-4"><label for="liabilityStart">Started</label><input type="date" class="form-control" id="liabilityStart" name="liabilities_startDate" required/></div>
                         <div class="form-group col-md-4">
@@ -40,7 +40,7 @@
                     <div class="form-row">
                         <div class="form-group col-md-4">
                             <label for="liabilityRepayment">Regular repayment</label>
-                            <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" min="0" class="form-control" id="liabilityRepayment" name="liabilities_repaymentAmount" placeholder="Optional"/></div>
+                            <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="text" inputmode="decimal" autocomplete="off" class="form-control" id="liabilityRepayment" name="liabilities_repaymentAmount" placeholder="Optional"/></div>
                         </div>
                         <div class="form-group col-md-4">
                             <label for="liabilityFrequency">Paid</label>
@@ -53,6 +53,7 @@
                         <div class="form-group col-md-8"><label for="liabilityReference">Reference or account number</label><input type="text" class="form-control" id="liabilityReference" name="liabilities_reference" maxlength="200"/></div>
                     </div>
                     <div class="form-group"><label for="liabilityNotes">Notes</label><textarea class="form-control" id="liabilityNotes" name="liabilities_notes" rows="2"></textarea></div>
+                    <div class="text-danger small formMissing mb-2" style="display: none;">Fill in the boxes marked in red.</div>
                     <small class="text-muted">The regular repayment, how often it's paid and the first repayment date give the schedule of repayments due. Record each repayment as it's made.</small>
                 </form>
             </div>
@@ -67,12 +68,17 @@
     function liabilityOpen(liability, title) {
         var form = $("#liabilityForm");
         form[0].reset();
+        form.find(".is-invalid").removeClass("is-invalid");
+        form.find(".formMissing").hide();
         $.each(liability, function (name, value) { form.find("[name='" + name + "']").val(value === null ? "" : value); });
         $("#liabilityModalTitle").text(title);
         $("#liabilityModal").modal("show");
     }
     $(document).ready(function () {
         $("#liabilitySave").on("click", function () {
+            var missing = $("#liabilityForm").find("[required]").removeClass("is-invalid").filter(function () { return $.trim(this.value) === ""; });
+            $("#liabilityForm").find(".formMissing").toggle(missing.length > 0);
+            if (missing.length > 0) { missing.addClass("is-invalid").first().focus(); return; }
             var data = {};
             $.each($("#liabilityForm").serializeArray(), function (i, field) { data[field.name] = field.value; });
             ajaxcall("reports/liabilities/save.php", data, function (result) {

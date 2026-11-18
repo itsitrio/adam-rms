@@ -124,14 +124,15 @@
                             <div class="form-group"><label for="transactionDate">Date</label><input type="date" class="form-control" id="transactionDate" name="liabilityTransactions_date" required/></div>
                             <div class="form-group">
                                 <label for="transactionAmount">Amount</label>
-                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" min="0" class="form-control" id="transactionAmount" name="liabilityTransactions_amount" required/></div>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="text" inputmode="decimal" autocomplete="off" class="form-control" id="transactionAmount" name="liabilityTransactions_amount" required/></div>
                             </div>
                             <div class="form-group" id="transactionInterestGroup">
                                 <label for="transactionInterest">Of which interest</label>
-                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" min="0" class="form-control" id="transactionInterest" name="liabilityTransactions_interest" placeholder="0.00"/></div>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="text" inputmode="decimal" autocomplete="off" class="form-control" id="transactionInterest" name="liabilityTransactions_interest" placeholder="0.00"/></div>
                                 <small class="text-muted">The part of the repayment that's interest or a fee, from the lender's statement. It's a cost; the rest pays off what's owed.</small>
                             </div>
                             <div class="form-group"><label for="transactionReference">Reference</label><input type="text" class="form-control" id="transactionReference" name="liabilityTransactions_reference" maxlength="200"/></div>
+                            <div class="text-danger small formMissing mb-2" style="display: none;">Fill in the boxes marked in red.</div>
                             <div class="form-group"><label for="transactionNotes">Notes</label><input type="text" class="form-control" id="transactionNotes" name="liabilityTransactions_notes" maxlength="500"/></div>
                         </form>
                     </div>
@@ -165,6 +166,8 @@
                 $("#transactionType").on("change", showInterest);
                 var openTransaction = function (transaction, title) {
                     form[0].reset();
+                    form.find(".is-invalid").removeClass("is-invalid");
+                    form.find(".formMissing").hide();
                     $.each(transaction, function (name, value) { form.find("[name='" + name + "']").val(value === null ? "" : value); });
                     showInterest();
                     $("#transactionModalTitle").text(title);
@@ -175,7 +178,10 @@
                 });
                 $(".transactionEdit").on("click", function () { openTransaction($(this).data("transaction"), "Change a transaction"); });
                 $("#transactionSave").on("click", function () {
-                    var data = {};
+                    var missing = $(form).find("[required]").removeClass("is-invalid").filter(function () { return $.trim(this.value) === ""; });
+            $(form).find(".formMissing").toggle(missing.length > 0);
+            if (missing.length > 0) { missing.addClass("is-invalid").first().focus(); return; }
+            var data = {};
                     $.each(form.serializeArray(), function (i, field) { data[field.name] = field.value; });
                     ajaxcall("reports/liabilities/transaction.php", data, function () { location.reload(); }, false);
                 });

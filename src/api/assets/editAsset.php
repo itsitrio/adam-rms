@@ -37,8 +37,9 @@ foreach (['assets_value', 'assets_dayRate', 'assets_weekRate'] as $moneyField) {
 
 //What the asset was bought for and when, and how long to depreciate it over - sent from the asset's Purchase tab
 if (array_key_exists('assets_purchaseCost', $array) and $array['assets_purchaseCost'] !== null) {
-    if (!preg_match('/^\d+(\.\d+)?$/', trim((string) $array['assets_purchaseCost']))) finish(false, ["code" => "PARAM-ERROR", "message" => "The purchase cost must be a number"]);
-    $array['assets_purchaseCost'] = $moneyParser->parse(trim((string) $array['assets_purchaseCost']), $AUTH->data['instance']['instances_config_currency'])->getAmount();
+    require_once __DIR__ . '/../../common/libs/reports/moneyInput.php';
+    $array['assets_purchaseCost'] = moneyInputParse($array['assets_purchaseCost'], $AUTH->data['instance']['instances_config_currency']);
+    if ($array['assets_purchaseCost'] === false) finish(false, ["code" => "PARAM-ERROR", "message" => "The purchase cost must be an amount, like 1200.00"]);
 }
 if (array_key_exists('assets_purchaseDate', $array) and $array['assets_purchaseDate'] !== null) {
     $purchaseDate = (string) $array['assets_purchaseDate'];

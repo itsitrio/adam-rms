@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../apiHeadSecure.php';
+require_once __DIR__ . '/../../common/libs/reports/moneyInput.php';
 
 use Money\Currencies\ISOCurrencies;
 use Money\Parser\DecimalMoneyParser;
@@ -17,12 +18,8 @@ $payment = $DBLIB->getOne("payments", ["payments.payments_id", "payments.payment
 if (!$payment) finish(false, ["code" => "PARAM-ERROR", "message" => "Could not find the line"]);
 if ($payment['payments_type'] == 1) finish(false, ["code" => "PARAM-ERROR", "message" => "A payment received doesn't have a cost"]);
 
-$cost = trim($_POST['payments_cost']);
-if ($cost === "") $cost = null;
-else {
-    if (!preg_match('/^\d+(\.\d+)?$/', $cost)) finish(false, ["code" => "PARAM-ERROR", "message" => "The cost must be a number"]);
-    $cost = (new DecimalMoneyParser(new ISOCurrencies()))->parse($cost, $AUTH->data['instance']['instances_config_currency'])->getAmount();
-}
+$cost = moneyInputParse($_POST['payments_cost'], $AUTH->data['instance']['instances_config_currency']);
+if ($cost === false) finish(false, ["code" => "PARAM-ERROR", "message" => "The cost must be an amount, like 250.00"]);
 $DBLIB->where("payments_id", $payment['payments_id']);
 if (!$DBLIB->update("payments", ["payments_cost" => $cost])) finish(false, ["code" => "UPDATE-FAIL", "message" => "Could not save the cost"]);
 $bCMS->auditLog("CHANGE-COST", "payments", "Set the cost of line " . $payment['payments_id'] . " to " . ($cost === null ? "nothing" : $cost), $AUTH->data['users_userid'], null, $payment['projects_id'], $payment['payments_id']);

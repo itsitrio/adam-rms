@@ -5,6 +5,7 @@ use Money\Currencies\ISOCurrencies;
 use Money\Parser\DecimalMoneyParser;
 
 require_once __DIR__ . '/liabilities.php';
+require_once __DIR__ . '/moneyInput.php';
 
 /** A Y-m-d date from the request, null if it was left empty, or the request fails */
 function liabilityDate($key, $name, $required = false)
@@ -22,13 +23,10 @@ function liabilityDate($key, $name, $required = false)
 function liabilityMoney($key, $name, $required = false)
 {
     global $AUTH;
-    $value = isset($_POST[$key]) && is_string($_POST[$key]) ? trim($_POST[$key]) : "";
-    if ($value === "") {
-        if ($required) finish(false, ["code" => "PARAM-ERROR", "message" => "Enter the " . $name]);
-        return null;
-    }
-    if (!preg_match('/^\d+(\.\d+)?$/', $value)) finish(false, ["code" => "PARAM-ERROR", "message" => "The " . $name . " must be a number"]);
-    return (new DecimalMoneyParser(new ISOCurrencies()))->parse($value, $AUTH->data['instance']['instances_config_currency'])->getAmount();
+    $amount = moneyInputParse($_POST[$key] ?? null, $AUTH->data['instance']['instances_config_currency']);
+    if ($amount === false) finish(false, ["code" => "PARAM-ERROR", "message" => "The " . $name . " must be an amount, like 250.00"]);
+    if ($amount === null and $required) finish(false, ["code" => "PARAM-ERROR", "message" => "Enter the " . $name . ", like 250.00"]);
+    return $amount;
 }
 
 /** Text from the request, trimmed and cut to a length - null if it's empty */

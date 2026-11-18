@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../apiHeadSecure.php';
+require_once __DIR__ . '/../../../common/libs/reports/moneyInput.php';
 
 use Money\Currencies\ISOCurrencies;
 use Money\Parser\DecimalMoneyParser;
@@ -16,13 +17,9 @@ $date = $_POST['expenses_date'] ?? null;
 if (!is_string($date) or !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) or !checkdate(intval(substr($date, 5, 2)), intval(substr($date, 8, 2)), intval(substr($date, 0, 4)))) finish(false, ["code" => "PARAM-ERROR", "message" => "Enter the date of the expense"]);
 $category = $text('expenses_category', 100);
 if ($category === null) finish(false, ["code" => "PARAM-ERROR", "message" => "Choose a category for the expense"]);
-$amount = $_POST['expenses_amount'] ?? null;
-if (!is_string($amount) or !preg_match('/^-?\d+(\.\d+)?$/', trim($amount))) finish(false, ["code" => "PARAM-ERROR", "message" => "Enter the amount as a number"]);
-try {
-    $amount = (new DecimalMoneyParser(new ISOCurrencies()))->parse(trim($amount), $AUTH->data['instance']['instances_config_currency'])->getAmount();
-} catch (Exception $e) {
-    finish(false, ["code" => "PARAM-ERROR", "message" => "Enter the amount as a number"]);
-}
+$amount = moneyInputParse($_POST['expenses_amount'] ?? null, $AUTH->data['instance']['instances_config_currency']);
+if ($amount === false) finish(false, ["code" => "PARAM-ERROR", "message" => "The amount must be an amount, like 250.00"]);
+if ($amount === null) finish(false, ["code" => "PARAM-ERROR", "message" => "Enter the amount, like 250.00"]);
 
 $data = [
     "expenses_date" => $date,

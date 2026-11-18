@@ -503,7 +503,7 @@
                                                     <form id="editAssetPurchaseForm">
                                                         <div class="input-group">
                                                             <div class="input-group-prepend"><span class="input-group-text">Purchase cost - {{ moneySymbol() }}</span></div>
-                                                            <input type="number" step="0.01" min="0" name="assets_purchaseCost" id="editAssetPurchaseCost" value="{{ assets[0].assets_purchaseCost is not null ? assets[0].assets_purchaseCost|moneyDecimal : '' }}" class="form-control" placeholder="Not recorded" />
+                                                            <input type="text" inputmode="decimal" autocomplete="off" name="assets_purchaseCost" id="editAssetPurchaseCost" value="{{ assets[0].assets_purchaseCost is not null ? assets[0].assets_purchaseCost|moneyDecimal : '' }}" class="form-control" placeholder="Not recorded" />
                                                         </div>
                                                         <div class="input-group">
                                                             <div class="input-group-prepend"><span class="input-group-text">Purchase date</span></div>

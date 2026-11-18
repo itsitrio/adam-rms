@@ -212,8 +212,8 @@ test("overheads can be added, changed and deleted, and only with valid details",
   const id = (await ok(save({ expenses_date: "2012-02-01", expenses_category: "Vans", expenses_amount: "80.50", expenses_reference: "E2E-VAN" }), "adding")).response.expenses_id;
   const stored = () => dbQuery<{ amount: number; category: string; deleted: number }>("SELECT expenses_amount amount, expenses_category category, expenses_deleted deleted FROM expenses WHERE expenses_id = ?", [id])[0];
   expect(stored()).toEqual({ amount: 8050, category: "Vans", deleted: 0 });
-  await ok(save({ expenses_id: id, expenses_date: "2012-02-01", expenses_category: "Vehicles", expenses_amount: "90" }), "changing");
-  expect(stored()).toEqual({ amount: 9000, category: "Vehicles", deleted: 0 });
+  await ok(save({ expenses_id: id, expenses_date: "2012-02-01", expenses_category: "Vehicles", expenses_amount: "£1,090.00" }), "changing");
+  expect(stored()).toEqual({ amount: 109000, category: "Vehicles", deleted: 0 });
   expect((await asA.page("/reports/expenses.php?period=custom&start=2012-01-01&end=2012-12-31")).body).toContain(`id="expense_${id}"`);
   await ok(asA.api("/api/reports/expenses/delete.php", { instances_id: a.instanceId, expenses_id: id }), "deleting");
   expect(stored().deleted).toBe(1);

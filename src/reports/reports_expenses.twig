@@ -75,8 +75,9 @@
                             </div>
                             <div class="form-group">
                                 <label for="expenseAmount">Amount</label>
-                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" class="form-control" id="expenseAmount" name="expenses_amount" required/></div>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="text" inputmode="decimal" autocomplete="off" class="form-control" id="expenseAmount" name="expenses_amount" required/></div>
                             </div>
+                            <div class="text-danger small formMissing mb-2" style="display: none;">Fill in the boxes marked in red.</div>
                             <div class="form-group"><label for="expenseSupplier">Supplier</label><input type="text" class="form-control" id="expenseSupplier" name="expenses_supplier" maxlength="200"/></div>
                             <div class="form-group"><label for="expenseReference">Reference</label><input type="text" class="form-control" id="expenseReference" name="expenses_reference" maxlength="200"/></div>
                             <div class="form-group"><label for="expenseDescription">Description</label><textarea class="form-control" id="expenseDescription" name="expenses_description" rows="2" maxlength="500"></textarea></div>
@@ -94,6 +95,8 @@
                 var form = $("#expenseForm");
                 var open = function (expense, title) {
                     form[0].reset();
+                    form.find(".is-invalid").removeClass("is-invalid");
+                    form.find(".formMissing").hide();
                     $.each(expense, function (name, value) { form.find("[name='" + name + "']").val(value === null ? "" : value); });
                     $("#expenseModalTitle").text(title);
                     $("#expenseModal").modal("show");
@@ -105,7 +108,10 @@
                     open($(this).data("expense"), "Change an expense");
                 });
                 $("#expenseSave").on("click", function () {
-                    var data = {};
+                    var missing = $(form).find("[required]").removeClass("is-invalid").filter(function () { return $.trim(this.value) === ""; });
+            $(form).find(".formMissing").toggle(missing.length > 0);
+            if (missing.length > 0) { missing.addClass("is-invalid").first().focus(); return; }
+            var data = {};
                     $.each(form.serializeArray(), function (i, field) { data[field.name] = field.value; });
                     ajaxcall("reports/expenses/save.php", data, function () { location.reload(); }, false);
                 });

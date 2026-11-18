@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../apiHeadSecure.php';
+require_once __DIR__ . '/../../../common/libs/reports/moneyInput.php';
 
 use Money\Currencies\ISOCurrencies;
 use Money\Parser\DecimalMoneyParser;
@@ -8,12 +9,8 @@ use Money\Parser\DecimalMoneyParser;
 if (!$AUTH->instancePermissionCheck("MAINTENANCE_JOBS:EDIT:COST")) finish(false, ["code" => "AUTH-ERROR", "message" => "No auth for action"]);
 if (!isset($_POST['maintenanceJobs_id']) or !isset($_POST['maintenanceJobs_cost']) or !is_string($_POST['maintenanceJobs_cost'])) finish(false, ["code" => "PARAM-ERROR", "message" => "No data for action"]);
 
-$cost = trim($_POST['maintenanceJobs_cost']);
-if ($cost === "") $cost = null;
-else {
-    if (!preg_match('/^\d+(\.\d+)?$/', $cost)) finish(false, ["code" => "PARAM-ERROR", "message" => "The cost must be a number"]);
-    $cost = (new DecimalMoneyParser(new ISOCurrencies()))->parse($cost, $AUTH->data['instance']['instances_config_currency'])->getAmount();
-}
+$cost = moneyInputParse($_POST['maintenanceJobs_cost'], $AUTH->data['instance']['instances_config_currency']);
+if ($cost === false) finish(false, ["code" => "PARAM-ERROR", "message" => "The cost must be an amount, like 250.00"]);
 $DBLIB->where("maintenanceJobs.instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("maintenanceJobs.maintenanceJobs_deleted", 0);
 $DBLIB->where("maintenanceJobs_id", intval($_POST['maintenanceJobs_id']));

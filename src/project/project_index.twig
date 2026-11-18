@@ -530,7 +530,7 @@
                         <div class="input-group-prepend">
                             <span class="input-group-text">Our cost {{ moneySymbol() }}</span>
                         </div>
-                        <input class="form-control" type="number" step="0.01" min="0" name="payments_cost" placeholder="Optional - per unit">
+                        <input class="form-control" type="text" inputmode="decimal" autocomplete="off" name="payments_cost" placeholder="Optional - per unit">
                     </div>
                     <small class="form-text text-muted mb-3 newPaymentModal-nonPaymentOnly">What one unit costs the business (the supplier's price, the crew's pay) - for the profit reports. The client never sees it.</small>
                     {% endif %}
@@ -1553,9 +1553,7 @@
                 var paymentId = $(this).data("paymentid");
                 bootbox.prompt({
                     title: "What does one unit of this cost the business? Leave it empty if you don't know.",
-                    inputType: "number",
-                    step: "0.01",
-                    min: "0",
+                    inputType: "text",
                     value: $(this).data("cost"),
                     callback: function (cost) {
                         if (cost === null) return;

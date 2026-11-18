@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../apiHeadSecure.php';
 require_once __DIR__ . '/../../common/libs/bCMS/projectFinance.php';
+require_once __DIR__ . '/../../common/libs/reports/moneyInput.php';
 use Money\Currency;
 use Money\Money;
 if (!$AUTH->instancePermissionCheck("PROJECTS:PROJECT_PAYMENTS:CREATE")) die("404");
@@ -18,9 +19,9 @@ $currencies = new ISOCurrencies();
 $moneyParser = new DecimalMoneyParser($currencies);
 $array['payments_amount'] = $moneyParser->parse($array['payments_amount'], $AUTH->data['instance']['instances_config_currency'])->getAmount();
 //What one unit costs the business, for sales, additional hire and staff lines - optional, and never for payments received
-if (isset($array['payments_cost']) and $array['payments_cost'] !== "" and $array['payments_type'] != 1) {
-    if (!preg_match('/^\d+(\.\d+)?$/', trim((string) $array['payments_cost']))) finish(false, ["code" => "PARAM-ERROR", "message" => "The cost must be a number"]);
-    $array['payments_cost'] = $moneyParser->parse(trim((string) $array['payments_cost']), $AUTH->data['instance']['instances_config_currency'])->getAmount();
+if (isset($array['payments_cost']) and $array['payments_type'] != 1) {
+    $array['payments_cost'] = moneyInputParse($array['payments_cost'], $AUTH->data['instance']['instances_config_currency']);
+    if ($array['payments_cost'] === false) finish(false, ["code" => "PARAM-ERROR", "message" => "The cost must be an amount, like 250.00"]);
 } else $array['payments_cost'] = null;
 
 

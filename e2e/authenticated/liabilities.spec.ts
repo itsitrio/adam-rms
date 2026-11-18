@@ -128,6 +128,14 @@ test("a liability and its transactions are checked before they're saved, and can
   for (const [type, amount, interest] of [["REFUND", "1", ""], ["REPAYMENT", "10", "11"], ["REPAYMENT", "", ""], ["CHARGE", "x", ""]]) {
     expect((await transaction(asA, a, loan, type, "2013-07-01", amount, interest)).json, `${type} ${amount} ${interest}`).toMatchObject({ result: false });
   }
+  //An amount can be typed with a currency symbol, a thousands separator or a decimal comma; the error says what's wrong
+  const empty = await transaction(asA, a, loan, "REPAYMENT", "2013-07-01", "");
+  expect(empty.json).toMatchObject({ result: false, error: { message: "Enter the amount, like 250.00" } });
+  expect((await transaction(asA, a, loan, "REPAYMENT", "2013-07-01", "a lot")).json).toMatchObject({ result: false, error: { message: "The amount must be an amount, like 250.00" } });
+  for (const [typed, stored] of [["£1,250.50", 125050], ["1 000", 100000], ["12,5", 1250], ["GBP 7", 700]] as const) {
+    const typedId = (await ok(transaction(asA, a, loan, "DRAWDOWN", "2013-07-01", typed), typed)).response.liabilityTransactions_id;
+    expect(dbQuery("SELECT liabilityTransactions_amount a FROM liabilityTransactions WHERE liabilityTransactions_id = ?", [typedId]), typed).toEqual([{ a: stored }]);
+  }
   const id = (await ok(transaction(asA, a, loan, "CHARGE", "2013-07-01", "5", "3"), "a charge")).response.liabilityTransactions_id;
   //A charge has no interest part - all of it is interest or a fee
   expect(dbQuery("SELECT liabilityTransactions_amount a, liabilityTransactions_interest i FROM liabilityTransactions WHERE liabilityTransactions_id = ?", [id])).toEqual([{ a: 500, i: 0 }]);
