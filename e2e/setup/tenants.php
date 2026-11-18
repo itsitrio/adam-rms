@@ -238,6 +238,11 @@ function tenant(string $letter): array {
         "payments_amount" => 1234, "payments_quantity" => 1, "payments_type" => 1, "payments_date" => "2024-01-01 00:00:00",
         "payments_supplier" => null, "payments_method" => null, "payments_comment" => "$marker payment comment", "payments_deleted" => 0,
     ], $remembered['paymentId'] ?? null);
+    // An overhead, dated today so it's in every report's default period
+    $t['expenseId'] = upsert("expenses", "expenses_id", ["instances_id" => $instance, "expenses_reference" => "$marker expense"], [
+        "expenses_date" => date("Y-m-d"), "expenses_category" => "$marker expense category", "expenses_supplier" => "$marker expense supplier",
+        "expenses_description" => "$marker expense description", "expenses_amount" => 4321, "expenses_deleted" => 0,
+    ], $remembered['expenseId'] ?? null);
     // A quote heading with a note line under it, and nothing placed under it yet
     $t['quoteSectionId'] = upsert("projectsQuoteSections", "projectsQuoteSections_id", ["projects_id" => $t['projectId'], "projectsQuoteSections_name" => "$marker quote section"], [
         "projectsQuoteSections_rank" => 1, "projectsQuoteSections_deleted" => 0,

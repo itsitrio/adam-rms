@@ -4433,6 +4433,37 @@ paths:
                 properties:
                   result: { description: 'Whether the request was successful', type: boolean }
                 type: object
+  /maintenance/job/changeCost.php:
+    post:
+      tags:
+        - maintenanceJobs
+      summary: 'Change Cost'
+      description: "Set what a maintenance job cost the business\nRequires Instance Permission MAINTENANCE_JOBS:EDIT:COST\n"
+      operationId: changeJobCost
+      parameters:
+        -
+          name: maintenanceJobs_id
+          in: query
+          description: 'The job'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: maintenanceJobs_cost
+          in: query
+          description: 'Cost, as a decimal - empty to clear it'
+          required: 'true'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
   /maintenance/job/changeDueDate.php:
     post:
       tags:
@@ -6139,6 +6170,37 @@ paths:
                 $ref: '#/components/schemas/SimpleResponse'
         '404':
           description: 'Permission Error'
+  /projects/changePaymentCost.php:
+    post:
+      tags:
+        - projects
+      summary: 'Change Payment Cost'
+      description: "Set what one unit of a sales, additional hire or staff line costs the business\nRequires Instance Permissions PROJECTS:PROJECT_PAYMENTS:CREATE and FINANCE:PAYMENTS_LEDGER:VIEW\n"
+      operationId: changePaymentCost
+      parameters:
+        -
+          name: payments_id
+          in: query
+          description: 'The line'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: payments_cost
+          in: query
+          description: 'Cost of one unit, as a decimal - empty to clear it'
+          required: 'true'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
   /projects/changeProjectDates.php:
     post:
       tags:
@@ -7502,6 +7564,97 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /reports/expenses/delete.php:
+    post:
+      tags:
+        - reports
+      summary: 'Delete Expense'
+      description: "Delete one of the business's overheads\nRequires Instance Permission FINANCE:EXPENSES:EDIT\n"
+      operationId: deleteExpense
+      parameters:
+        -
+          name: expenses_id
+          in: query
+          description: 'The expense'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+  /reports/expenses/save.php:
+    post:
+      tags:
+        - reports
+      summary: 'Save Expense'
+      description: "Add an overhead to the business, or change one\nRequires Instance Permission FINANCE:EXPENSES:EDIT\n"
+      operationId: saveExpense
+      parameters:
+        -
+          name: expenses_id
+          in: query
+          description: 'The expense to change - leave out to add one'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: expenses_date
+          in: query
+          description: 'Date (Y-m-d)'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: expenses_category
+          in: query
+          description: Category
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: expenses_amount
+          in: query
+          description: 'Amount, as a decimal'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: expenses_supplier
+          in: query
+          description: Supplier
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: expenses_reference
+          in: query
+          description: Reference
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: expenses_description
+          in: query
+          description: Description
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                  response: { description: "The expense's ID", properties: { expenses_id: { type: number } }, type: object }
+                type: object
   /s3files/appUploader.php:
     post:
       tags:

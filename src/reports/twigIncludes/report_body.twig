@@ -1,0 +1,161 @@
+{# The body of a report - its headline figures, warnings, sections and notes - shared by the page and the printable version #}
+{% macro cell(value, type, dateFormat, currency) %}
+    {%- set isNumber = type in ['percent', 'bar', 'number'] and value is not null and value is not iterable and (value ~ '') matches '/^-?\\d+(\\.\\d+)?([eE][-+]?\\d+)?$/' -%}
+    {%- if value is null -%}
+        <span class="report-empty">—</span>
+    {%- elseif type == "money" -%}
+        {{ value|money }}
+    {%- elseif type == "percent" -%}
+        {{ isNumber ? (value * 100)|number_format(1) ~ "%" : value }}
+    {%- elseif type == "bar" -%}
+        {% if isNumber %}
+            <span class="report-bar"><span class="report-bar-fill" style="width: {{ (min(1, max(0, value)) * 100)|number_format(1, '.', '') }}%;"></span></span>
+            <span class="report-bar-label">{{ (value * 100)|number_format(1) }}%</span>
+        {% else %}{{ value }}{% endif %}
+    {%- elseif type == "number" -%}
+        {{ isNumber ? (value == value|round ? value|number_format(0) : value|number_format(1)) : value }}
+    {%- elseif type == "date" -%}
+        {{ value matches '/^\\d{4}-\\d{2}-\\d{2}/' ? value|date(dateFormat) : value }}
+    {%- elseif type == "link" -%}
+        {% if value is iterable %}<a href="{{ value.href }}">{{ value.text }}</a>{% else %}{{ value }}{% endif %}
+    {%- else -%}
+        {{ value }}
+    {%- endif -%}
+{% endmacro %}
+
+{% macro chart(chart, id) %}
+    {# Bars per label, side by side or stacked. Values are Money - drawn from their minor units #}
+    {% set colours = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"] %}
+    {% set width = 760 %}{% set height = 240 %}{% set left = 70 %}{% set bottom = 28 %}{% set top = 10 %}
+    {% set plotHeight = height - bottom - top %}
+    {% set count = chart.labels|length %}
+    {% set peak = 0 %}
+    {% for i in 0..(count - 1) %}
+        {% set stack = 0 %}
+        {% for series in chart.series %}
+            {% set v = series.values[i].getAmount() + 0 %}
+            {% if chart.stacked|default(false) %}{% set stack = stack + max(0, v) %}{% else %}{% set peak = max(peak, v) %}{% endif %}
+        {% endfor %}
+        {% if chart.stacked|default(false) %}{% set peak = max(peak, stack) %}{% endif %}
+    {% endfor %}
+    {% if peak > 0 and count > 0 %}
+        {# A round number for the top of the axis #}
+        {% set magnitude = 10 ** ((peak|round|length) - 1) %}
+        {% set niceMax = ((peak / magnitude)|round(0, 'ceil')) * magnitude %}
+        {% set band = (width - left) / count %}
+        {% set groupWidth = min(band * 0.7, 48 * (chart.stacked|default(false) ? 1 : chart.series|length)) %}
+        <figure class="report-chart" id="{{ id }}-chart">
+            {% if chart.series|length > 1 %}
+                <div class="report-legend">
+                    {% for series in chart.series %}<span><i style="background: {{ colours[loop.index0] }};"></i>{{ series.name }}</span>{% endfor %}
+                </div>
+            {% endif %}
+            <svg viewBox="0 0 {{ width }} {{ height }}" role="img" aria-label="Chart - the table below has the figures" preserveAspectRatio="xMidYMid meet">
+                {% for step in 0..4 %}
+                    {% set y = top + plotHeight - (plotHeight * step / 4) %}
+                    <line x1="{{ left }}" x2="{{ width }}" y1="{{ y }}" y2="{{ y }}" class="report-chart-grid"/>
+                    <text x="{{ left - 6 }}" y="{{ y + 4 }}" text-anchor="end" class="report-chart-axis">{{ (niceMax * step / 4 / 100)|number_format(0) }}</text>
+                {% endfor %}
+                {% for i in 0..(count - 1) %}
+                    {% set x0 = left + band * i + (band - groupWidth) / 2 %}
+                    {% set base = top + plotHeight %}
+                    {% for series in chart.series %}
+                        {% set v = max(0, series.values[i].getAmount() + 0) %}
+                        {% set h = plotHeight * v / niceMax %}
+                        {% if chart.stacked|default(false) %}
+                            {% if h > 0 %}
+                                {# A 2px gap between stacked segments #}
+                                <rect x="{{ x0 }}" y="{{ base - h + (loop.first ? 0 : 0) }}" width="{{ groupWidth }}" height="{{ max(0, h - (loop.first ? 0 : 2)) }}" rx="{{ loop.last ? 4 : 0 }}" fill="{{ colours[loop.index0] }}"><title>{{ chart.labels[i] }} · {{ series.name }}: {{ series.values[i]|money }}</title></rect>
+                                {% set base = base - h %}
+                            {% endif %}
+                        {% else %}
+                            {% set w = (groupWidth - 2 * (chart.series|length - 1)) / chart.series|length %}
+                            {% if h > 0 %}<rect x="{{ x0 + (w + 2) * loop.index0 }}" y="{{ base - h }}" width="{{ w }}" height="{{ h }}" rx="{{ min(4, w / 2) }}" fill="{{ colours[loop.index0] }}"><title>{{ chart.labels[i] }} · {{ series.name }}: {{ series.values[i]|money }}</title></rect>{% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if count <= 14 or i % 2 == 0 %}<text x="{{ left + band * i + band / 2 }}" y="{{ height - 8 }}" text-anchor="middle" class="report-chart-axis">{{ chart.labels[i] }}</text>{% endif %}
+                {% endfor %}
+                <line x1="{{ left }}" x2="{{ width }}" y1="{{ top + plotHeight }}" y2="{{ top + plotHeight }}" class="report-chart-baseline"/>
+            </svg>
+        </figure>
+    {% endif %}
+{% endmacro %}
+
+{% import _self as r %}
+{% set dateFormat = DOCUMENTS.dateFormat %}
+
+{% if report.recipient|default(null) %}
+    <div class="report-recipient">
+        <div class="report-recipient-label">Prepared for</div>
+        <strong>{{ report.recipient.name }}</strong>
+        {% if report.recipient.address %}<div>{{ report.recipient.address|nl2br }}</div>{% endif %}
+        {% if report.recipient.email %}<div>{{ report.recipient.email }}</div>{% endif %}
+    </div>
+{% endif %}
+
+{% if report.kpis|length > 0 %}
+    <div class="report-kpis" id="reportKpis">
+        {% for kpi in report.kpis %}
+            <div class="report-kpi">
+                <div class="report-kpi-label">{{ kpi.label }}</div>
+                <div class="report-kpi-value" id="reportKpi_{{ loop.index0 }}">{{ r.cell(kpi.value, kpi.type|default("text"), dateFormat) }}</div>
+                {% if kpi.note|default(null) %}<div class="report-kpi-note">{{ kpi.note }}</div>{% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% for warning in report.warnings %}
+    <div class="report-warning"><i class="fas fa-exclamation-triangle"></i> {{ warning }}</div>
+{% endfor %}
+
+{% for section in report.sections %}
+    {% if section.heading and section.headingFirst|default(true) %}<h2 class="report-heading{{ loop.first ? '' : ' report-page-break' }}">{{ section.heading }}</h2>{% endif %}
+    <section class="report-section" id="reportSection_{{ section.id }}">
+        <h3 class="report-section-title">{{ section.title }}</h3>
+        {% if section.note %}<p class="report-section-note">{{ section.note }}</p>{% endif %}
+        {% if section.chart and section.rows|length > 0 %}{{ r.chart(section.chart, section.id) }}{% endif %}
+        {% if section.rows|length == 0 %}
+            <p class="report-section-empty">{{ section.empty }}</p>
+        {% else %}
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead>
+                    <tr>
+                        {% for column in section.columns %}<th class="{{ column.type in ['money', 'number', 'percent'] ? 'num' : '' }} type-{{ column.type }}">{{ column.label }}</th>{% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in section.rows %}
+                        <tr class="{{ row._style|default(null) ? 'row-' ~ row._style : '' }}">
+                            {% for column in section.columns %}
+                                {% set type = (row._percent|default(false) and column.type == "money") ? "percent" : column.type %}
+                                {% if row._style|default(null) == "heading" %}
+                                    {% if loop.first %}<td colspan="{{ section.columns|length }}">{{ row[column.key] }}</td>{% endif %}
+                                {% else %}
+                                    <td class="{{ type in ['money', 'number', 'percent'] ? 'num' : '' }} type-{{ type }}{% if loop.first and row._indent|default(0) %} indent{% endif %}">{{ r.cell(row[column.key]|default(null), type, dateFormat) }}</td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                    {% if section.totals %}
+                        <tfoot>
+                        <tr>
+                            {% for column in section.columns %}
+                                <td class="{{ column.type in ['money', 'number', 'percent'] ? 'num' : '' }} type-{{ column.type }}">{% if section.totals[column.key] is defined %}{{ r.cell(section.totals[column.key], loop.first ? 'text' : (column.type == 'bar' ? 'percent' : column.type), dateFormat) }}{% endif %}</td>
+                            {% endfor %}
+                        </tr>
+                        </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        {% endif %}
+    </section>
+{% endfor %}
+
+{% if report.notes|length > 0 %}
+    <div class="report-notes">
+        {% for note in report.notes %}<p>{{ note }}</p>{% endfor %}
+    </div>
+{% endif %}

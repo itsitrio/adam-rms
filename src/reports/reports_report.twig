@@ -1,0 +1,108 @@
+{% extends "assets/template.twig" %}
+
+{% block content %}
+    {% include "reports/twigIncludes/report_styles.twig" %}
+    <div class="report-root" id="report_{{ reportKey }}">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><a href="{{ CONFIG.ROOTURL }}/reports/" class="text-muted">Reports</a> &rsaquo; {{ definition.title }}</h3>
+                <div class="card-tools">
+                    <a class="btn btn-sm btn-default" target="_blank" href="{{ CONFIG.ROOTURL }}/reports/report.php?{{ query }}&format=print" id="reportPrint"><i class="fas fa-print"></i> Print / PDF</a>
+                    <a class="btn btn-sm btn-default" href="{{ CONFIG.ROOTURL }}/reports/report.php?{{ query }}&format=csv" id="reportCsv"><i class="fas fa-file-csv"></i> CSV</a>
+                    <a class="btn btn-sm btn-default" href="{{ CONFIG.ROOTURL }}/reports/report.php?{{ query }}&format=xlsx" id="reportXlsx"><i class="fas fa-file-excel"></i> Excel</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-2">{{ definition.description }}</p>
+                {% if definition.params|length > 0 %}
+                    <form method="get" class="form-inline" id="reportOptions">
+                        <input type="hidden" name="report" value="{{ reportKey }}"/>
+                        {% if "client" in definition.params %}
+                            <label class="mr-2" for="reportClient">Client</label>
+                            <select name="client" id="reportClient" class="form-control form-control-sm mr-3 mb-2" style="max-width: 260px;">
+                                <option value="">Choose a client…</option>
+                                {% for client in form.clients %}
+                                    <option value="{{ client.clients_id }}" {{ form.client == client.clients_id ? "selected" }}>{{ client.clients_name }}{{ client.clients_archived ? " (archived)" }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                        {% if "period" in definition.params %}
+                            <label class="mr-2" for="reportPeriod">Period</label>
+                            <select name="period" id="reportPeriod" class="form-control form-control-sm mr-2 mb-2">
+                                {% for key, preset in form.presets %}
+                                    <option value="{{ key }}" {{ form.period == key ? "selected" }}>{{ preset.label }}</option>
+                                {% endfor %}
+                                <option value="custom" {{ form.period == "custom" ? "selected" }}>Custom dates</option>
+                            </select>
+                            <span id="reportCustomDates" {% if form.period != "custom" %}style="display: none;"{% endif %}>
+                                <input type="date" name="start" class="form-control form-control-sm mr-1 mb-2" value="{{ form.start }}" aria-label="From"/>
+                                <span class="mr-1 mb-2">to</span>
+                                <input type="date" name="end" class="form-control form-control-sm mr-2 mb-2" value="{{ form.end }}" aria-label="To"/>
+                            </span>
+                        {% endif %}
+                        {% if "asAt" in definition.params %}
+                            <label class="mr-2" for="reportAsAt">As at</label>
+                            <input type="date" name="asAt" id="reportAsAt" class="form-control form-control-sm mr-3 mb-2" value="{{ form.asAt }}"/>
+                        {% endif %}
+                        {% if "horizon" in definition.params %}
+                            <label class="mr-2" for="reportHorizon">Months ahead</label>
+                            <input type="number" min="1" max="24" step="1" name="horizon" id="reportHorizon" class="form-control form-control-sm mr-3 mb-2" style="width: 80px;" value="{{ form.horizon }}"/>
+                        {% endif %}
+                        {% if "inactive" in definition.params %}
+                            <label class="mr-2" for="reportInactive">Not booked for</label>
+                            <input type="number" min="1" max="60" step="1" name="inactive" id="reportInactive" class="form-control form-control-sm mr-1 mb-2" style="width: 80px;" value="{{ form.inactive }}"/>
+                            <span class="mr-3 mb-2">months</span>
+                        {% endif %}
+                        {% if "detail" in definition.params %}
+                            <div class="custom-control custom-checkbox mr-3 mb-2">
+                                <input type="checkbox" class="custom-control-input" id="reportDetail" name="detail" value="1" {{ form.detail ? "checked" }}/>
+                                <label class="custom-control-label" for="reportDetail">List every asset</label>
+                            </div>
+                        {% endif %}
+                        <button type="submit" class="btn btn-sm btn-primary mb-2">Run report</button>
+                    </form>
+                {% endif %}
+                <p class="mb-0"><strong>{{ USERDATA.instance.instances_name }}</strong> &middot; <span id="reportPeriodLabel">{{ periodLabel }}</span></p>
+            </div>
+        </div>
+
+        {% if report.uncalculated|length > 0 and "PROJECTS:VIEW"|instancePermissions %}
+            <div class="alert alert-light border" id="reportUncalculated">
+                {{ report.uncalculated|length }} project{{ report.uncalculated|length != 1 ? "s" }} still need{{ report.uncalculated|length == 1 ? "s" }} {{ report.uncalculated|length == 1 ? "its" : "their" }} finances working out:
+                {% for project in report.uncalculated|slice(0, 10) %}<a href="{{ CONFIG.ROOTURL }}/project/?id={{ project.id }}">{{ project.name }}</a>{{ not loop.last ? ", " }}{% endfor %}{{ report.uncalculated|length > 10 ? " and " ~ (report.uncalculated|length - 10) ~ " more" }}.
+                <button type="button" class="btn btn-sm btn-outline-primary ml-2" id="reportCalculate">Work them out now</button>
+                <span id="reportCalculateProgress" class="ml-2 text-muted"></span>
+            </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-body">
+                {% include "reports/twigIncludes/report_body.twig" %}
+            </div>
+        </div>
+    </div>
+    <script>
+        $(document).ready(function () {
+            $("#reportPeriod").on("change", function () {
+                $("#reportCustomDates").toggle(this.value === "custom");
+            });
+            {% if report.uncalculated|length > 0 and "PROJECTS:VIEW"|instancePermissions %}
+            //Opening a project works out its finances, so open each one in turn and then run the report again
+            var uncalculated = {{ report.uncalculated|map(p => p.id)|json_encode|raw }};
+            $("#reportCalculate").on("click", function () {
+                var button = $(this).prop("disabled", true);
+                var done = 0;
+                var next = function () {
+                    if (done >= uncalculated.length) return location.reload();
+                    $("#reportCalculateProgress").text("Working out " + (done + 1) + " of " + uncalculated.length + "…");
+                    ajaxcall("projects/data.php", {"id": uncalculated[done]}, function () {
+                        done++;
+                        next();
+                    });
+                };
+                next();
+            });
+            {% endif %}
+        });
+    </script>
+{% endblock %}

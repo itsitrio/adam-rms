@@ -1,0 +1,121 @@
+{% extends "assets/template.twig" %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><a href="{{ CONFIG.ROOTURL }}/reports/" class="text-muted">Reports</a> &rsaquo; Overheads</h3>
+            <div class="card-tools">
+                <a class="btn btn-sm btn-default" href="{{ CONFIG.ROOTURL }}/reports/report.php?report=expenses&period={{ form.period }}&start={{ form.start }}&end={{ form.end }}"><i class="fas fa-chart-pie"></i> Overheads report</a>
+                {% if "FINANCE:EXPENSES:EDIT"|instancePermissions %}
+                    <button type="button" class="btn btn-sm btn-primary" id="expenseAdd"><i class="fas fa-plus"></i> Add an expense</button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Costs the business pays that aren't part of any one project - rent, vehicles, insurance, salaries and the like. They're taken off the gross margin in the profit &amp; loss. Buying equipment isn't an overhead: give the asset a purchase cost and it's depreciated instead.</p>
+            <form method="get" class="form-inline">
+                <label class="mr-2" for="expensesPeriod">Period</label>
+                <select name="period" id="expensesPeriod" class="form-control form-control-sm mr-2 mb-2">
+                    {% for key, preset in form.presets %}<option value="{{ key }}" {{ form.period == key ? "selected" }}>{{ preset.label }}</option>{% endfor %}
+                    <option value="custom" {{ form.period == "custom" ? "selected" }}>Custom dates</option>
+                </select>
+                <input type="date" name="start" class="form-control form-control-sm mr-1 mb-2" value="{{ form.start }}" aria-label="From"/>
+                <span class="mr-1 mb-2">to</span>
+                <input type="date" name="end" class="form-control form-control-sm mr-2 mb-2" value="{{ form.end }}" aria-label="To"/>
+                <button type="submit" class="btn btn-sm btn-default mb-2">Show</button>
+            </form>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-striped mb-0" id="expensesTable">
+                <thead>
+                <tr><th>Date</th><th>Category</th><th>Supplier</th><th>Description</th><th>Reference</th><th class="text-right">Amount</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for expense in expenses %}
+                    <tr id="expense_{{ expense.expenses_id }}">
+                        <td>{{ expense.expenses_date|date("d M Y") }}</td>
+                        <td>{{ expense.expenses_category }}</td>
+                        <td>{{ expense.expenses_supplier }}</td>
+                        <td>{{ expense.expenses_description }}</td>
+                        <td>{{ expense.expenses_reference }}</td>
+                        <td class="text-right">{{ expense.amount|money }}</td>
+                        <td class="text-right" style="white-space: nowrap;">
+                            {% if "FINANCE:EXPENSES:EDIT"|instancePermissions %}
+                                <button type="button" class="btn btn-sm btn-default expenseEdit" title="Edit" data-expense="{{ {"expenses_id": expense.expenses_id, "expenses_date": expense.expenses_date, "expenses_category": expense.expenses_category, "expenses_supplier": expense.expenses_supplier, "expenses_description": expense.expenses_description, "expenses_reference": expense.expenses_reference, "expenses_amount": expense.expenses_amount|moneyDecimal}|json_encode }}"><i class="fas fa-pencil-alt"></i></button>
+                                <button type="button" class="btn btn-sm btn-danger expenseDelete" title="Delete" data-id="{{ expense.expenses_id }}"><i class="fas fa-trash"></i></button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="text-muted">No overheads recorded in this period.</td></tr>
+                {% endfor %}
+                </tbody>
+                <tfoot>
+                <tr><th colspan="5">Total</th><th class="text-right" id="expensesTotal">{{ total|money }}</th><th></th></tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    {% if "FINANCE:EXPENSES:EDIT"|instancePermissions %}
+        <div class="modal fade" id="expenseModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="expenseModalTitle">Add an expense</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="expenseForm">
+                            <input type="hidden" name="expenses_id" value=""/>
+                            <div class="form-group"><label for="expenseDate">Date</label><input type="date" class="form-control" id="expenseDate" name="expenses_date" required/></div>
+                            <div class="form-group">
+                                <label for="expenseCategory">Category</label>
+                                <input type="text" class="form-control" id="expenseCategory" name="expenses_category" list="expenseCategories" maxlength="100" required/>
+                                <datalist id="expenseCategories">{% for category in categories %}<option value="{{ category }}">{% endfor %}</datalist>
+                            </div>
+                            <div class="form-group">
+                                <label for="expenseAmount">Amount</label>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{ moneySymbol() }}</span></div><input type="number" step="0.01" class="form-control" id="expenseAmount" name="expenses_amount" required/></div>
+                            </div>
+                            <div class="form-group"><label for="expenseSupplier">Supplier</label><input type="text" class="form-control" id="expenseSupplier" name="expenses_supplier" maxlength="200"/></div>
+                            <div class="form-group"><label for="expenseReference">Reference</label><input type="text" class="form-control" id="expenseReference" name="expenses_reference" maxlength="200"/></div>
+                            <div class="form-group"><label for="expenseDescription">Description</label><textarea class="form-control" id="expenseDescription" name="expenses_description" rows="2" maxlength="500"></textarea></div>
+                        </form>
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="expenseSave">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            $(document).ready(function () {
+                var form = $("#expenseForm");
+                var open = function (expense, title) {
+                    form[0].reset();
+                    $.each(expense, function (name, value) { form.find("[name='" + name + "']").val(value === null ? "" : value); });
+                    $("#expenseModalTitle").text(title);
+                    $("#expenseModal").modal("show");
+                };
+                $("#expenseAdd").on("click", function () {
+                    open({"expenses_id": "", "expenses_date": moment().format("YYYY-MM-DD")}, "Add an expense");
+                });
+                $(".expenseEdit").on("click", function () {
+                    open($(this).data("expense"), "Change an expense");
+                });
+                $("#expenseSave").on("click", function () {
+                    var data = {};
+                    $.each(form.serializeArray(), function (i, field) { data[field.name] = field.value; });
+                    ajaxcall("reports/expenses/save.php", data, function () { location.reload(); }, false);
+                });
+                $(".expenseDelete").on("click", function () {
+                    var id = $(this).data("id");
+                    bootbox.confirm("Delete this expense?", function (yes) {
+                        if (yes) ajaxcall("reports/expenses/delete.php", {"expenses_id": id}, function () { location.reload(); });
+                    });
+                });
+            });
+        </script>
+    {% endif %}
+{% endblock %}
