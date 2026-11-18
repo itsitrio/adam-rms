@@ -5712,6 +5712,43 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/assets/setPublishedName.php:
+    post:
+      tags:
+        - project_assets
+      summary: 'Show Assets by their Published Name'
+      description: "Show asset assignments on a project's documents by their asset's published line item name instead of what they really are, or back by what they really are\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: setAssetAssignmentPublishedName
+      parameters:
+        -
+          name: assetsAssignments
+          in: query
+          description: 'Asset Assignment IDs'
+          required: 'true'
+          schema:
+            type: array
+        -
+          name: assetsAssignments_publishedName
+          in: query
+          description: '1 to show them by their published name, 0 to show what they are'
+          required: 'true'
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
   /projects/assets/setQuantity.php:
     post:
       tags:
@@ -6416,6 +6453,43 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/changePublishedNames.php:
+    post:
+      tags:
+        - projects
+      summary: 'Show All Assets by their Published Name'
+      description: "Show every asset on a project's documents by its published line item name, where it has one, instead of what it really is. When this is off, only the lines set to are.\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES\n"
+      operationId: changePublishedNames
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: integer
+        -
+          name: projects_publishedNames
+          in: query
+          description: '1 to show every asset by its published name, 0 to show only the lines set to'
+          required: 'true'
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
   /projects/changeStatus.php:
     post:
       tags:
@@ -7654,6 +7728,275 @@ paths:
                 properties:
                   result: { description: 'Whether the request was successful', type: boolean }
                   response: { description: "The expense's ID", properties: { expenses_id: { type: number } }, type: object }
+                type: object
+  /reports/liabilities/asset.php:
+    post:
+      tags:
+        - reports
+      summary: 'Link Asset to Liability'
+      description: "Record which loan, finance or credit paid for an asset\nRequires Instance Permission FINANCE:LIABILITIES:EDIT\n"
+      operationId: linkAssetLiability
+      parameters:
+        -
+          name: assets_id
+          in: query
+          description: 'The asset'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: liabilities_id
+          in: query
+          description: 'The liability that paid for it - empty if none did'
+          required: 'false'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+  /reports/liabilities/delete.php:
+    post:
+      tags:
+        - reports
+      summary: 'Delete Liability'
+      description: "Delete a loan, finance or credit the business owes\nRequires Instance Permission FINANCE:LIABILITIES:EDIT\n"
+      operationId: deleteLiability
+      parameters:
+        -
+          name: liabilities_id
+          in: query
+          description: 'The liability'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+  /reports/liabilities/deleteTransaction.php:
+    post:
+      tags:
+        - reports
+      summary: 'Delete Liability Transaction'
+      description: "Delete a repayment, charge or drawdown recorded against a liability\nRequires Instance Permission FINANCE:LIABILITIES:EDIT\n"
+      operationId: deleteLiabilityTransaction
+      parameters:
+        -
+          name: liabilityTransactions_id
+          in: query
+          description: 'The transaction'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+  /reports/liabilities/save.php:
+    post:
+      tags:
+        - reports
+      summary: 'Save Liability'
+      description: "Add a loan, finance or credit the business owes, or change one\nRequires Instance Permission FINANCE:LIABILITIES:EDIT\n"
+      operationId: saveLiability
+      parameters:
+        -
+          name: liabilities_id
+          in: query
+          description: 'The liability to change - leave out to add one'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: liabilities_name
+          in: query
+          description: Name
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: liabilities_type
+          in: query
+          description: 'LOAN, ASSET_FINANCE, VENDOR_CREDIT, MEMBER_LOAN or OTHER'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: liabilities_amount
+          in: query
+          description: 'Amount borrowed, as a decimal'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: liabilities_startDate
+          in: query
+          description: 'Start date (Y-m-d)'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: liabilities_lender
+          in: query
+          description: "Who it's owed to"
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: users_userid
+          in: query
+          description: 'The member of the business who lent it'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: liabilities_interestRate
+          in: query
+          description: 'Yearly interest rate, as a percentage'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilities_repaymentAmount
+          in: query
+          description: 'Regular repayment, as a decimal'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilities_repaymentFrequency
+          in: query
+          description: 'WEEKLY, MONTHLY, QUARTERLY or YEARLY'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilities_firstRepaymentDate
+          in: query
+          description: 'First repayment date (Y-m-d)'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilities_endDate
+          in: query
+          description: 'Date it should be paid off by (Y-m-d)'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilities_reference
+          in: query
+          description: 'Reference or account number'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilities_notes
+          in: query
+          description: Notes
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                  response: { properties: { liabilities_id: { type: number } }, type: object }
+                type: object
+  /reports/liabilities/transaction.php:
+    post:
+      tags:
+        - reports
+      summary: 'Save Liability Transaction'
+      description: "Record a repayment, interest or a fee, or more borrowing, against a liability - or change one\nRequires Instance Permission FINANCE:LIABILITIES:EDIT\n"
+      operationId: saveLiabilityTransaction
+      parameters:
+        -
+          name: liabilities_id
+          in: query
+          description: 'The liability'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: liabilityTransactions_id
+          in: query
+          description: 'The transaction to change - leave out to add one'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: liabilityTransactions_type
+          in: query
+          description: 'REPAYMENT, CHARGE (interest or a fee added) or DRAWDOWN (more borrowed)'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: liabilityTransactions_date
+          in: query
+          description: 'Date (Y-m-d)'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: liabilityTransactions_amount
+          in: query
+          description: 'Amount, as a decimal'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: liabilityTransactions_interest
+          in: query
+          description: 'For a repayment, how much of it was interest'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilityTransactions_reference
+          in: query
+          description: Reference
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: liabilityTransactions_notes
+          in: query
+          description: Notes
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                  response: { properties: { liabilityTransactions_id: { type: number } }, type: object }
                 type: object
   /s3files/appUploader.php:
     post:

@@ -39,6 +39,9 @@
                         {% if assets[0]['assets_notes']|length > 0 %}
                             <p>{{ assets[0]['assets_notes']|nl2br }}</p>
                         {% endif %}
+                        {% if assets[0]['assets_publishedName']|length > 0 %}
+                            <p title="Shown to clients instead of this asset's make, model and ID, on projects set to use published names"><i class="fas fa-mask"></i> Published as <b>{{ assets[0]['assets_publishedName'] }}</b></p>
+                        {% endif %}
                         <ul class="list-group list-group-unbordered mb-3">
                             {% set assetFieldsLength = 0 %}
                             {% for field in asset.fields %}
@@ -369,6 +372,10 @@
                                                     <div class="input-group">
                                                         <div class="input-group-prepend"><span class="input-group-text">Asset Notes</span></div>
                                                         <textarea class="form-control" rows="2" name="assets_notes" placeholder="">{{ assets[0]['assets_notes'] }}</textarea>
+                                                    </div>
+                                                    <div class="input-group">
+                                                        <div class="input-group-prepend"><span class="input-group-text" title="Shown to clients on quotes and invoices instead of this asset's make, model and ID, on projects set to use published names">Published Line Item Name</span></div>
+                                                        <input class="form-control" name="assets_publishedName" maxlength="255" placeholder="e.g. Wireless Microphone System" value="{{ assets[0]['assets_publishedName'] }}" />
                                                     </div>
                                                     <div class="custom-control custom-checkbox" style="margin-bottom: 5px;">
                                                         {# The hidden input means unticking the box sends a 0, rather than sending nothing at all #}

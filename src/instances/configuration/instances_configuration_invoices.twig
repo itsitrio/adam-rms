@@ -311,7 +311,7 @@
         {% endif %}
         {% if previewProject %}
         //The options ticked when generating: the usual ones, then the business's saved defaults for the type
-        var previewOptions = { instancelogo: true, addresses: true, pmdetails: true, totalmass: true, totalvalue: true, venue: true, invoiceNotes: true, assets: true, masses: true, finance: true, prices: true, discounts: true, subHires: true, sales: true, staff: true, paymentTerms: true };
+        var previewOptions = { instancelogo: true, addresses: true, pmdetails: true, totalmass: true, totalvalue: true, venue: true, invoiceNotes: true, assets: true, masses: true, publishedNames: true, finance: true, prices: true, discounts: true, subHires: true, sales: true, staff: true, paymentTerms: true };
         var previewDefaults = {{ documents.defaults|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_FORCE_OBJECT'))|raw }};
         var previewTimer;
         function documentPreviewRefresh() {

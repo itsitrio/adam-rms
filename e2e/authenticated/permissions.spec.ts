@@ -16,6 +16,7 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/projects/new.php", permission: "PROJECTS:CREATE", params: (a) => ({ projects_name: "New by e2e", projects_manager: a.users.full.id, projectsType_id: a.projectTypeId }) },
   { endpoint: "/api/projects/changeName.php", permission: "PROJECTS:EDIT:NAME", params: (a) => ({ projects_id: a.projectId, projects_name: "Renamed by e2e" }) },
   { endpoint: "/api/projects/changePaymentCollection.php", permission: "PROJECTS:EDIT:PAYMENT_COLLECTION", params: (a) => ({ projects_id: a.projectId, projects_collectionStatus: "COLLECTIONS", projects_paymentDueDate: "2030-02-01" }) },
+  { endpoint: "/api/projects/changePublishedNames.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params: (a) => ({ projects_id: a.projectId, projects_publishedNames: 1 }) },
   { endpoint: "/api/projects/changeStatus.php", permission: "PROJECTS:EDIT:STATUS", params: (a) => ({ projects_id: a.projectId, projectsStatuses_id: a.projectStatusIds.second }) },
   { endpoint: "/api/projects/archive.php", permission: "PROJECTS:ARCHIVE", params: (a) => ({ projects_id: a.projectId }) },
   { endpoint: "/api/projects/delete.php", permission: "PROJECTS:DELETE", params: (a) => ({ projects_id: a.projectId }) },
@@ -35,6 +36,7 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/projects/assets/swap.php", permission: "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN", params: (a) => ({ assetsAssignments_id: a.assignmentId, assets_id: a.spareAssetId }) },
   { endpoint: "/api/projects/assets/setHidden.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_hidden: 1 }) },
   { endpoint: "/api/projects/assets/setHidden.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_excludedFromTotals: 1 }) },
+  { endpoint: "/api/projects/assets/setPublishedName.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_publishedName: 1 }) },
   // Quote layout
   ...([
     ["newSection", (a: Tenant) => ({ projects_id: a.projectId, projectsQuoteSections_name: "Section by e2e" })],
