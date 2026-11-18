@@ -18,6 +18,8 @@ x-amz-meta-size
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uppy/1.24.0/uppy.min.css" integrity="sha512-AlgodRCmxN1sI0uUiPYxh6NeOiw5/V4hvGLuZQjZrWF0I+ek5CXi9JiyJy74YjIaXGQjKvRIRc9uXOWqCkUF5w==" crossorigin="anonymous" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/uppy/1.24.0/uppy.min.js" integrity="sha512-zq6u0SjqBwEZJP4C6JwFW9ecWKNLFY1kv+fHk4E26eHTlDh2oQlXjusT5iCGKq4jPC7zVFmA5B7s+K+QNcnxBg==" crossorigin="anonymous"></script>
     {% set thisElementID = ('uppy' ~ random()) %}
+    {# With FILES_TRANSFER_MODE = Server, files are sent to api/s3files/upload.php, which names and stores them, rather than straight to the bucket #}
+    {% set serverTransfer = (CONFIG.FILES_TRANSFER_MODE == 'Server') %}
     <div id="{{ thisElementID }}"></div>
     <script>
         function getExtension(fileName) {
@@ -30,6 +32,9 @@ x-amz-meta-size
             allowMultipleUploads: true,
             autoProceed: false,
             restrictions: {
+                {% if serverTransfer %}
+                maxFileSize: 26214400,
+                {% endif %}
                 {% if fileLimit is defined %}
                 maxNumberOfFiles: {{  fileLimit }},
                 {% endif %}
@@ -39,9 +44,14 @@ x-amz-meta-size
             },
             meta: {
                 "typeid": "{{ typeId }}",
-                "subtype": "{{ subTypeId }}"
+                "subtype": "{{ subTypeId }}"{% if serverTransfer %},
+                "public": "{{ (publicBool ? 1 : 0) }}",
+                "type": "{{ type }}"{% endif %}
             },
             onBeforeFileAdded: (currentFile, files) => {
+                {% if serverTransfer %}
+                return currentFile; // The server names the file
+                {% endif %}
                 var updatedFile = currentFile;
                 var safeFilename = currentFile.name.replace(/[^a-z0-9]/gi, '').toLowerCase() + "." + getExtension(currentFile.name);
                 updatedFile.name = "uploads/" + "{{ type }}" + "/" + Date.now() + "-" + (Math.floor(Math.random() * (99999999999999999999 - 9999999999 + 1)) + 9999999999) + "." + getExtension(currentFile.name);
@@ -86,6 +96,14 @@ x-amz-meta-size
                     } }
                 {% endif %}
             ]
+        {% if serverTransfer %}
+        }).use(Uppy.XHRUpload, {
+            endpoint: '{{ CONFIG.ROOTURL }}/api/s3files/upload.php',
+            fieldName: 'file',
+            formData: true,
+            metaFields: ['typeid', 'subtype', 'public', 'type'],
+            limit: 2
+        {% else %}
         }).use(Uppy.AwsS3, {
             metaFields: ['name','typeid','subtype'],
             getUploadParameters (file) {
@@ -116,6 +134,7 @@ x-amz-meta-size
                     }
                 })
             }
+        {% endif %}
         /*}).use(Uppy.ImageEditor, {
             quality: 0.8,
             cropperOptions: {
@@ -144,6 +163,24 @@ x-amz-meta-size
                 'video-audio'
             ]
         }).on('upload-success', (file, response) => {
+            var uploadRecorded = function (result) {
+                if (!result.result) {
+                    bootbox.alert("Sorry - Upload encountered a problem" + (result.error && result.error.message ? ": " + $('<div>').text(result.error.message).html() : ""), function () {
+                        location.reload();
+                    });
+                } else {
+                    var responseJson = result.response;
+                    var url = responseJson.url;
+                    {% block success %}
+                    {% endblock %}
+                    {% if resetAfter is defined and resetAfter %}
+                        uppy.reset();
+                    {% endif %}
+                }
+            };
+            {% if serverTransfer %}
+            uploadRecorded(response.body); // upload.php has stored and recorded it already
+            {% else %}
             $.ajax({
                 url: "{{ CONFIG.ROOTURL }}/api/s3files/uploadSuccess.php",
                 type: "JSON",
@@ -156,27 +193,14 @@ x-amz-meta-size
                     "subtype":  file.meta.subtype,
                     "originalName": file.data.name
                 },
-                success: function (result) {
-                    if (!result.result) {
-                        bootbox.alert("Sorry - Upload encountered a problem", function () {
-                            location.reload();
-                        });
-                    } else {
-                        var responseJson = result.response;
-                        var url = responseJson.url;
-                        {% block success %}
-                        {% endblock %}
-                        {% if resetAfter is defined and resetAfter %}
-                            uppy.reset();
-                        {% endif %}
-                    }
-                },
+                success: uploadRecorded,
                 error: function (error) {
                     bootbox.alert("Sorry - Upload encountered a problem", function () {
                         location.reload();
                     });
                 }
             });
+            {% endif %}
         })
 
         //Update the theme when a themChange is triggered.

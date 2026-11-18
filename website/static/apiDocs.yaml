@@ -2507,6 +2507,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimpleResponse'
+  /file/stream.php:
+    get:
+      tags:
+        - file_uploads
+      summary: 'Stream File'
+      description: "Send a file from storage, for installations whose files go through the AdamRMS server. Links to it are returned by /file/index.php and carry their own expiry and signature, so no session is needed.\n"
+      operationId: streamFile
+      parameters:
+        -
+          name: f
+          in: query
+          description: 'File ID'
+          required: 'true'
+          schema:
+            type: integer
+        -
+          name: d
+          in: query
+          description: '1 to force a download, 0 to show the file in the browser'
+          required: 'true'
+          schema:
+            type: integer
+        -
+          name: exp
+          in: query
+          description: 'When the link expires (unix timestamp)'
+          required: 'true'
+          schema:
+            type: integer
+        -
+          name: sig
+          in: query
+          description: 'Link signature'
+          required: 'true'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The file'
+        '206':
+          description: 'Part of the file, for a Range request'
+        '403':
+          description: 'The link is invalid or has expired'
+        '404':
+          description: "The file doesn't exist"
   /groups/addAsset.php:
     post:
       tags:
@@ -7502,6 +7547,60 @@ paths:
                   result: { description: 'Whether the request was successful', type: boolean }
                   method: { description: 'HTTP Method', type: string }
                   url: { description: 'File URL', type: string }
+                type: object
+  /s3files/upload.php:
+    post:
+      tags:
+        - s3files
+      summary: 'Upload File'
+      description: "Upload a file through the AdamRMS server, for installations whose files go through it. Files can be up to 25MB.\n"
+      operationId: uploadFile
+      parameters:
+        -
+          name: file
+          in: query
+          description: 'The file (multipart/form-data)'
+          required: 'true'
+          schema:
+            type: string
+            format: binary
+        -
+          name: typeid
+          in: query
+          description: 'File type ID'
+          required: 'true'
+          schema:
+            type: integer
+        -
+          name: subtype
+          in: query
+          description: 'ID of the record the file is attached to'
+          required: 'false'
+          schema:
+            type: integer
+        -
+          name: public
+          in: query
+          description: '1 if the file is public'
+          required: 'false'
+          schema:
+            type: integer
+        -
+          name: type
+          in: query
+          description: 'Folder name for the file, e.g. ASSET-FILE'
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                  response: { description: "The new file's id and link", type: object }
                 type: object
   /s3files/uploadProjectInvoice.php:
     post:

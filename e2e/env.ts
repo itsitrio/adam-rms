@@ -9,6 +9,10 @@ export const PHP_BINARY = process.env.PHP_BINARY ?? "php";
 export const PORT = process.env.E2E_PORT ?? "8080";
 export const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+/** A stand-in S3 bucket (e2e/setup/fakeS3.php), for tests of files going through AdamRMS */
+export const FAKE_S3_PORT = process.env.E2E_FAKE_S3_PORT ?? "9100";
+export const FAKE_S3_URL = `http://127.0.0.1:${FAKE_S3_PORT}`;
+
 export const APP_ENV: Record<string, string> = {
   DB_HOSTNAME: process.env.DB_HOSTNAME ?? "127.0.0.1",
   DB_DATABASE: process.env.DB_DATABASE ?? "db",
