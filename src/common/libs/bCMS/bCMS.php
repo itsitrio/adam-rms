@@ -277,6 +277,18 @@ class bCMS
   }
   /** The largest file api/s3files/upload.php accepts when files go through this server */
   const S3_SERVER_UPLOAD_MAX_BYTES = 26214400; // 25MB
+  /** Links to api/file/stream.php expire on the hour, so they stay the same, and cached, for up to this long */
+  const S3_SERVER_LINK_WINDOW = 3600;
+
+  /**
+   * The ETag api/file/stream.php sends for a file. A stored file is never changed (each upload gets a new key), so
+   * this needn't come from the bucket, and a browser checking its copy can be answered without asking the bucket.
+   * The name is included because it is sent in the Content-Disposition header, and a file can be renamed.
+   */
+  function s3StreamETag($file)
+  {
+    return '"' . hash('sha256', $file['s3files_id'] . "|" . $this->s3ObjectKey($file) . "|" . $file['s3files_name']) . '"';
+  }
 
   /** Whether uploads and downloads go through this server (FILES_TRANSFER_MODE = Server) rather than straight between the browser and the bucket */
   function s3ServerTransfer()
@@ -382,6 +394,10 @@ class bCMS
       // pre-signed S3 link would, and works without a session (emails, the app, Cloudflare image transformation).
       $expires = strtotime($file['expiry']);
       if (!$expires or $expires <= time()) $expires = strtotime('+1 minute');
+      // Round the expiry up to the end of the hour, so the same file gets the same link all hour and the browser can
+      // use its cached copy instead of fetching the file again on every page. A link so lasts up to an hour longer
+      // than asked for, which is no longer than it may be kept in the browser's cache anyway.
+      $expires = (int) (ceil($expires / self::S3_SERVER_LINK_WINDOW) * self::S3_SERVER_LINK_WINDOW);
       $expires = min($expires, time() + 604800); // S3 pre-signed links can't last longer than a week either
       $url = $CONFIG['ROOTURL'] . "/api/file/stream.php?" . http_build_query([
         "f" => $file['s3files_id'],

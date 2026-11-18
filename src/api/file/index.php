@@ -13,6 +13,15 @@ $file = $bCMS->s3URL($_POST['f'], (isset($_POST['d'])),(isset($_POST['e']) ? $_P
 if (!$file) finish(false,["message"=>"File not found - please check to ensure you are still logged in"]);
 else {
     if (isset($_POST['r'])) {
+        if ($bCMS->s3ServerTransfer() and preg_match('/[?&]exp=(\d+)/', $file, $match)) {
+            // Pages use this redirect for <img> tags. Let the browser keep it, privately, until shortly before the
+            // link it points to expires, so showing the image again needs no request at all
+            $maxAge = intval($match[1]) - time() - 300;
+            if ($maxAge > 0) {
+                header_remove("Pragma");
+                header("Cache-Control: private, max-age=" . $maxAge);
+            }
+        }
         header("Location: " . $file);
         die();
     } else finish(true,null,["url" => $file]);
