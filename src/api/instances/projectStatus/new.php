@@ -11,6 +11,7 @@ foreach ($_POST['formData'] as $item) {
         $array[$item['name']] = $item['value'];
     }
 }
+if (isset($array['projectsStatuses_pipelineStage']) and !array_key_exists($array['projectsStatuses_pipelineStage'], PROJECT_PIPELINE_STAGES)) finish(false, ["code" => "PARAM-ERROR", "message" => "Unknown pipeline stage"]);
 if (strlen($array['projectsStatuses_name']) <1) finish(false, ["code" => "PARAM-ERROR", "message"=> "No data for action"]);
 $array['instances_id'] = $AUTH->data['instance']['instances_id'];
 $status = $DBLIB->insert("projectsStatuses", $array);

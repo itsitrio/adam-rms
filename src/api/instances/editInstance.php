@@ -12,9 +12,14 @@ foreach ($_POST['formData'] as $item) {
 if (isset($array['instances_termsAndPayment'])) $array['instances_termsAndPayment'] = $bCMS->cleanString($array['instances_termsAndPayment']);
 if (isset($array['instances_quoteTerms'])) $array['instances_quoteTerms'] = $bCMS->cleanString($array['instances_quoteTerms']);
 if (array_key_exists('instances_config_massUnit', $array) and !in_array($array['instances_config_massUnit'], ["kg", "lb"], true)) unset($array['instances_config_massUnit']);
+if (array_key_exists('instances_config_paymentDueDays', $array)) {
+    //Days after a project ends that its payment is due
+    if (!is_numeric($array['instances_config_paymentDueDays']) or intval($array['instances_config_paymentDueDays']) != $array['instances_config_paymentDueDays'] or $array['instances_config_paymentDueDays'] < 0 or $array['instances_config_paymentDueDays'] > 365) finish(false, ["code" => "PARAM-ERROR", "message" => "Payment terms must be a whole number of days between 0 and 365"]);
+    $array['instances_config_paymentDueDays'] = intval($array['instances_config_paymentDueDays']);
+}
 
 $DBLIB->where("instances_id",$AUTH->data['instance']["instances_id"]);
-$result = $DBLIB->update("instances", array_intersect_key( $array, array_flip( ["instances_config_massUnit","instances_name","instances_address","instances_phone","instances_email","instances_website","instances_weekStartDates","instances_logo","instances_emailHeader","instances_termsAndPayment", "instances_quoteTerms", "instances_cableColours"] ) ));
+$result = $DBLIB->update("instances", array_intersect_key( $array, array_flip( ["instances_config_massUnit","instances_config_paymentDueDays","instances_name","instances_address","instances_phone","instances_email","instances_website","instances_weekStartDates","instances_logo","instances_emailHeader","instances_termsAndPayment", "instances_quoteTerms", "instances_cableColours"] ) ));
 echo $DBLIB->getLastError();
 if (!$result) finish(false, ["code" => "UPDATE-FAIL", "message"=> "Could not update instance"]);
 else {

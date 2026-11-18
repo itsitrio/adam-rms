@@ -25,5 +25,6 @@ foreach ($projectStatuses as $projectStatus) {
   $PAGEDATA['projectStatuses'][] = $projectStatus;
 }
 
+$PAGEDATA['pipelineStages'] = PROJECT_PIPELINE_STAGES;
 echo $TWIG->render('instances/projectStatuses.twig', $PAGEDATA);
 ?>

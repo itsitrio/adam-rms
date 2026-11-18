@@ -52,6 +52,17 @@ export function releasedStatus(t: Tenant) {
   )[0].id;
 }
 
+/** Adds a status to `t` at the given stage of the sales pipeline (which doesn't release its projects' assets) */
+export function pipelineStatus(t: Tenant, stage: "LEAD" | "OPPORTUNITY" | "WON" | "LOST" | "CANCELLED") {
+  dbQuery(
+    `INSERT INTO projectsStatuses (instances_id, projectsStatuses_name, projectsStatuses_description, projectsStatuses_foregroundColour,
+      projectsStatuses_backgroundColour, projectsStatuses_rank, projectsStatuses_assetsReleased, projectsStatuses_pipelineStage, projectsStatuses_deleted)
+     VALUES (?, ?, 'Pipeline stage', '#000000', '#ffffff', 98, 0, ?, 0)`,
+    [t.instanceId, `${stage} by e2e`, stage],
+  );
+  return dbQuery<{ id: number }>("SELECT MAX(projectsStatuses_id) id FROM projectsStatuses WHERE instances_id = ? AND projectsStatuses_pipelineStage = ?", [t.instanceId, stage])[0].id;
+}
+
 /** A project's money, in pence */
 export type Finances = {
   subTotal: number; discounts: number; total: number;

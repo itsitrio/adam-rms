@@ -28,6 +28,7 @@ The Basic Settings page includes the following information:
 - Email Header
 - Mass unit - whether masses are shown and entered in kilograms or pounds
 - Invoice Footer - Note on the bottom of all generated invoices
+- Payment due - how many days after a project ends its payment is due (30 to start with). Anything still owed on a won project after that shows as past due.
 - Generated Documents - see [below](#generated-documents)
 - Cable length colours - assign a colour to each length for ease of identification
 - Asset Statuses - used for asset dispatch
@@ -139,6 +140,7 @@ Each project status has the following properties:
 - **Icon**: An icon to represent the status in lists and calendars.
 - **Colours**: Custom foreground and background colours for the status label.
 - **Release Assets?**: If enabled, assets assigned to projects with this status are released and become available for other projects. This also removes the project from calendars and releases assigned crew.
+- **Pipeline Stage**: Where projects with this status are in the sales pipeline - **Lead**, **Opportunity**, **Won**, **Lost** or **Cancelled**. Only Won projects count towards revenue (on an asset's page, and on the [receivables report](../projects/finance#receivables)); Leads and Opportunities are shown as the pipeline, and Lost and Cancelled projects never count. A new status starts as a Lead. The default statuses are set up for you: Added to RMS and Targeted are Leads, Quote Sent is an Opportunity, Confirmed through Closed are Won, and Cancelled and Lead Lost are Cancelled and Lost.
 
 ## Asset Statuses
 ---

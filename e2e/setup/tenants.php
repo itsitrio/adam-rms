@@ -98,7 +98,7 @@ function tenant(string $letter): array {
     $t['instanceId'] = $instance = upsert("instances", "instances_id", ["instances_name" => "$marker Ltd"], [
         "instances_deleted" => 0, "instances_suspended" => 0, "instances_suspendedReason" => null, "instances_suspendedReasonType" => null,
         "instances_address" => "$marker address", "instances_email" => "e2e-tenant-$lower@example.com",
-        "instances_config_currency" => "GBP", "instances_config_massUnit" => "kg", "instances_config_documents" => null, "instances_storageLimit" => 0, "instances_storageEnabled" => 1,
+        "instances_config_currency" => "GBP", "instances_config_massUnit" => "kg", "instances_config_paymentDueDays" => 30, "instances_config_documents" => null, "instances_storageLimit" => 0, "instances_storageEnabled" => 1,
         "instances_assetLimit" => 0, "instances_userLimit" => 0, "instances_projectLimit" => 0, "instances_planName" => "",
         "instances_calendarConfig" => '{"showProjectStatus":true,"showSubProjects":true,"useCustomWeekNumbers":true,"defaultView":"dayGridMonth"}',
         "instances_calendarHash" => "e2e-calendar-hash-$lower", "instances_publicConfig" => null, "instances_trustedDomains" => null,
@@ -205,6 +205,7 @@ function tenant(string $letter): array {
         "projects_dates_use_start" => "2030-01-02 09:00:00", "projects_dates_use_end" => "2030-01-04 18:00:00",
         "projects_dates_deliver_start" => "2030-01-01 09:00:00", "projects_dates_deliver_end" => "2030-01-05 18:00:00",
         "projects_dates_finances_days" => null, "projects_dates_finances_weeks" => null, "projects_defaultDiscount" => 0,
+        "projects_paymentDueDate" => null, "projects_collectionStatus" => null,
     ];
     $t['projectId'] = upsert("projects", "projects_id", ["instances_id" => $instance, "projects_description" => "$marker project description"],
         ["projects_name" => "$marker project", "projects_created" => "2024-01-01 00:00:00", "projects_parent_project_id" => null] + $project, $remembered['projectId'] ?? null);

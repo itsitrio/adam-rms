@@ -51,6 +51,7 @@
                             <th style="width:40px;">Projects</th>
                             <th>Name &amp; Style</th>
                             <th style="width:40px;">Assets Released</th>
+                            <th style="width:110px;" title="Which stage of the sales pipeline projects with this status are at. Only Won projects count as revenue">Pipeline Stage</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -83,6 +84,7 @@
                                     <i class="fas fa-check"></i>
                                 {% endif %}
                             </td>
+                            <td>{{ pipelineStages[status.projectsStatuses_pipelineStage] }}</td>
                             <td style="width:70px;">
                                 <div class="btn-group">
                                     {% if "PROJECTS:PROJECT_STATUSES:EDIT"|instancePermissions and status.projectsStatuses_deleted != true %}
@@ -142,6 +144,13 @@
                                                     <span class="input-group-text">Background Colour</span>
                                                 </div>
                                                 <input type="color" class="form-control" name="projectsStatuses_backgroundColour" value="{{ status.projectsStatuses_backgroundColour }}">
+                                            </div>
+                                            <div class="input-group" style="margin-bottom: 5px;">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text">Pipeline Stage</span>
+                                                </div>
+                                                <select class="form-control" name="projectsStatuses_pipelineStage">{% for stageKey, stageName in pipelineStages %}<option value="{{ stageKey }}" {{ stageKey == status.projectsStatuses_pipelineStage ? "selected" : "" }}>{{ stageName }}</option>{% endfor %}</select>
+                                                <small class="form-text text-muted">Where projects with this status are in the sales pipeline. Only Won projects count towards revenue; Lost and Cancelled ones never do.</small>
                                             </div>
                                             {% if status.projectsStatuses_assetsReleased != true and status.project_count < 1 %}
                                                 <div class="input-group" style="margin-bottom: 5px;">
@@ -216,6 +225,13 @@
                                 <span class="input-group-text">Background Colour</span>
                             </div>
                             <input type="color" class="form-control" name="projectsStatuses_backgroundColour" value="#F5F5F5">
+                        </div>
+                        <div class="input-group" style="margin-bottom: 5px;">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">Pipeline Stage</span>
+                            </div>
+                            <select class="form-control" name="projectsStatuses_pipelineStage">{% for stageKey, stageName in pipelineStages %}<option value="{{ stageKey }}">{{ stageName }}</option>{% endfor %}</select>
+                            <small class="form-text text-muted">Where projects with this status are in the sales pipeline. Only Won projects count towards revenue; Lost and Cancelled ones never do.</small>
                         </div>
                         <div class="input-group" style="margin-bottom: 5px;">
                             <div class="input-group-prepend">
