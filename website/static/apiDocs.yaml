@@ -7547,6 +7547,7 @@ paths:
                   result: { description: 'Whether the request was successful', type: boolean }
                   method: { description: 'HTTP Method', type: string }
                   url: { description: 'File URL', type: string }
+                  key: { description: 'The key the file will be stored under, to send to uploadSuccess.php as name', type: string }
                 type: object
   /s3files/upload.php:
     post:
@@ -7656,15 +7657,15 @@ paths:
         -
           name: name
           in: query
-          description: 'File Name'
+          description: 'The key generateSignatureUppy.php returned'
           required: 'true'
           schema:
             type: string
         -
           name: size
           in: query
-          description: 'File Size'
-          required: 'true'
+          description: 'File Size (ignored - the size is read from S3)'
+          required: 'false'
           schema:
             type: number
         -
