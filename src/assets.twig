@@ -17,6 +17,9 @@
             {% endfor %}
         {% endif %}
         <form method="get" action="{{CONFIG.ROOTURL}}/assets.php" id="assetSearchForm">
+            {% if searchResults.SEARCH.VIEW == "table" %}
+                <input type="hidden" name="view" value="table">
+            {% endif %}
             {% if searchResults.SEARCH.LOCATION_ID %}
                 <input type="hidden" name="location" value="{{ searchResults.SEARCH.LOCATION_ID }}">
             {% endif %}
@@ -164,7 +167,11 @@
                 <h3 class="card-title" style="margin-top: 0.4rem;">
                     Showing {{ searchResults.PAGINATION.OFFSET>0 ? 'results ' ~ searchResults.PAGINATION.OFFSET ~ '-' ~ (searchResults.PAGINATION.OFFSET+(searchResults.ASSETS|length)) : searchResults.ASSETS|length }} of {{ searchResults.PAGINATION.COUNT }} result{{ searchResults.PAGINATION.COUNT == 1 ? '' : 's' }} found in {{ searchResults.SPEED|round(1) }} second{{ searchResults.SPEED|round(1) != 1 ? 's':'' }}
                 </h3>
-                <div class="card-tools pull-right">
+                <div class="card-tools pull-right d-flex align-items-center">
+                <div class="btn-group btn-group-sm mr-2" role="group" aria-label="Layout">
+                    <button type="button" class="btn btn-default{{ searchResults.SEARCH.VIEW == "grid" ? ' active' : '' }}" data-view="grid" title="Grid view"><i class="fas fa-th-large"></i></button>
+                    <button type="button" class="btn btn-default{{ searchResults.SEARCH.VIEW == "table" ? ' active' : '' }}" data-view="table" title="Table view"><i class="fas fa-list"></i></button>
+                </div>
                 {% if searchResults.PAGINATION['TOTAL-PAGES'] > 1 %}
                     <ul class="pagination pagination-sm m-0">
                         {% if searchResults.PAGINATION.PAGE > 1 %}
@@ -187,6 +194,59 @@
                 {% endif %}
                 </div>
             </div>
+            {% if searchResults.SEARCH.VIEW == "table" %}
+            {% set showImages = CONFIG.FILES_ENABLED == "Enabled" and USERDATA.instance.instances_storageEnabled == 1 and searchResults.SEARCH.SETTINGS.HIDEIMAGES != true %}
+            {% set currency = searchResults.SEARCH.INSTANCE.instances_config_currency %}
+            <div class="card-body p-0 table-responsive">
+                <table class="table table-striped table-hover mb-0" id="assetSearchTable">
+                    <thead>
+                        <tr>
+                            {% if showImages %}<th style="width:70px;"></th>{% endif %}
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Manufacturer</th>
+                            <th>Mass</th>
+                            <th>Value</th>
+                            <th>Day rate</th>
+                            <th>Week rate</th>
+                            <th title="Number of units owned"><i class="fas fa-boxes"></i></th>
+                            <th style="width:1%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for asset in searchResults.ASSETS %}
+                        {# Where there's just one asset its own overrides are shown, as in the grid #}
+                        {% set single = asset.count == 1 ? asset.tags[0] : false %}
+                        {% set mass = single and single.assets_mass != 0 ? single.assets_mass : asset.assetTypes_mass %}
+                        <tr>
+                            {% if showImages %}
+                                <td class="align-middle text-center">
+                                    {% if asset.thumbnail|length > 0 %}
+                                        <img loading="lazy" fetchpriority="low" style="max-height:50px;max-width:60px;" src="{{ asset.thumbnail[0].s3files_id|s3URL("small") }}" alt="{{ asset.assetTypes_name }}">
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                            <td class="align-middle">
+                                <a href="{{ CONFIG.ROOTURL }}/asset.php?id={{ asset.assetTypes_id }}{{ single ? '&asset=' ~ single.assets_id : '' }}{{ searchResults.SEARCH.SETTINGS.SHOWARCHIVED ? '&showArchived' : ''}}&instance={{ searchResults.SEARCH.INSTANCE_ID }}" target="_blank"><b>{{ asset.assetTypes_name }}</b></a>
+                                {% if single %}<span class="text-muted small ml-1">{{ single.assets_tag|aTag }}</span>{% endif %}
+                                {% if asset.assetTypes_description %}
+                                    <div class="text-muted small">{{ asset.assetTypes_description|length > 60 ? asset.assetTypes_description|slice(0, 60) ~ '...' : asset.assetTypes_description }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle"><i class="{{ asset.assetCategories_fontAwesome }} text-muted"></i> {{ asset.assetCategoriesGroups_name }} - {{ asset.assetCategories_name }}</td>
+                            <td class="align-middle">{{ asset.manufacturers_id != 1 ? asset.manufacturers_name : '' }}</td>
+                            <td class="align-middle">{{ mass != "" and mass != 0 ? mass|mass : '' }}</td>
+                            <td class="align-middle">{{ (single and single.assets_value ? single.assets_value : asset.assetTypes_value)|money(currency) }}</td>
+                            <td class="align-middle">{{ (single and single.assets_dayRate ? single.assets_dayRate : asset.assetTypes_dayRate)|money(currency) }}</td>
+                            <td class="align-middle">{{ (single and single.assets_weekRate ? single.assets_weekRate : asset.assetTypes_weekRate)|money(currency) }}</td>
+                            <td class="align-middle">{{ asset.quantity }}{% if searchResults.PROJECT.DATESTART and searchResults.PROJECT.DATEEND %} <span class="text-muted">({{ asset.quantityAvailable }} available)</span>{% endif %}</td>
+                            <td class="align-middle text-nowrap">{% include 'twigIncludes/assetSearchActions.twig' %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
             <div class="card-body">
                 <div class="row d-flex align-items-stretch">
                     {% for asset in searchResults.ASSETS %}
@@ -245,174 +305,7 @@
                                 </div>
                                 <div class="card-footer">
                                     <div class="text-right">
-                                        <div class="btn-group">
-                                            {% if searchResults.PROJECT.ID and "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN"|instancePermissions %}
-                                                {% if asset.count == 1 %}
-                                                    {% if asset.tags[0].assets_endDate != null and asset.tags[0].assets_endDate < searchResults.PROJECT['DATEEND'] %}
-                                                        <button title="Asset to be archived" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
-                                                    {% elseif asset.tags[0].flagsblocks.COUNT.BLOCK < 1 %}
-                                                        <button title="Remove from project" {% if not asset.tags[0].assignedToSearchedProject %}style="display:none;"{% endif %} class="btn btn-sm btn-warning removeFromBasketAssetButton" data-assetid="{{ asset.tags[0]['assets_id'] }}"><i class="fa fa-shopping-basket"></i></button>
-                                                        {# An unserialized asset can be on another project and still have units spare, so what's left decides whether it can be added #}
-                                                        {% if not asset.tags[0].assignedToSearchedProject and asset.tags[0].availableQuantity < 1 and asset.tags[0].assignedElsewhere %}
-                                                            <button title="Assigned to {{ asset.tags[0].assignedElsewhere['projects_name'] }}" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
-                                                        {% endif %}
-                                                        <button title="Add to project{% if asset.tags[0].assets_unserialized %} ({{ asset.tags[0].availableQuantity }} of {{ asset.tags[0].assets_quantity }} units available){% endif %}" {% if asset.tags[0].assignedToSearchedProject or asset.tags[0].availableQuantity < 1 %}style="display:none;"{% endif %} class="btn btn-sm btn-success addToBasketAssetButton" data-assetid="{{ asset.tags[0]['assets_id'] }}" data-unserialized="{{ asset.tags[0].assets_unserialized ? 1 : 0 }}" data-available="{{ asset.tags[0].availableQuantity }}"><i class="fa fa-shopping-basket"></i></button>
-                                                    {% else %}
-                                                        <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
-                                                    {% endif %}
-                                                {% else %}
-                                                    <div class="modal fade" id="assetDetailsModal{{ asset.assetTypes_id }}">
-                                                        <div class="modal-dialog modal-xl">
-                                                            <div class="modal-content">
-                                                                <div class="modal-header">
-                                                                    <h4 class="modal-title">{{ asset.assetTypes_name }}</h4>
-                                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                                        <span aria-hidden="true">&times;</span>
-                                                                    </button>
-                                                                </div>
-                                                                <div class="modal-body" style="padding:0;text-align:left;overflow-x: auto;">
-                                                                    <table class="table table-striped">
-                                                                        <tr>
-                                                                            <th>ID</th>
-                                                                            {% for field in asset.fields %}
-                                                                                <th>{{ field }}</th>
-                                                                            {% endfor %}
-                                                                            <th>Notes</th>
-                                                                            <th title="Units held"><i class="fas fa-boxes"></i></th>
-                                                                            <th>Cost/day</th>
-                                                                            <th>Cost/week</th>
-                                                                            <th style="width:1%"><i class="fas fa-flag"></i></th>
-                                                                            <th style="width:30px;">
-                                                                                <button class="btn btn-success addToBasketAssetTypeButton" {% if asset.countAvailable < 1 %} disabled {% endif %}" title "Add all of this asset type to the project" data-assetTypeId="{{ asset.assetTypes_id }}"><i class="fas fa-dolly"></i></button>
-                                                                            </th>
-                                                                        </tr>
-                                                                        {% for thisasset in asset.tags %}
-                                                                            <tr>
-                                                                                <td>{{ thisasset.assets_tag|aTag }}</td>
-                                                                                {% for field in asset.fields %}
-                                                                                    <td>{{ thisasset['asset_definableFields_' ~ loop.index] }}</td>
-                                                                                {% endfor %}
-                                                                                <td>{{ thisasset['assets_notes']|nl2br }}</td>
-                                                                                <td>{{ thisasset.assets_unserialized ? (thisasset.availableQuantity ~ '/' ~ thisasset.assets_quantity) : '' }}</td>
-                                                                                <td>
-                                                                                    {{ (thisasset.assets_dayRate ?: asset.assetTypes_dayRate)|money(SEARCH.INSTANCE['instances_config_currency']) }}
-                                                                                </td>
-                                                                                <td>
-                                                                                    {{ (thisasset.assets_weekRate ?: asset.assetTypes_weekRate)|money(SEARCH.INSTANCE['instances_config_currency']) }}
-                                                                                </td>
-                                                                                <td>
-                                                                                    {{ thisasset.flagsblocks.COUNT.FLAG > 0 ?: '' }}
-                                                                                </td>
-                                                                                <td>
-                                                                                    <div class="btn-group">
-                                                                                        {% if thisasset.assets_endDate != null and thisasset.assets_endDate < searchResults.PROJECT['DATEEND'] %}
-                                                                                            <button title="Asset to be removed" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
-                                                                                        {% elseif thisasset.flagsblocks.COUNT.BLOCK < 1 %}
-                                                                                            <button title="Remove from project" {% if not thisasset.assignedToSearchedProject %}style="display:none;"{% endif %} class="btn btn-sm btn-warning removeFromBasketAssetButton" data-assetid="{{ thisasset['assets_id'] }}" data-assetTypeId="{{ asset.assetTypes_id }}"><i class="fa fa-shopping-basket"></i></button>
-                                                                                            {# An unserialized asset can be on another project and still have units spare, so what's left decides whether it can be added #}
-                                                                                            {%  if not thisasset.assignedToSearchedProject and thisasset.availableQuantity < 1 and thisasset.assignedElsewhere %}
-                                                                                                <button title="Assigned to {{ thisasset.assignedElsewhere['projects_name'] }}" class="btn btn-sm btn-success" disabled><i class="fa fa-shopping-basket"></i></button>
-                                                                                            {% endif %}
-                                                                                            <button title="Add to project{% if thisasset.assets_unserialized %} ({{ thisasset.availableQuantity }} of {{ thisasset.assets_quantity }} units available){% endif %}" {% if thisasset.assignedToSearchedProject or thisasset.availableQuantity < 1 %}style="display:none;"{% endif %} class="btn btn-sm btn-success addToBasketAssetButton" data-assetid="{{ thisasset['assets_id'] }}" data-assetTypeId="{{ asset.assetTypes_id }}" data-unserialized="{{ thisasset.assets_unserialized ? 1 : 0 }}" data-available="{{ thisasset.availableQuantity }}"><i class="fa fa-shopping-basket"></i></button>
-                                                                                        {% else %}
-                                                                                            <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
-                                                                                        {% endif %}
-                                                                                    </div>
-                                                                                </td>
-                                                                            </tr>
-                                                                        {% endfor %}
-                                                                    </table>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <button type="button" class="btn btn-sm {{ asset.countAvailable > 0 ? 'btn-success' : 'btn-warning' }}" data-toggle="modal" data-target="#assetDetailsModal{{ asset.assetTypes_id }}"><i class="fa fa-shopping-basket"></i></button>
-                                                {% endif %}
-                                            {% elseif searchResults.PROJECT.DATESTART and searchResults.PROJECT.DATEEND %}
-                                                {% if asset.count == 1 %}
-                                                    {% if asset.tags[0].assets_endDate != null and asset.tags[0].assets_endDate < searchResults.PROJECT['DATEEND'] %}
-                                                        <button title="Asset to be archived" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
-                                                    {% elseif asset.tags[0].flagsblocks.COUNT.BLOCK < 1 %}
-                                                        {# Units still spare count as available, even where another project already holds some #}
-                                                        {% if asset.tags[0].availableQuantity < 1 %}
-                                                            <button title="Assigned to {{ asset.tags[0].assignedElsewhere ? asset.tags[0].assignedElsewhere['projects_name'] : 'another project' }}" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
-                                                        {% else %}
-                                                            <button title="Available{% if asset.tags[0].assets_unserialized %} - {{ asset.tags[0].availableQuantity }} of {{ asset.tags[0].assets_quantity }} units{% endif %}" class="btn btn-sm btn-success" disabled><i class="fa fa-check"></i></button>
-                                                        {% endif %}
-                                                    {% else %}
-                                                        <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
-                                                    {% endif %}
-                                                {% else %}
-                                                    <div class="modal fade" id="assetDetailsModal{{ asset.assetTypes_id }}">
-                                                        <div class="modal-dialog modal-xl">
-                                                            <div class="modal-content">
-                                                                <div class="modal-header">
-                                                                    <h4 class="modal-title">{{ asset.assetTypes_name }}</h4>
-                                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                                        <span aria-hidden="true">&times;</span>
-                                                                    </button>
-                                                                </div>
-                                                                <div class="modal-body" style="padding:0;text-align:left;overflow-x: auto;">
-                                                                    <table class="table table-striped">
-                                                                        <tr>
-                                                                            <th style="width:70px;">ID</th>
-                                                                            {% for field in asset.fields %}
-                                                                                <th>{{ field }}</th>
-                                                                            {% endfor %}
-                                                                            <th>Notes</th>
-                                                                            <th title="Units held"><i class="fas fa-boxes"></i></th>
-                                                                            <th>Cost/day</th>
-                                                                            <th>Cost/week</th>
-                                                                            <th style="width:1%"><i class="fas fa-flag"></i></th>
-                                                                            <th style="width:30px;"></th>
-                                                                        </tr>
-                                                                        {% for thisasset in asset.tags %}
-                                                                            <tr>
-                                                                                <td>{{ thisasset.assets_tag|aTag }}</td>
-                                                                                {% for field in asset.fields %}
-                                                                                    <td>{{ thisasset['asset_definableFields_' ~ loop.index] }}</td>
-                                                                                {% endfor %}
-                                                                                <td>{{ thisasset['assets_notes']|nl2br }}</td>
-                                                                                <td>{{ thisasset.assets_unserialized ? (thisasset.availableQuantity ~ '/' ~ thisasset.assets_quantity) : '' }}</td>
-                                                                                <td>
-                                                                                    {{ (thisasset.assets_dayRate ?: asset.assetTypes_dayRate)|money(SEARCH.INSTANCE['instances_config_currency']) }}
-                                                                                </td>
-                                                                                <td>
-                                                                                    {{ (thisasset.assets_weekRate ?: asset.assetTypes_weekRate)|money(SEARCH.INSTANCE['instances_config_currency']) }}
-                                                                                </td>
-                                                                                <td>
-                                                                                    {{ thisasset.flagsblocks.COUNT.FLAG > 0 ?: '' }}
-                                                                                </td>
-                                                                                <td>
-                                                                                    <div class="btn-group">
-                                                                                        {% if thisasset.assets_endDate != null and thisasset.assets_endDate < searchResults.PROJECT['DATEEND'] %}
-                                                                                            <button title="Asset to be removed" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
-                                                                                        {% elseif thisasset.flagsblocks.COUNT.BLOCK < 1 %}
-                                                                                            {# Units still spare count as available, even where another project already holds some #}
-                                                                                            {%  if thisasset.availableQuantity < 1 %}
-                                                                                                <button title="Assigned to {{ thisasset.assignedElsewhere ? thisasset.assignedElsewhere['projects_name'] : 'another project' }}" class="btn btn-sm btn-danger" disabled><i class="fa fa-times"></i></button>
-                                                                                            {% else %}
-                                                                                                <button title="Available{% if thisasset.assets_unserialized %} - {{ thisasset.availableQuantity }} of {{ thisasset.assets_quantity }} units{% endif %}" class="btn btn-sm btn-success" disabled><i class="fa fa-check"></i></button>
-                                                                                            {% endif %}
-                                                                                        {% else %}
-                                                                                            <button class="btn btn-sm btn-danger" title="Asset is blocked from being assigned by a maintenance job" disabled><i class="fas fa-ban"></i></button>
-                                                                                        {% endif %}
-                                                                                    </div>
-                                                                                </td>
-                                                                            </tr>
-                                                                        {% endfor %}
-                                                                    </table>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <button type="button" class="btn btn-sm {{ asset.countAvailable > 0 ? 'btn-success' : 'btn-warning' }}" data-toggle="modal" data-target="#assetDetailsModal{{ asset.assetTypes_id }}"><i class="fa fa-calendar"></i></button>
-                                            {% endif %}
-                                        {% endif %}
-                                            <a href="{{ CONFIG.ROOTURL }}/asset.php?id={{ asset.assetTypes_id }}{{ asset.count == 1 ? '&asset=' ~ asset.tags[0]['assets_id'] : '' }}{{ SEARCH["SETTINGS"]["SHOWARCHIVED"] ? '&showArchived' : ''}}&instance={{ searchResults.SEARCH.INSTANCE_ID }}" class="btn btn-sm btn-default" target="_blank">
-                                                <i class="fas fa-info-circle"></i>
-                                            </a>
-                                        </div>
+                                        {% include 'twigIncludes/assetSearchActions.twig' %}
                                     </div>
                                 </div>
                             </div>
@@ -420,6 +313,7 @@
                     {% endfor %}
                 </div>
             </div>
+            {% endif %}
             <div class="card-footer">
                 <div class="card-tools float-right">
                 {% if searchResults.PAGINATION['TOTAL-PAGES'] > 1 %}
@@ -611,6 +505,9 @@ $(document).ready(function () {
         var str = window.location.search
         str = replaceQueryParam('page', $(this).data("page"), str)
         window.location = window.location.pathname + str
+    });
+    $(document).on("click","button[data-view]",function () {
+        window.location = window.location.pathname + replaceQueryParam('view', $(this).data("view"), window.location.search)
     });
     const Toast = Swal.mixin({
         toast: true,
