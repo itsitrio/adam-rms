@@ -9,7 +9,7 @@
                 <div class="small-box bg-{{ stateClasses[state] }}">
                     <div class="inner">
                         <h3 id="receivablesTotal_{{ state }}">{{ totals[state]|money }}</h3>
-                        <p>{{ name }} &middot; {{ projects[state]|length }} project{{ projects[state]|length != 1 ? "s" }}</p>
+                        <p>{{ name }} &middot; {{ receivables[state]|length }} project{{ receivables[state]|length != 1 ? "s" }}</p>
                     </div>
                 </div>
             </div>
@@ -21,7 +21,7 @@
         A project can be marked as in collections or written off from its Finance tab.
     </p>
     {% for state, name in states %}
-        {% if projects[state]|length > 0 %}
+        {% if receivables[state]|length > 0 %}
         <div class="card" id="receivables_{{ state }}">
             <div class="card-header">
                 <h3 class="card-title">{{ name }}</h3>
@@ -44,7 +44,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    {% for project in projects[state] %}
+                    {% for project in receivables[state] %}
                         <tr>
                             <td><a href="{{ CONFIG.ROOTURL }}/project/?id={{ project.projects_id }}">{{ project.projects_name }}</a></td>
                             <td>{% if project.clients_id %}<a href="{{ CONFIG.ROOTURL }}/clients.php?q={{ project.clients_name|url_encode }}">{{ project.clients_name }}</a>{% endif %}</td>
@@ -69,7 +69,7 @@
         </div>
         {% endif %}
     {% endfor %}
-    {% if projects|filter(p => p|length > 0)|length == 0 %}
+    {% if receivables|filter(p => p|length > 0)|length == 0 %}
         <div class="alert alert-success">Nothing is owed on any won project that has ended.</div>
     {% endif %}
 {% endblock %}

@@ -23,7 +23,8 @@ $projects = $DBLIB->get("projects", null, ["projects.projects_id", "projects.pro
 $currency = new Currency($AUTH->data['instance']['instances_config_currency']);
 $PAGEDATA['states'] = array_diff_key(PROJECT_COLLECTION_STATES, ["PAID" => 0]);
 $PAGEDATA['totals'] = array_map(function () use ($currency) { return new Money(0, $currency); }, $PAGEDATA['states']);
-$PAGEDATA['projects'] = array_map(function () { return []; }, $PAGEDATA['states']);
+//Not "projects", which the sidebar uses for its list of projects
+$PAGEDATA['receivables'] = array_map(function () { return []; }, $PAGEDATA['states']);
 foreach ($projects as $project) {
     $project['balance'] = projectBalance($project['projects_id'], $currency);
     $project['dueDate'] = projectPaymentDueDate($project, $AUTH->data['instance']['instances_config_paymentDueDays']);
@@ -31,7 +32,7 @@ foreach ($projects as $project) {
     if ($project['state'] == "PAID") continue;
     $project['daysPastDue'] = ($project['dueDate'] !== null and $project['dueDate'] < date("Y-m-d")) ? intval((strtotime(date("Y-m-d")) - strtotime($project['dueDate'])) / 86400) : 0;
     if ($project['balance'] !== null) $PAGEDATA['totals'][$project['state']] = $PAGEDATA['totals'][$project['state']]->add($project['balance']['outstanding']);
-    $PAGEDATA['projects'][$project['state']][] = $project;
+    $PAGEDATA['receivables'][$project['state']][] = $project;
 }
 
 echo $TWIG->render('receivables.twig', $PAGEDATA);

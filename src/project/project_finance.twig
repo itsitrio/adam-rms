@@ -156,6 +156,10 @@
 					});
 				</script>
 			</div>
+			{% else %}
+			<div class="card-footer text-muted small" id="paymentCollectionNoPermission">
+				To change the due date, or mark this project as in collections or written off, you need the <i>Projects: Edit - Payment Collection</i> permission - ask an administrator to add it to your role.
+			</div>
 			{% endif %}
 		</div>
 	</div>
