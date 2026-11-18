@@ -131,7 +131,8 @@ test("the uploader can resize an image and remove its plain background before up
   await login(page, a.users.full.email, password);
   const filesPage = `/location/?id=${a.locationId}&files`;
   await page.goto(filesPage, { waitUntil: "domcontentloaded" });
-  // A 1000x600 photo: a red box on a white background
+  // A 1000x600 photo: a red box on a white background, with the background showing through a hole in its middle (like
+  // the middle of a coiled cable), and a small white highlight on it
   const photo = Buffer.from(await page.evaluate(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 1000;
@@ -141,6 +142,9 @@ test("the uploader can resize an image and remove its plain background before up
     context.fillRect(0, 0, 1000, 600);
     context.fillStyle = "#ff0000";
     context.fillRect(300, 200, 400, 200);
+    context.fillStyle = "#ffffff";
+    context.fillRect(400, 250, 200, 100);
+    context.fillRect(320, 220, 10, 10);
     return canvas.toDataURL("image/jpeg", 0.95).split(",")[1];
   }), "base64");
   /** Uploads the photo from a fresh page with the given options, and returns the stored file's row and contents */
@@ -159,7 +163,7 @@ test("the uploader can resize an image and remove its plain background before up
     expect(Number(row.s3files_meta_size)).toBe(stored.length);
     return { row, stored };
   };
-  /** The image's size, and the colour and alpha of a corner and the middle */
+  /** The image's size, and the colour and alpha of a corner, the middle (the hole), the box and the highlight, as fractions of the size */
   const inspect = (image: Buffer, type: string) => page.evaluate(async ({ base64, type }) => {
     const bitmap = await createImageBitmap(await (await fetch(`data:${type};base64,${base64}`)).blob());
     const canvas = document.createElement("canvas");
@@ -167,7 +171,9 @@ test("the uploader can resize an image and remove its plain background before up
     canvas.height = bitmap.height;
     const context = canvas.getContext("2d")!;
     context.drawImage(bitmap, 0, 0);
-    return { width: bitmap.width, height: bitmap.height, corner: [...context.getImageData(1, 1, 1, 1).data], middle: [...context.getImageData(bitmap.width / 2, bitmap.height / 2, 1, 1).data] };
+    return { width: bitmap.width, height: bitmap.height, corner: [...context.getImageData(1, 1, 1, 1).data], middle: [...context.getImageData(bitmap.width / 2, bitmap.height / 2, 1, 1).data],
+      box: [...context.getImageData(Math.round(bitmap.width * 0.35), Math.round(bitmap.height * 0.5), 1, 1).data],
+      highlight: [...context.getImageData(Math.round(bitmap.width * 0.325), Math.round(bitmap.height * 0.375), 1, 1).data] };
   }, { base64: image.toString("base64"), type });
 
   // By default the photo is uploaded as it is
@@ -183,7 +189,8 @@ test("the uploader can resize an image and remove its plain background before up
   expect([resizedImage.width, resizedImage.height]).toEqual([800, 480]);
   expect(resizedImage.corner[3]).toBe(255);
 
-  // With the background removed it's saved as a PNG whose white edge is transparent and whose red box isn't
+  // With the background removed it's saved as a PNG whose white edge and hole are transparent, and whose red box and its
+  // small highlight aren't
   const cutOut = await upload("800", true);
   expect(cutOut.row.s3files_extension).toBe("png");
   expect(cutOut.row.s3files_original_name).toBe("e2e-photo.png");
@@ -191,7 +198,10 @@ test("the uploader can resize an image and remove its plain background before up
   const cutOutImage = await inspect(cutOut.stored, "image/png");
   expect([cutOutImage.width, cutOutImage.height]).toEqual([800, 480]);
   expect(cutOutImage.corner[3]).toBe(0);
-  expect(cutOutImage.middle[3]).toBe(255);
-  expect(cutOutImage.middle[0]).toBeGreaterThan(200);
-  expect(cutOutImage.middle[1]).toBeLessThan(50);
+  expect(cutOutImage.middle[3], "the hole in the middle").toBe(0);
+  expect(cutOutImage.box[3]).toBe(255);
+  expect(cutOutImage.box[0]).toBeGreaterThan(200);
+  expect(cutOutImage.box[1]).toBeLessThan(50);
+  expect(cutOutImage.highlight[3], "the highlight").toBe(255);
+  expect(cutOutImage.highlight[1]).toBeGreaterThan(200);
 });
