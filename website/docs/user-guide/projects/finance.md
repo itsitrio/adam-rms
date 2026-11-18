@@ -13,6 +13,7 @@ PROJECTS:PROJECT_PAYMENTS:VIEW
 PROJECTS:PROJECT_PAYMENTS:CREATE  
 PROJECTS:PROJECT_PAYMENTS:DELETE  
 PROJECTS:EDIT:INVOICE_NOTES  
+PROJECTS:EDIT:PAYMENT_COLLECTION  
 PROJECTS:PROJECT_PAYMENTS:VIEW:FILE_ATTACHMENTS  
 PROJECTS:PROJECT_PAYMENTS:CREATE:FILE_ATTACHMENTS  
 :::
@@ -116,6 +117,31 @@ Every generated invoice is stored, so you can track the history of the project t
 
 ![A Sample Invoice](/img/tutorial/projects/finance-invoice.png)
 *An example invoice*
+
+## Payment Collection
+---
+
+The **Payment Collection** box on a project's Finance tab shows when its payment is due and where it's up to:
+
+- **Paid** - nothing is owed
+- **Not yet due** - something is owed, but the due date hasn't passed
+- **Past due** - something is still owed after the due date
+- **In collections** / **Written off** - the project has been marked as such
+
+A project's payment is due a number of days after it ends, set as **Payment due** in the business's [invoice settings](../business/business-settings#basic-settings). With the PROJECTS:EDIT:PAYMENT_COLLECTION permission you can give a project its own due date instead (leave it blank to go back to the business's payment terms), and mark it as in collections or written off.
+
+Only projects whose status is at the **Won** [pipeline stage](../business/business-settings#project-statuses) are counted as revenue.
+
+## Receivables
+---
+
+:::note Permissions Required
+FINANCE:PAYMENTS_LEDGER:VIEW
+:::
+
+The **Receivables** page (under Business, beside Payments) lists the won projects that have ended, or whose payment is already due, and still have something owing - grouped into not yet due, past due, in collections and written off, with a total for each. A project's balance comes from the same running totals as the project list and the clients page; a project that has never been opened hasn't had its finances worked out yet, and is listed separately until it is.
+
+On an asset's page, its revenue to date is split the same way. Payments are made against a whole project, so an asset is taken to have been paid for in the same proportion as each project's bill - if a project is half paid, half of what each asset brought in on it counts as collected.
 
 ## Related Features
 

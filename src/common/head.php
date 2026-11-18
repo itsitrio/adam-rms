@@ -89,6 +89,7 @@ date_default_timezone_set($CONFIG['TIMEZONE']);
 
 // Include the bCMS class, which contains useful functions 
 require_once __DIR__ . '/libs/bCMS/bCMS.php';
+require_once __DIR__ . '/libs/bCMS/receivables.php';
 $GLOBALS['bCMS'] = new bCMS;
 
 if (getenv('DEV_MODE') != "true" and $CONFIG['ERRORS_PROVIDERS_SENTRY'] and strlen($CONFIG['ERRORS_PROVIDERS_SENTRY']) > 0) {

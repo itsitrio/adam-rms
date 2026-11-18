@@ -1634,6 +1634,17 @@ $instanceActions = [
     'LEGACY-ID' => 30,
     'LEGACY-Sort Rank' => 24,
   ],
+  'PROJECTS:EDIT:PAYMENT_COLLECTION' => [
+    'Category' => 'Projects',
+    'Table' => 'Projects',
+    'Type' => 'Edit',
+    'Detail' => 'Payment Collection',
+    'Combined Text Description' => 'Projects: Edit  - Payment Collection (Set when a project\'s payment is due, and mark it as in collections or written off)',
+    'Dependencies' => ['PROJECTS:PROJECT_PAYMENTS:VIEW'],
+    'Comment' => 'Set when a project\'s payment is due, and mark it as in collections or written off',
+    'Supported Token Types' => ["web-session"],
+    'Caution' => null,
+  ],
   'PROJECTS:EDIT:INVOICE_NOTES' => [
     'Category' => 'Projects',
     'Table' => 'Projects',

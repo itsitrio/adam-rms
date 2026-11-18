@@ -211,6 +211,7 @@ The `BUSINESS:ROLES_AND_PERMISSIONS:EDIT` permission is effectively a **super ad
 | `PROJECTS:EDIT:NAME` | Edit | Name | Change a project's name | `PROJECTS:VIEW` | -- |
 | `PROJECTS:EDIT:STATUS` | Edit | Status | Change a project's status | `PROJECTS:VIEW`, `PROJECTS:PROJECT_STATUSES:VIEW` | -- |
 | `PROJECTS:EDIT:ADDRESS` | Edit | Address | Change a project's address | `PROJECTS:VIEW` | -- |
+| `PROJECTS:EDIT:PAYMENT_COLLECTION` | Edit | Payment Collection | Set when a project's payment is due, and mark it as in collections or written off | `PROJECTS:PROJECT_PAYMENTS:VIEW` | -- |
 | `PROJECTS:EDIT:INVOICE_NOTES` | Edit | Invoice Notes | Change a project's invoice notes | `PROJECTS:VIEW` | -- |
 | `PROJECTS:EDIT:DELIVERY_NOTES` | Edit | Delivery Notes | Change a project's delivery notes | `PROJECTS:VIEW` | -- |
 | `PROJECTS:EDIT:PROJECT_TYPE` | Edit | Project Type | Change a project's type | -- | -- |

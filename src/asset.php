@@ -9,7 +9,7 @@ use Money\Money;
 if (isset($_GET['instance']) and in_array($_GET['instance'], $AUTH->data['instance_ids']) and $_GET['instance'] != $AUTH->data['instance']['instances_id']) {
     $DBLIB->where("instances_id", $_GET['instance']);
     $DBLIB->where("instances_deleted", 0);
-    $PAGEDATA['ASSET_INSTANCE'] = $DBLIB->getone("instances", ["instances_id", "instances_name", "instances_config_currency"]);
+    $PAGEDATA['ASSET_INSTANCE'] = $DBLIB->getone("instances", ["instances_id", "instances_name", "instances_config_currency", "instances_config_paymentDueDays"]);
 } else $PAGEDATA['ASSET_INSTANCE'] = $AUTH->data['instance'];
 
 $DBLIB->orderBy("assetCategories.assetCategories_id", "ASC");
@@ -48,6 +48,7 @@ $DBLIB->orderBy("assets.assets_tag", "ASC");
 $assets = $DBLIB->get("assets");
 if (!$assets) die($TWIG->render('404.twig', $PAGEDATA));
 $PAGEDATA['assets'] = [];
+$projectBalances = [];
 foreach ($assets as $asset) {
     //Flags&Blocks
     $asset['flagsblocks'] = assetFlagsAndBlocks($asset['assets_id']);
@@ -59,11 +60,13 @@ foreach ($assets as $asset) {
     $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
     $DBLIB->where("projects.projects_deleted", 0);
     $DBLIB->orderBy("projects.projects_dates_deliver_start", "ASC");
-    $asset['assignments'] = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "projects.projects_name", "projects_dates_deliver_start", "projects_dates_deliver_end", "assetsAssignments.assetsAssignmentsStatus_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour", "projectsStatuses.projectsStatuses_pipelineStage", "projects.instances_id AS projects_instances_id", "projects.projects_dates_finances_days", "projects.projects_dates_finances_weeks", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals"]);
+    $asset['assignments'] = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "projects.projects_name", "projects_dates_deliver_start", "projects_dates_deliver_end", "assetsAssignments.assetsAssignmentsStatus_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour", "projectsStatuses.projectsStatuses_pipelineStage", "projects.instances_id AS projects_instances_id", "projects.projects_dates_finances_days", "projects.projects_dates_finances_weeks", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals", "projects.projects_paymentDueDate", "projects.projects_collectionStatus"]);
 
     //Revenue - priced the same way as projects/data.php prices an assignment (including its loose check on the custom price, which is 0 when there isn't one). Only projects whose status is at the Won stage of the sales pipeline count; Leads and Opportunities are shown as the pipeline, Lost and Cancelled ones not at all, and other businesses' projects never count
     $currency = new Currency($PAGEDATA['ASSET_INSTANCE']['instances_config_currency']);
     $asset['revenue'] = ["earned" => new Money(0, $currency), "booked" => new Money(0, $currency), "pipeline" => new Money(0, $currency)];
+    //Revenue to date split by how much of it has been paid. Payments are made against a whole project, so the asset is taken to have been paid for in the same proportion as the project's bill
+    $asset['revenue']['collection'] = array_map(function () use ($currency) { return new Money(0, $currency); }, ["COLLECTED" => 0] + array_diff_key(PROJECT_COLLECTION_STATES, ["PAID" => 0]));
     foreach ($asset['assignments'] as $key => $assignment) {
         $assignment['isPast'] = strtotime($assignment['projects_dates_deliver_end']) < time();
         $assignment['pipelineStageName'] = PROJECT_PIPELINE_STAGES[$assignment['projectsStatuses_pipelineStage']] ?? null;
@@ -83,8 +86,16 @@ foreach ($assets as $asset) {
             if ($assignment['assetsAssignments_discount'] > 0) $price = $price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100));
             $assignment['revenue'] = $price;
             if ($assignment['projectsStatuses_pipelineStage'] == "WON") {
-                if ($assignment['isPast']) $asset['revenue']['earned'] = $asset['revenue']['earned']->add($price);
-                else $asset['revenue']['booked'] = $asset['revenue']['booked']->add($price);
+                if ($assignment['isPast']) {
+                    $asset['revenue']['earned'] = $asset['revenue']['earned']->add($price);
+                    if (!isset($projectBalances[$assignment['projects_id']])) $projectBalances[$assignment['projects_id']] = projectBalance($assignment['projects_id'], $currency);
+                    $balance = $projectBalances[$assignment['projects_id']];
+                    $assignment['collected'] = $price->multiply(projectPaidShare($balance));
+                    $assignment['collectionState'] = projectCollectionState($assignment, $balance === null ? null : $balance['outstanding'], projectPaymentDueDate($assignment, $PAGEDATA['ASSET_INSTANCE']['instances_config_paymentDueDays']));
+                    $assignment['collectionStateName'] = PROJECT_COLLECTION_STATES[$assignment['collectionState']];
+                    $asset['revenue']['collection']['COLLECTED'] = $asset['revenue']['collection']['COLLECTED']->add($assignment['collected']);
+                    if ($assignment['collectionState'] != "PAID") $asset['revenue']['collection'][$assignment['collectionState']] = $asset['revenue']['collection'][$assignment['collectionState']]->add($price->subtract($assignment['collected']));
+                } else $asset['revenue']['booked'] = $asset['revenue']['booked']->add($price);
             } elseif (in_array($assignment['projectsStatuses_pipelineStage'], ["LEAD", "OPPORTUNITY"])) $asset['revenue']['pipeline'] = $asset['revenue']['pipeline']->add($price);
         }
         $asset['assignments'][$key] = $assignment;

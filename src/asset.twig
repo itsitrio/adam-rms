@@ -129,6 +129,17 @@
                         {% if assets|length == 1 and ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id and "PROJECTS:VIEW"|instancePermissions %}
                         <li class="list-group-item" title="From past projects for {{ assets[0].assets_tag|aTag }} whose status is at the Won pipeline stage">
                             <b>Revenue to date</b> <span class="float-right text-success" id="assetRevenueEarned">{{ assets[0].revenue.earned|money }}</span>
+                            {% set collectionLabels = {"COLLECTED": "Collected", "NOT_DUE": "Not yet due", "PAST_DUE": "Past due", "COLLECTIONS": "In collections", "WRITTEN_OFF": "Written off", "NOT_CALCULATED": "Not calculated yet"} %}
+                            {% set collectionClasses = {"COLLECTED": "text-success", "PAST_DUE": "text-warning", "COLLECTIONS": "text-danger", "WRITTEN_OFF": "text-muted"} %}
+                            {% if "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions %}
+                            <ul class="list-unstyled small mb-0 mt-1" id="assetRevenueCollection" title="Payments are made against a whole project, so this asset is taken to have been paid for in the same proportion as each project's bill">
+                                {% for state, amount in assets[0].revenue.collection %}
+                                    {% if state == "COLLECTED" or amount|moneyPositive %}
+                                        <li class="pl-2">{{ collectionLabels[state] }} <span class="float-right {{ collectionClasses[state] ?? '' }}" id="assetRevenue_{{ state }}">{{ amount|money }}</span></li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
                         </li>
                         <li class="list-group-item" title="From upcoming and current projects for {{ assets[0].assets_tag|aTag }} whose status is at the Won pipeline stage">
                             <b>Booked revenue</b> <span class="float-right text-primary" id="assetRevenueBooked">{{ assets[0].revenue.booked|money }}</span>
@@ -317,6 +328,9 @@
                                                             <i title="{{ assignment.pipelineStageName }} - not yet won, so counted in the pipeline rather than revenue">{{ assignment.revenue|money }}</i>
                                                         {% else %}
                                                             {{ assignment.revenue|money }}
+                                                            {% if assignment.collectionState is defined and "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions %}
+                                                                <br/><small class="{{ {"PAID": "text-success", "PAST_DUE": "text-warning", "COLLECTIONS": "text-danger"}[assignment.collectionState] ?? "text-muted" }}">{{ assignment.collectionStateName }}</small>
+                                                            {% endif %}
                                                         {% endif %}
                                                     </td>
                                                 {% endif %}

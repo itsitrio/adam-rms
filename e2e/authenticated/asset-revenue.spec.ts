@@ -86,11 +86,21 @@ test("a project status's pipeline stage can be set, and must be one of the five 
 });
 
 test("a new business's default statuses are given their pipeline stages", async () => {
-  // The migration gives statuses with the default names their stage; new businesses get them from instances/new.php
-  const rows = dbQuery<{ name: string; stage: string }>(
-    `SELECT projectsStatuses_name name, projectsStatuses_pipelineStage stage FROM projectsStatuses
-     WHERE projectsStatuses_name IN ('Quote Sent', 'Confirmed', 'Closed', 'Cancelled', 'Lead Lost') AND projectsStatuses_deleted = 0`,
-  );
-  const expected: Record<string, string> = { "Quote Sent": "OPPORTUNITY", Confirmed: "WON", Closed: "WON", Cancelled: "CANCELLED", "Lead Lost": "LOST" };
-  for (const row of rows) expect(row.stage, row.name).toBe(expected[row.name]);
+  // The migration gives statuses with the default names their stage; new businesses get them from instances/new.php.
+  // Matched on description too, as other tests make statuses of their own.
+  const defaults: [string, string, string][] = [
+    ["Quote Sent", "Waiting for client confirmation", "OPPORTUNITY"],
+    ["Confirmed", "Booked in with client", "WON"],
+    ["Closed", "Pending move to Archive", "WON"],
+    ["Cancelled", "Project Cancelled", "CANCELLED"],
+    ["Lead Lost", "Project Cancelled", "LOST"],
+  ];
+  for (const [name, description, stage] of defaults) {
+    const rows = dbQuery<{ stage: string }>(
+      "SELECT projectsStatuses_pipelineStage stage FROM projectsStatuses WHERE projectsStatuses_name = ? AND projectsStatuses_description = ?",
+      [name, description],
+    );
+    expect(rows.length, `a default "${name}" status`).toBeGreaterThan(0);
+    for (const row of rows) expect(row.stage, name).toBe(stage);
+  }
 });

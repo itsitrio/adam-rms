@@ -101,6 +101,63 @@
 			</div>
 		</div>
 
+		<div class="card" id="paymentCollection">
+			<div class="card-header">
+				<h3 class="card-title">Payment Collection</h3>
+				<div class="card-tools">
+					{% set collectionBadge = {"PAID": "success", "NOT_DUE": "info", "PAST_DUE": "warning", "COLLECTIONS": "danger", "WRITTEN_OFF": "dark"} %}
+					<span class="badge badge-{{ collectionBadge[COLLECTION.state] ?? 'secondary' }}" id="paymentCollectionState">{{ COLLECTION.stateName }}</span>
+				</div>
+			</div>
+			<div class="card-body p-0">
+				<table class="table mb-0">
+					<tr>
+						<td style="width: 50%;">Payment due</td>
+						<td style="text-align: right;" id="paymentCollectionDueDate">
+							{{ COLLECTION.dueDate ? COLLECTION.dueDate|date("d M Y") : "No date" }}
+							<br/><small class="text-muted">{{ project.projects_paymentDueDate ? "Set for this project" : USERDATA.instance.instances_config_paymentDueDays ~ " days after the project ends" }}</small>
+						</td>
+					</tr>
+					{% if project.projects_collectionStatus %}
+					<tr>
+						<td>Marked as</td>
+						<td style="text-align: right;">{{ COLLECTION.statuses[project.projects_collectionStatus] }}</td>
+					</tr>
+					{% endif %}
+				</table>
+				{% if project.projectsStatuses_pipelineStage != "WON" %}
+					<p class="text-muted small px-3 pt-2">This project's status isn't at the Won stage of the sales pipeline, so what's owed on it isn't counted as revenue or shown on the receivables report.</p>
+				{% endif %}
+			</div>
+			{% if "PROJECTS:EDIT:PAYMENT_COLLECTION"|instancePermissions %}
+			<div class="card-footer">
+				<form id="paymentCollectionForm" class="form-inline float-right">
+					<label class="sr-only" for="projects_paymentDueDate">Due date</label>
+					<input type="date" class="form-control form-control-sm mr-2 mb-1" id="projects_paymentDueDate" name="projects_paymentDueDate" value="{{ project.projects_paymentDueDate ? project.projects_paymentDueDate|date("Y-m-d") : "" }}" title="Leave blank to use the business's payment terms">
+					<label class="sr-only" for="projects_collectionStatus">Collection</label>
+					<select class="form-control form-control-sm mr-2 mb-1" id="projects_collectionStatus" name="projects_collectionStatus">
+						<option value="">Being paid as normal</option>
+						{% for statusKey, statusName in COLLECTION.statuses %}
+							<option value="{{ statusKey }}" {{ project.projects_collectionStatus == statusKey ? "selected" : "" }}>{{ statusName }}</option>
+						{% endfor %}
+					</select>
+					<button type="submit" class="btn btn-default btn-sm mb-1">Save</button>
+				</form>
+				<script>
+					$("#paymentCollectionForm").on("submit", function (e) {
+						e.preventDefault();
+						ajaxcall("projects/changePaymentCollection.php", {
+							"projects_id": "{{ project.projects_id }}",
+							"projects_paymentDueDate": $("#projects_paymentDueDate").val(),
+							"projects_collectionStatus": $("#projects_collectionStatus").val()
+						}, function () {
+							location.reload();
+						});
+					});
+				</script>
+			</div>
+			{% endif %}
+		</div>
 	</div>
 	<div class="col-lg-6 col-md-6 col-sm-12">
 		<div class="card">

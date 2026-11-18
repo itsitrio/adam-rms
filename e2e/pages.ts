@@ -18,6 +18,7 @@ export const businessPages: PageCase[] = [
   { url: (t) => `/assets.php?project=${t.projectId}` },
   { url: () => "/clients.php" },
   { url: () => "/ledger.php" },
+  { url: () => "/receivables.php" },
   { url: () => "/manufacturers.php" },
   { url: () => "/newAsset.php" },
   { url: () => "/search.php?term=E2E_TENANT" },

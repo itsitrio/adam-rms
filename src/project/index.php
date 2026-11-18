@@ -10,6 +10,12 @@ if (count($PAGEDATA['project']['subProjects']) > 0) {
     $PAGEDATA['SUBPROJECTS_SUMMARY'] = projectsSummary(array_merge([["project" => $PAGEDATA['project'], "FINANCIALS" => $PAGEDATA['FINANCIALS']]], $PAGEDATA['SUBPROJECTS']));
 }
 
+//Payment collection, for the Finance tab - worked out from the live finances rather than the cache
+$PAGEDATA['COLLECTION'] = ["dueDate" => projectPaymentDueDate($PAGEDATA['project'], $AUTH->data['instance']['instances_config_paymentDueDays'])];
+$PAGEDATA['COLLECTION']['state'] = projectCollectionState($PAGEDATA['project'], $PAGEDATA['FINANCIALS']['payments']['total'], $PAGEDATA['COLLECTION']['dueDate']);
+$PAGEDATA['COLLECTION']['stateName'] = PROJECT_COLLECTION_STATES[$PAGEDATA['COLLECTION']['state']];
+$PAGEDATA['COLLECTION']['statuses'] = PROJECT_COLLECTION_STATUSES;
+
 //AuditLog
 $DBLIB->where("auditLog.auditLog_deleted", 0);
 $DBLIB->where("auditLog.projects_id", $PAGEDATA['project']['projects_id']);

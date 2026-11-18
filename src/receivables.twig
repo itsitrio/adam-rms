@@ -1,0 +1,75 @@
+{% extends "assets/template.twig" %}
+
+{% block content %}
+    {% set stateClasses = {"NOT_DUE": "info", "PAST_DUE": "warning", "COLLECTIONS": "danger", "WRITTEN_OFF": "secondary", "NOT_CALCULATED": "light"} %}
+    <div class="row">
+        {% for state, name in states %}
+            {% if state != "NOT_CALCULATED" %}
+            <div class="col-6 col-md-3">
+                <div class="small-box bg-{{ stateClasses[state] }}">
+                    <div class="inner">
+                        <h3 id="receivablesTotal_{{ state }}">{{ totals[state]|money }}</h3>
+                        <p>{{ name }} &middot; {{ projects[state]|length }} project{{ projects[state]|length != 1 ? "s" }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    <p class="text-muted">
+        Won projects that have ended, or whose payment is already due, and still have something owing. Payment is due {{ USERDATA.instance.instances_config_paymentDueDays }} days after a project ends unless the project has its own due date{% if "BUSINESS:BUSINESS_SETTINGS:VIEW"|instancePermissions %} - <a href="{{ CONFIG.ROOTURL }}/instances/configuration/invoices.php">change the payment terms</a>{% endif %}.
+        A project can be marked as in collections or written off from its Finance tab.
+    </p>
+    {% for state, name in states %}
+        {% if projects[state]|length > 0 %}
+        <div class="card" id="receivables_{{ state }}">
+            <div class="card-header">
+                <h3 class="card-title">{{ name }}</h3>
+                {% if state == "NOT_CALCULATED" %}
+                    <div class="card-tools"><small class="text-muted">Open these projects to work out what they owe</small></div>
+                {% endif %}
+            </div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Client</th>
+                        <th>Status</th>
+                        <th>Ended</th>
+                        <th>Due</th>
+                        <th class="text-right">Billed</th>
+                        <th class="text-right">Received</th>
+                        <th class="text-right">Outstanding</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for project in projects[state] %}
+                        <tr>
+                            <td><a href="{{ CONFIG.ROOTURL }}/project/?id={{ project.projects_id }}">{{ project.projects_name }}</a></td>
+                            <td>{% if project.clients_id %}<a href="{{ CONFIG.ROOTURL }}/clients.php?q={{ project.clients_name|url_encode }}">{{ project.clients_name }}</a>{% endif %}</td>
+                            <td><span class="badge" style="background-color: {{ project.projectsStatuses_backgroundColour }}; color: {{ project.projectsStatuses_foregroundColour }};">{{ project.projectsStatuses_name }}</span></td>
+                            <td>{{ project.projects_dates_deliver_end ? project.projects_dates_deliver_end|date("d M Y") : "" }}</td>
+                            <td>
+                                {{ project.dueDate ? project.dueDate|date("d M Y") : "" }}
+                                {% if project.daysPastDue > 0 %}<br/><small class="text-danger">{{ project.daysPastDue }} day{{ project.daysPastDue != 1 ? "s" }} overdue</small>{% endif %}
+                            </td>
+                            {% if project.balance %}
+                                <td class="text-right">{{ project.balance.total|money }}</td>
+                                <td class="text-right">{{ project.balance.received|money }}</td>
+                                <td class="text-right"><b>{{ project.balance.outstanding|money }}</b></td>
+                            {% else %}
+                                <td colspan="3" class="text-right text-muted">Not calculated yet</td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+    {% if projects|filter(p => p|length > 0)|length == 0 %}
+        <div class="alert alert-success">Nothing is owed on any won project that has ended.</div>
+    {% endif %}
+{% endblock %}

@@ -33,6 +33,14 @@
                         <textarea class="form-control" id="instances_quoteTerms" placeholder="Place some text here" style="width: 100%; height: 200px; font-size: 14px; line-height: 18px; border: 1px solid #dddddd; padding: 10px;">{{ USERDATA.instance.instances_quoteTerms }}</textarea>
                     </div>
                     <div class="form-group">
+                        <label for="instances_config_paymentDueDays">Payment due</label>
+                        <div class="input-group" style="max-width: 320px;">
+                            <input type="number" min="0" max="365" step="1" class="form-control" id="instances_config_paymentDueDays" value="{{ USERDATA.instance.instances_config_paymentDueDays }}">
+                            <div class="input-group-append"><span class="input-group-text">days after a project ends</span></div>
+                        </div>
+                        <small class="form-text text-muted">Once this has passed, anything still owed on a won project shows as past due. A project can have its own due date instead, set on its Finance tab.</small>
+                    </div>
+                    <div class="form-group">
                         <label for="instances_termsAndPayment">Invoice Footer</label>
                         <textarea class="form-control" id="instances_termsAndPayment" placeholder="Place some text here" style="width: 100%; height: 200px; font-size: 14px; line-height: 18px; border: 1px solid #dddddd; padding: 10px;">{{ USERDATA.instance.instances_termsAndPayment }}</textarea>
                     </div>
@@ -49,7 +57,8 @@
                         ajaxcall("instances/editInstance.php", {
                             'formData': [
                                 { 'name': 'instances_termsAndPayment','value':$('#instances_termsAndPayment').val() },
-                                { 'name': 'instances_quoteTerms','value':$('#instances_quoteTerms').val() }
+                                { 'name': 'instances_quoteTerms','value':$('#instances_quoteTerms').val() },
+                                { 'name': 'instances_config_paymentDueDays','value':$('#instances_config_paymentDueDays').val() }
                             ]
                         }, function (data) {
                             location.reload();

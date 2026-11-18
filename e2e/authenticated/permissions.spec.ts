@@ -15,6 +15,7 @@ const writeCases: ApiCase[] = [
   // Projects
   { endpoint: "/api/projects/new.php", permission: "PROJECTS:CREATE", params: (a) => ({ projects_name: "New by e2e", projects_manager: a.users.full.id, projectsType_id: a.projectTypeId }) },
   { endpoint: "/api/projects/changeName.php", permission: "PROJECTS:EDIT:NAME", params: (a) => ({ projects_id: a.projectId, projects_name: "Renamed by e2e" }) },
+  { endpoint: "/api/projects/changePaymentCollection.php", permission: "PROJECTS:EDIT:PAYMENT_COLLECTION", params: (a) => ({ projects_id: a.projectId, projects_collectionStatus: "COLLECTIONS", projects_paymentDueDate: "2030-02-01" }) },
   { endpoint: "/api/projects/changeStatus.php", permission: "PROJECTS:EDIT:STATUS", params: (a) => ({ projects_id: a.projectId, projectsStatuses_id: a.projectStatusIds.second }) },
   { endpoint: "/api/projects/archive.php", permission: "PROJECTS:ARCHIVE", params: (a) => ({ projects_id: a.projectId }) },
   { endpoint: "/api/projects/delete.php", permission: "PROJECTS:DELETE", params: (a) => ({ projects_id: a.projectId }) },
@@ -117,6 +118,7 @@ const refusedPages: { file: string; url: string | ((a: Tenant) => string); permi
   { file: "project/new.php", url: "/project/new.php", permission: "PROJECTS:CREATE" },
   { file: "newAsset.php", url: "/newAsset.php", permission: "ASSETS:CREATE" },
   { file: "ledger.php", url: "/ledger.php", permission: "FINANCE:PAYMENTS_LEDGER:VIEW" },
+  { file: "receivables.php", url: "/receivables.php", permission: "FINANCE:PAYMENTS_LEDGER:VIEW" },
   { file: "instances/users.php", url: "/instances/users.php", permission: "BUSINESS:USERS:VIEW:LIST" },
   { file: "instances/settings.php", url: "/instances/settings.php", permission: "BUSINESS:BUSINESS_SETTINGS:VIEW" },
   { file: "instances/permissions.php", url: "/instances/permissions.php", permission: "BUSINESS:ROLES_AND_PERMISSIONS:VIEW" },
