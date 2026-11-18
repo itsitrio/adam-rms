@@ -688,7 +688,7 @@ function moneyLocale($currency = null)
 }
 const DOCUMENT_TYPES = ["invoice", "quote", "deliveryNote"];
 //The tick boxes on the generate PDF form that defaults can be saved for
-const DOCUMENT_OPTIONS = ["instancelogo", "addresses", "pmdetails", "totalmass", "totalvalue", "venue", "invoiceNotes", "assets", "showAll", "flagsBlocks", "checkboxes", "comments", "masses", "finance", "prices", "discounts", "subHires", "sales", "staff", "paymentTerms", "coverPage"];
+const DOCUMENT_OPTIONS = ["instancelogo", "addresses", "pmdetails", "totalmass", "totalvalue", "venue", "invoiceNotes", "assets", "showAll", "flagsBlocks", "checkboxes", "comments", "masses", "publishedNames", "mergePublishedNames", "finance", "prices", "discounts", "subHires", "sales", "staff", "paymentTerms", "coverPage"];
 const DOCUMENT_DATE_FORMATS = ["j M Y", "M j, Y", "d/m/Y", "m/d/Y", "Y-m-d"];
 const DOCUMENT_TIME_FORMATS = ["h:ia", "g:i A", "H:i"];
 const DOCUMENT_LOGO_WIDTHS = ["small" => 120, "medium" => 200, "large" => 300];

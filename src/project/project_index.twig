@@ -808,6 +808,14 @@
                                     <input class="form-check-input" type="checkbox" name="masses" checked>
                                     <label class="form-check-label">Equipment Masses</label>
                                 </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="publishedNames" checked>
+                                    <label class="form-check-label" title="Lines set to use their published name show it instead of their make, model, asset ID and custom fields">Published Line Item Names</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="mergePublishedNames">
+                                    <label class="form-check-label" title="Lines with the same published name are shown together as one line">Merge Lines with the Same Published Name</label>
+                                </div>
                             {% endif %}
                             {% if "PROJECTS:PROJECT_PAYMENTS:VIEW"|instancePermissions and project.projectsTypes_config_finance == 1  %}
                                 <hr/>

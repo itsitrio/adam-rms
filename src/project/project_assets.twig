@@ -51,6 +51,10 @@
                         <button type="button" class="btn btn-tool" title="Hide from quotes & invoices" id="setAssetAssignmentHidden">
                             <i class="fas fa-eye-slash"></i></button>
                     {% endif %}
+                    {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions %}
+                        <button type="button" class="btn btn-tool{{ project.projects_publishedNames ? ' text-info' }}" title="Published line item names{{ project.projects_publishedNames ? ' - used for every asset' }}" id="setAssetAssignmentPublishedName">
+                            <i class="fas fa-mask"></i></button>
+                    {% endif %}
                     {% if "PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMENT_STATUS"|instancePermissions %}
                         <button type="button" class="btn btn-tool" title="Set status" id="setAllAssetStatus">
                             <i class="fas fa-clipboard-check"></i></button>
@@ -451,6 +455,42 @@
                             ajaxcall("projects/assets/setHidden.php", data, function () {
                                 location.reload();
                             });
+                        }
+                    }
+                }
+            });
+        });
+        {% endif %}
+        {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions %}
+        $("#setAssetAssignmentPublishedName").click(function () {
+            var selected = getSelected();
+            var form = '<p>Assets with a published line item name (set on the asset) can be shown on quotes, invoices and delivery notes by that name instead of their make, model and asset ID. Assets without one are always shown as they are.</p>';
+            form += '<div class="form-group"><label for="projectPublishedNames">For this whole project</label><select class="form-control" id="projectPublishedNames"><option value="1" {{ project.projects_publishedNames ? 'selected' }}>Use published names for every asset</option><option value="0" {{ not project.projects_publishedNames ? 'selected' }}>Only for the lines chosen</option></select></div>';
+            if (selected.length > 0) {
+                form += '<div class="form-group"><label for="assignmentPublishedName">For the ' + selected.length + ' selected line' + (selected.length != 1 ? 's' : '') + '</label><select class="form-control" id="assignmentPublishedName"><option value="">Leave as they are</option><option value="1">Use published names</option><option value="0">Show what they are</option></select><small class="form-text text-muted">When the whole project uses published names, every line does.</small></div>';
+            } else {
+                form += '<p class="text-muted">To choose lines one by one, select them first.</p>';
+            }
+            bootbox.dialog({
+                title: "Published Line Item Names",
+                message: form,
+                buttons: {
+                    cancel: { label: 'Cancel', className: 'btn-default' },
+                    confirm: {
+                        label: 'Save', className: 'btn-primary', callback: function () {
+                            var projectSetting = $("#projectPublishedNames").val();
+                            var lineSetting = $("#assignmentPublishedName").val();
+                            var saveLines = function () {
+                                if (!lineSetting) return location.reload();
+                                ajaxcall("projects/assets/setPublishedName.php", { "assetsAssignments": selected, "assetsAssignments_publishedName": lineSetting }, function () {
+                                    location.reload();
+                                });
+                            };
+                            if (projectSetting != "{{ project.projects_publishedNames ? 1 : 0 }}") {
+                                ajaxcall("projects/changePublishedNames.php", { "projects_id": {{ project.projects_id }}, "projects_publishedNames": projectSetting }, saveLines);
+                            } else if (lineSetting) {
+                                saveLines();
+                            }
                         }
                     }
                 }

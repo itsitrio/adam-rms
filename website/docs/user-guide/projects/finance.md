@@ -96,6 +96,19 @@ Some assets only matter for picking and checking, not to the client - cases, cab
 
 The two can be used together or on their own. A line that is hidden but still charged for is included in the quote's totals without being listed - useful when its cost is bundled into what it comes with.
 
+### Published Line Item Names
+
+Sometimes you want to promise a client something that does the job without saying exactly which piece of kit they're getting. Give an asset a **Published Line Item Name** (on the asset's *Edit* tab, e.g. "Wireless Microphone System"), and a project can show it by that name instead of its make, model, asset ID and custom fields.
+
+In the project's Assets List, click the *Published line item names* (mask icon) button:
+
+- **For the whole project** - choose *Use published names for every asset* and every asset that has a published name is shown by it.
+- **For some lines** - select them first, then choose *Use published names* for just those lines (or *Show what they are* to undo it).
+
+Lines that are shown by a published name are marked with it in the Assets List. Assets without a published name are always shown as they are. You need the `PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES` permission.
+
+When you create a quote, invoice or delivery note, the *Published Line Item Names* option uses them - untick it for a copy that shows what everything really is, such as a pick list for the warehouse. Tick *Merge Lines with the Same Published Name* to put lines that share a published name together as one line, with their quantities and prices added up, even when they are different models.
+
 ### Quoting Sub-Projects Together
 
 When a project has sub-projects - such as a festival with a sub-project for each stage, and costs shared between the stages on the parent project - you can tick **Include Sub-Projects, with a Summary Page** when creating a quote or invoice for the parent project. The PDF then starts with a summary page listing the parent project and each sub-project with its dates and totals, and a grand total, followed by the parent project's quote and each sub-project's quote in turn.

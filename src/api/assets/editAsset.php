@@ -19,6 +19,10 @@ foreach ($_POST['formData'] as $item) {
     $array[$item['name']] = $item['value'];
 }
 $array = massFieldsToKg($array, ['assets_mass']);
+if (array_key_exists('assets_publishedName', $array) and $array['assets_publishedName'] !== null) {
+    $array['assets_publishedName'] = mb_substr(trim($array['assets_publishedName']), 0, 255);
+    if ($array['assets_publishedName'] === '') $array['assets_publishedName'] = null;
+}
 if (strlen($array['assets_id']) < 1) finish(false, ["code" => "PARAM-ERROR", "message"=> "No data for action"]);
 $currencies = new ISOCurrencies();
 $moneyParser = new DecimalMoneyParser($currencies);
@@ -95,7 +99,7 @@ if (isset($array['assets_tag']) and $array['assets_tag'] != $asset['assets_tag']
 
 $DBLIB->where("assets_id", $array['assets_id']);
 $DBLIB->where("assets.instances_id",$AUTH->data['instance']["instances_id"]);
-$result = $DBLIB->update("assets", array_intersect_key($array, array_flip(['assets_linkedTo', 'assetTypes_id', 'assets_notes', 'assets_tag', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_value', 'assets_dayRate', 'assets_weekRate', 'assets_mass', 'assets_storageLocation', 'assets_unserialized', 'assets_quantity'])));
+$result = $DBLIB->update("assets", array_intersect_key($array, array_flip(['assets_linkedTo', 'assetTypes_id', 'assets_notes', 'assets_tag', 'asset_definableFields_1', 'asset_definableFields_2', 'asset_definableFields_3', 'asset_definableFields_4', 'asset_definableFields_5', 'asset_definableFields_6', 'asset_definableFields_7', 'asset_definableFields_8', 'asset_definableFields_9', 'asset_definableFields_10', 'assets_value', 'assets_dayRate', 'assets_weekRate', 'assets_mass', 'assets_storageLocation', 'assets_unserialized', 'assets_quantity', 'assets_publishedName'])));
 if (!$result) finish(false, ["code" => "UPDATE-FAIL", "message"=> "Could not update asset"]);
 else {
     //What an asset contributes to a project's cached finances is its own override where it has one and

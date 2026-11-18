@@ -53,8 +53,12 @@ $PAGEDATA['project']['subProjects'] = $DBLIB->get("projects", null, ["projects.*
  *
  * With $omitHidden, assignments marked as hidden (cases, accessories and the like) are left out, as quotes and
  * invoices leave them out. Their price stays in the project's totals unless they're also excluded from them.
+ *
+ * With $publishedNames ("show" or "merge"), lines the project shows by their published name are shown under that
+ * name instead of their make, model, tag and custom fields. With "merge", lines with the same published name are
+ * put together on one line, whatever they really are.
  */
-function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsAssignedSUB, $moneyFormatter, $omitHidden = false) {
+function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsAssignedSUB, $moneyFormatter, $omitHidden = false, $publishedNames = false) {
     global $DBLIB, $AUTH;
     $currency = new Currency($AUTH->data['instance']['instances_config_currency']);
     $totals = function () use ($currency) {
@@ -99,13 +103,26 @@ function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsA
             $item['formattedDiscountPrice'] = $moneyFormatter->format($item['discountPrice']);
             $item['formattedMass'] = formatMass($item['mass']);
 
+            //Lines shown by their published name are grouped by it rather than by what they really are
+            $group = $asset['assetTypes_id'];
+            $item['publishedNameShown'] = false;
+            if ($publishedNames and $asset['publishedName'] !== null) {
+                $item['publishedNameShown'] = true;
+                $item['assetTypes_name'] = $asset['publishedName'];
+                $item['manufacturers_id'] = 1;
+                $item['manufacturers_name'] = "";
+                $item['assetTypes_definableFields'] = "";
+                $item['assetTypes_definableFields_ARRAY'] = [];
+                $group = "published-" . ($publishedNames == "merge" ? "" : $asset['assetTypes_id'] . "-") . mb_strtolower($asset['publishedName']);
+            }
+
             if ($part['section'] !== null) {
-                $return['sections'][$part['section']]['types'][$asset['assetTypes_id']]['assets'][] = $item;
+                $return['sections'][$part['section']]['types'][$group]['assets'][] = $item;
             } elseif ($asset['instances_id'] != $project['instances_id']) {
                 if (!isset($return['unsectionedSUB'][$asset['instances_id']])) $return['unsectionedSUB'][$asset['instances_id']] = ["instance" => $assetsAssignedSUB[$asset['instances_id']]['instance'], "assets" => []];
-                $return['unsectionedSUB'][$asset['instances_id']]['assets'][$asset['assetTypes_id']]['assets'][] = $item;
+                $return['unsectionedSUB'][$asset['instances_id']]['assets'][$group]['assets'][] = $item;
             } else {
-                $return['unsectioned'][$asset['assetTypes_id']]['assets'][] = $item;
+                $return['unsectioned'][$group]['assets'][] = $item;
             }
         }
     }
@@ -174,7 +191,7 @@ function projectQuoteLayout($project, $sections, $allocations, $assets, $assetsA
 
 //Payments and also
 function projectFinancials($project) {
-    global $DBLIB,$AUTH,$bCMS,$QUOTE_OMIT_HIDDEN_ASSIGNMENTS; //Set by the quote and invoice PDFs, which leave hidden assignments off
+    global $DBLIB,$AUTH,$bCMS,$QUOTE_OMIT_HIDDEN_ASSIGNMENTS,$QUOTE_PUBLISHED_NAMES; //Set by the quote and invoice PDFs, which leave hidden assignments off, and by documents that show published names
     $projectFinanceHelper = new projectFinance();
     $return = [];
 
@@ -302,6 +319,9 @@ function projectFinancials($project) {
 
         $asset['assetTypes_definableFields_ARRAY'] = array_filter(explode(",", $asset['assetTypes_definableFields']));
 
+        //The name clients are shown instead of what it is - if it has one, and the project uses it for all its assets or for this line
+        $asset['publishedName'] = ((trim((string) $asset['assets_publishedName']) !== "" and (($project['projects_publishedNames'] ?? 0) == 1 or $asset['assetsAssignments_publishedName'] == 1)) ? trim($asset['assets_publishedName']) : null);
+
         $asset['latestScan'] = assetLatestScan($asset['assets_id']);
 
         if ($asset['instances_id'] != $project['instances_id']) {
@@ -351,7 +371,7 @@ function projectFinancials($project) {
         }
     }
 
-    $return['quote'] = projectQuoteLayout($project, $quoteSections, $quoteAllocations, $quoteAssets, $return['assetsAssignedSUB'], $moneyFormatter, !empty($QUOTE_OMIT_HIDDEN_ASSIGNMENTS));
+    $return['quote'] = projectQuoteLayout($project, $quoteSections, $quoteAllocations, $quoteAssets, $return['assetsAssignedSUB'], $moneyFormatter, !empty($QUOTE_OMIT_HIDDEN_ASSIGNMENTS), (empty($QUOTE_PUBLISHED_NAMES) ? false : $QUOTE_PUBLISHED_NAMES));
     //Priced note lines are charged alongside the equipment
     $return['prices']['subTotal'] = $return['prices']['subTotal']->add($return['quote']['linesTotal']);
     $return['prices']['total'] = $return['prices']['total']->add($return['quote']['linesTotal']);
