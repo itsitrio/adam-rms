@@ -525,6 +525,15 @@
                         </div>
                         <input class="form-control" type="number" step="0.01" min="0" value="0" name="payments_amount">
                     </div>
+                    {% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+                    <div class="input-group mb-1 newPaymentModal-nonPaymentOnly">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text">Our cost {{ moneySymbol() }}</span>
+                        </div>
+                        <input class="form-control" type="number" step="0.01" min="0" name="payments_cost" placeholder="Optional - per unit">
+                    </div>
+                    <small class="form-text text-muted mb-3 newPaymentModal-nonPaymentOnly">What one unit costs the business (the supplier's price, the crew's pay) - for the profit reports. The client never sees it.</small>
+                    {% endif %}
                 </form>
             </div>
             <div class="modal-footer justify-content-between">
@@ -1538,6 +1547,25 @@
             });
             {% endif %}
             {% if "PROJECTS:PROJECT_PAYMENTS:DELETE"|instancePermissions %}
+            {% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions and "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+            $(".paymentCostButton").click(function (event) {
+                event.preventDefault();
+                var paymentId = $(this).data("paymentid");
+                bootbox.prompt({
+                    title: "What does one unit of this cost the business? Leave it empty if you don't know.",
+                    inputType: "number",
+                    step: "0.01",
+                    min: "0",
+                    value: $(this).data("cost"),
+                    callback: function (cost) {
+                        if (cost === null) return;
+                        ajaxcall("projects/changePaymentCost.php", {"payments_id": paymentId, "payments_cost": cost}, function () {
+                            location.reload();
+                        });
+                    }
+                });
+            });
+            {% endif %}
             $(".deletePaymentButton").click(function () {
                 var id = $(this).data("paymentid");
                 bootbox.confirm({

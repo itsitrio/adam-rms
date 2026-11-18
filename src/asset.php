@@ -261,4 +261,12 @@ $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
 $DBLIB->where("assetsAssignmentsStatus.instances_id", $PAGEDATA['ASSET_INSTANCE']['instances_id']);
 $PAGEDATA['assetsAssignmentsStatus'] = $DBLIB->get("assetsAssignmentsStatus");
 
+//The loans and finance an asset can be recorded as paid for with
+$PAGEDATA['liabilities'] = [];
+if ($AUTH->instancePermissionCheck("FINANCE:LIABILITIES:VIEW")) {
+    $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
+    $DBLIB->where("liabilities_deleted", 0);
+    $DBLIB->orderBy("liabilities_name", "ASC");
+    $PAGEDATA['liabilities'] = $DBLIB->get("liabilities", null, ["liabilities_id", "liabilities_name"]);
+}
 echo $TWIG->render('asset.twig', $PAGEDATA);

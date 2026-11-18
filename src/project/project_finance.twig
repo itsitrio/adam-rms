@@ -156,6 +156,10 @@
 					});
 				</script>
 			</div>
+			{% else %}
+			<div class="card-footer text-muted small" id="paymentCollectionNoPermission">
+				To change the due date, or mark this project as in collections or written off, you need the <i>Projects: Edit - Payment Collection</i> permission - ask an administrator to add it to your role.
+			</div>
 			{% endif %}
 		</div>
 	</div>
@@ -233,7 +237,12 @@
 								{% endif %}
 								<tr>
 									<td style="width: 10px;">{{ payment.payments_quantity }}x</td>
-									<td>{{ payment.payments_comment|nl2br }}</td>
+									<td>{{ payment.payments_comment|nl2br }}
+										{% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+											<br/><small class="text-muted paymentCost" id="paymentCost{{ payment.payments_id }}">{% if payment.payments_cost is not null %}Our cost: {{ payment.payments_cost|money }} each{% else %}No cost recorded{% endif %}</small>
+											{% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions %}<a href="#" class="small paymentCostButton" data-paymentid="{{ payment.payments_id }}" data-cost="{{ payment.payments_cost is not null ? payment.payments_cost|moneyDecimal : '' }}">change</a>{% endif %}
+										{% endif %}
+									</td>
 									<td style="width:100px;">{{ payment.payments_amount|money }}</td>
 									<td style="width:100px;text-align: right;">{{ payment.payments_amountTotal|money }}</td>
 									<td>
@@ -285,7 +294,12 @@
 								{% endif %}
 								<tr>
 									<td style="width: 10px;">{{ payment.payments_quantity }}x</td>
-									<td>{{ payment.payments_comment|nl2br }}</td>
+									<td>{{ payment.payments_comment|nl2br }}
+										{% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+											<br/><small class="text-muted paymentCost" id="paymentCost{{ payment.payments_id }}">{% if payment.payments_cost is not null %}Our cost: {{ payment.payments_cost|money }} each{% else %}No cost recorded{% endif %}</small>
+											{% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions %}<a href="#" class="small paymentCostButton" data-paymentid="{{ payment.payments_id }}" data-cost="{{ payment.payments_cost is not null ? payment.payments_cost|moneyDecimal : '' }}">change</a>{% endif %}
+										{% endif %}
+									</td>
 									<td style="width:100px;">{{ payment.payments_amount|money }}</td>
 									<td style="width:100px;text-align: right;">{{ payment.payments_amountTotal|money }}</td>
 									<td>
@@ -328,7 +342,12 @@
 								<tr>
 									<td style="width: 10px;">{{ payment.payments_quantity }}x</td>
 									<td>{{ payment.payments_supplier|nbsp}}</td>
-									<td>{{ payment.payments_comment|nl2br }}</td>
+									<td>{{ payment.payments_comment|nl2br }}
+										{% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+											<br/><small class="text-muted paymentCost" id="paymentCost{{ payment.payments_id }}">{% if payment.payments_cost is not null %}Our cost: {{ payment.payments_cost|money }} each{% else %}No cost recorded{% endif %}</small>
+											{% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions %}<a href="#" class="small paymentCostButton" data-paymentid="{{ payment.payments_id }}" data-cost="{{ payment.payments_cost is not null ? payment.payments_cost|moneyDecimal : '' }}">change</a>{% endif %}
+										{% endif %}
+									</td>
 									<td style="width:100px;">{{ payment.payments_amount|money }}</td>
 									<td style="width:100px;text-align: right;">{{ payment.payments_amountTotal|money }}</td>
 									<td>

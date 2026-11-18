@@ -136,7 +136,12 @@ The `BUSINESS:ROLES_AND_PERMISSIONS:EDIT` permission is effectively a **super ad
 
 | Permission Key | Type | Detail | Description | Dependencies | Caution |
 |---|---|---|---|---|---|
+| `FINANCE:EXPENSES:EDIT` | Edit | -- | Add, change and delete overheads | `FINANCE:EXPENSES:VIEW` | -- |
+| `FINANCE:EXPENSES:VIEW` | View | -- | View the business's overheads | -- | -- |
+| `FINANCE:LIABILITIES:EDIT` | Edit | -- | Add and change loans and finance, and record repayments | `FINANCE:LIABILITIES:VIEW` | -- |
+| `FINANCE:LIABILITIES:VIEW` | View | -- | View the loans and finance the business owes | -- | -- |
 | `FINANCE:PAYMENTS_LEDGER:VIEW` | View | -- | View a list of payments for all projects | -- | -- |
+| `FINANCE:REPORTS:VIEW` | View | -- | Profit and loss, cash, debtors, pipeline and other financial reports | `FINANCE:PAYMENTS_LEDGER:VIEW` | Shows the business's revenue, costs and profit |
 
 ### Locations
 
@@ -157,6 +162,7 @@ The `BUSINESS:ROLES_AND_PERMISSIONS:EDIT` permission is effectively a **super ad
 | `MAINTENANCE_JOBS:EDIT:JOB_DUE_DATE` | Edit | Job Due Date | Change a job's due date | `MAINTENANCE_JOBS:VIEW` | -- |
 | `MAINTENANCE_JOBS:EDIT:USER_ASSIGNED_TO_JOB` | Edit | User Assigned to Job | Change the user assigned to a job | `MAINTENANCE_JOBS:VIEW` | -- |
 | `MAINTENANCE_JOBS:EDIT:USERS_TAGGED_IN_JOB` | Edit | Users Tagged in Job | Edit users tagged in a job | `MAINTENANCE_JOBS:VIEW` | -- |
+| `MAINTENANCE_JOBS:EDIT:COST` | Edit | Cost | What a repair cost the business | `MAINTENANCE_JOBS:VIEW` | -- |
 | `MAINTENANCE_JOBS:EDIT:NAME` | Edit | Name | Edit the job name | `MAINTENANCE_JOBS:VIEW` | -- |
 | `MAINTENANCE_JOBS:EDIT:ADD_MESSAGE_TO_JOB` | Edit | Add Message to Job | Add a message to a job | `MAINTENANCE_JOBS:VIEW` | -- |
 | `MAINTENANCE_JOBS:EDIT:STATUS` | Edit | Status | Change a job's status | `MAINTENANCE_JOBS:VIEW` | -- |
@@ -167,6 +173,12 @@ The `BUSINESS:ROLES_AND_PERMISSIONS:EDIT` permission is effectively a **super ad
 | `MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS` | Edit | Asset Blocks | Block asset assignments via a job | -- | -- |
 | `MAINTENANCE_JOBS:VIEW` | View | -- | Access the maintenance jobs list | -- | -- |
 | `MAINTENANCE_JOBS:MAINTENANCE_JOBS_FILE_ATTACHMENTS:CREATE` | Create | -- | Upload files to a job | `MAINTENANCE_JOBS:VIEW`, `MAINTENANCE_JOBS:EDIT:ADD_MESSAGE_TO_JOB` | -- |
+
+### Reports
+
+| Permission Key | Type | Detail | Description | Dependencies | Caution |
+|---|---|---|---|---|---|
+| `REPORTS:VIEW` | View | -- | Asset utilisation, asset register, maintenance and crew reports | -- | -- |
 
 ### Projects
 

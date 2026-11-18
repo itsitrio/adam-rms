@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ definition.title }} - {{ USERDATA.instance.instances_name }}</title>
+    <style>
+        @page { size: {{ DOCUMENTS.pageSize == "LETTER" ? "letter" : "A4" }}; margin: 14mm 12mm 16mm; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; background: #e9ecef; }
+        body { font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px; line-height: 1.4; }
+        a { color: inherit; text-decoration: none; }
+        .print-toolbar { position: sticky; top: 0; background: #343a40; color: #fff; padding: 8px 16px; display: flex; gap: 10px; align-items: center; justify-content: space-between; z-index: 2; }
+        .print-toolbar button, .print-toolbar a { background: #fff; color: #343a40; border: 0; border-radius: 3px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+        .print-page { background: #fff; max-width: {{ DOCUMENTS.pageSize == "LETTER" ? "216mm" : "210mm" }}; margin: 16px auto; padding: 14mm 12mm; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+        .print-letterhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 3px solid {{ DOCUMENTS.accentColour ?: "#343a40" }}; padding-bottom: 10px; margin-bottom: 14px; }
+        .print-letterhead.logo-center { flex-direction: column; align-items: center; text-align: center; }
+        .print-letterhead.logo-right { flex-direction: row-reverse; }
+        .print-business { font-size: 12px; color: #5f6368; }
+        .print-business strong { color: #1f2328; font-size: 14px; }
+        .print-title h1 { font-size: 22px; margin: 0 0 2px; }
+        .print-title p { margin: 0; color: #5f6368; }
+        .print-header-text { font-size: 12px; color: #5f6368; margin-bottom: 10px; }
+        .print-footer { margin-top: 18px; border-top: 1px solid #dee2e6; padding-top: 6px; font-size: 11px; color: #5f6368; display: flex; justify-content: space-between; gap: 12px; }
+        @media (max-width: 700px) { .print-page { padding: 16px; margin: 0; } .print-letterhead { flex-direction: column; } }
+        @media print {
+            html, body { background: #fff; }
+            .print-toolbar { display: none; }
+            .print-page { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+        }
+    </style>
+    {% include "reports/twigIncludes/report_styles.twig" %}
+</head>
+<body>
+<div class="print-toolbar">
+    <span>{{ definition.title }} &middot; {{ periodLabel }}</span>
+    <span>
+        <button type="button" onclick="window.print()" id="printButton">Print or save as PDF</button>
+        <a href="{{ CONFIG.ROOTURL }}/reports/report.php?{{ query }}">Back to the report</a>
+    </span>
+</div>
+<div class="print-page report-root">
+    <div class="print-letterhead logo-{{ DOCUMENTS.logoAlign }}">
+        <div class="print-business">
+            {% if INSTANCELOGO %}<img src="{{ INSTANCELOGO }}" alt="{{ USERDATA.instance.instances_name }}" style="max-width: {{ DOCUMENTS.logoWidth }}px; max-height: 90px; display: block; margin-bottom: 6px;{{ DOCUMENTS.logoAlign == 'center' ? ' margin-left: auto; margin-right: auto;' }}"/>{% endif %}
+            <strong>{{ USERDATA.instance.instances_name }}</strong>
+            {% if USERDATA.instance.instances_address %}<div>{{ USERDATA.instance.instances_address|nl2br }}</div>{% endif %}
+            {% if USERDATA.instance.instances_email or USERDATA.instance.instances_phone %}<div>{{ USERDATA.instance.instances_email }}{{ USERDATA.instance.instances_email and USERDATA.instance.instances_phone ? " · " }}{{ USERDATA.instance.instances_phone }}</div>{% endif %}
+        </div>
+        <div class="print-title" style="{{ DOCUMENTS.logoAlign == 'center' ? '' : 'text-align: right;' }}">
+            <h1>{{ definition.title }}</h1>
+            <p>{{ periodLabel }}</p>
+        </div>
+    </div>
+    {% if DOCUMENTS.headerText %}<div class="print-header-text">{{ DOCUMENTS.headerText }}</div>{% endif %}
+    {% include "reports/twigIncludes/report_body.twig" %}
+    <div class="print-footer">
+        <span>{{ DOCUMENTS.footerText ?: USERDATA.instance.instances_name }}</span>
+        <span>Generated {{ generated }} by {{ USERDATA.users_name1 }} {{ USERDATA.users_name2 }}</span>
+    </div>
+</div>
+<script>
+    if (new URLSearchParams(window.location.search).get("autoprint") === "1") window.addEventListener("load", function () { window.print(); });
+</script>
+</body>
+</html>

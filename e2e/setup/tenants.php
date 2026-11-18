@@ -238,6 +238,22 @@ function tenant(string $letter): array {
         "payments_amount" => 1234, "payments_quantity" => 1, "payments_type" => 1, "payments_date" => "2024-01-01 00:00:00",
         "payments_supplier" => null, "payments_method" => null, "payments_comment" => "$marker payment comment", "payments_deleted" => 0,
     ], $remembered['paymentId'] ?? null);
+    // An overhead, dated today so it's in every report's default period
+    $t['expenseId'] = upsert("expenses", "expenses_id", ["instances_id" => $instance, "expenses_reference" => "$marker expense"], [
+        "expenses_date" => date("Y-m-d"), "expenses_category" => "$marker expense category", "expenses_supplier" => "$marker expense supplier",
+        "expenses_description" => "$marker expense description", "expenses_amount" => 4321, "expenses_deleted" => 0,
+    ], $remembered['expenseId'] ?? null);
+    // A loan with a repayment against it
+    $t['liabilityId'] = upsert("liabilities", "liabilities_id", ["instances_id" => $instance, "liabilities_reference" => "$marker liability"], [
+        "liabilities_name" => "$marker loan", "liabilities_type" => "LOAN", "liabilities_lender" => "$marker lender", "users_userid" => null,
+        "liabilities_amount" => 100000, "liabilities_startDate" => "2024-01-01", "liabilities_interestRate" => null, "liabilities_repaymentAmount" => 10000,
+        "liabilities_repaymentFrequency" => "MONTHLY", "liabilities_firstRepaymentDate" => "2024-02-01", "liabilities_endDate" => null,
+        "liabilities_notes" => "$marker liability notes", "liabilities_deleted" => 0,
+    ], $remembered['liabilityId'] ?? null);
+    $t['liabilityTransactionId'] = upsert("liabilityTransactions", "liabilityTransactions_id", ["liabilities_id" => $t['liabilityId'], "liabilityTransactions_reference" => "$marker repayment"], [
+        "liabilityTransactions_date" => "2024-02-01", "liabilityTransactions_type" => "REPAYMENT", "liabilityTransactions_amount" => 10000, "liabilityTransactions_interest" => 500,
+        "liabilityTransactions_notes" => "$marker repayment notes", "liabilityTransactions_deleted" => 0,
+    ], $remembered['liabilityTransactionId'] ?? null);
     // A quote heading with a note line under it, and nothing placed under it yet
     $t['quoteSectionId'] = upsert("projectsQuoteSections", "projectsQuoteSections_id", ["projects_id" => $t['projectId'], "projectsQuoteSections_name" => "$marker quote section"], [
         "projectsQuoteSections_rank" => 1, "projectsQuoteSections_deleted" => 0,

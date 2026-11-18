@@ -1,0 +1,49 @@
+{% extends "assets/template.twig" %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-12">
+            <p class="text-muted">
+                Printable reports on {{ USERDATA.instance.instances_name }}'s projects, money and equipment. Each can be printed or saved as a PDF on the business's letterhead, or downloaded as CSV or Excel.
+                {% if "BUSINESS:BUSINESS_SETTINGS:VIEW"|instancePermissions %}The financial year, depreciation and payment terms are set in <a href="{{ CONFIG.ROOTURL }}/instances/configuration/invoices.php">the finance settings</a>.{% endif %}
+            </p>
+        </div>
+    </div>
+    <div class="row">
+        {% for groupKey, group in groups %}
+            <div class="col-12 col-lg-6">
+                <div class="card" id="reportGroup_{{ groupKey }}">
+                    <div class="card-header"><h3 class="card-title"><i class="{{ group.icon }} mr-1"></i> {{ group.name }}</h3></div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for key, report in group.reports %}
+                                <li class="list-group-item">
+                                    <a href="{{ CONFIG.ROOTURL }}/reports/report.php?report={{ key }}" id="reportLink_{{ key }}"><strong>{{ report.title }}</strong></a>
+                                    <div class="text-muted small">{{ report.description }}</div>
+                                </li>
+                            {% endfor %}
+                            {% if groupKey == "finance" and "FINANCE:EXPENSES:VIEW"|instancePermissions %}
+                                <li class="list-group-item">
+                                    <a href="{{ CONFIG.ROOTURL }}/reports/expenses.php" id="reportLink_expensesLedger"><strong>Record overheads</strong></a>
+                                    <div class="text-muted small">Add the business's rent, vehicles, insurance and other costs that aren't part of a project, for the profit &amp; loss.</div>
+                                </li>
+                            {% endif %}
+                            {% if groupKey == "finance" and "FINANCE:LIABILITIES:VIEW"|instancePermissions %}
+                                <li class="list-group-item">
+                                    <a href="{{ CONFIG.ROOTURL }}/reports/liabilities.php" id="reportLink_liabilitiesLedger"><strong>Record loans &amp; finance</strong></a>
+                                    <div class="text-muted small">Loans, equipment bought on finance or credit, and money lent by suppliers or members - with their repayments, interest and fees.</div>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        {% if groups|length == 0 %}
+            <div class="col-12">
+                {% if "FINANCE:EXPENSES:VIEW"|instancePermissions %}<a href="{{ CONFIG.ROOTURL }}/reports/expenses.php">Record overheads</a><br/>{% endif %}
+                {% if "FINANCE:LIABILITIES:VIEW"|instancePermissions %}<a href="{{ CONFIG.ROOTURL }}/reports/liabilities.php">Record loans &amp; finance</a>{% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

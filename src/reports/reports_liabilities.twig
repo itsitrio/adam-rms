@@ -1,0 +1,55 @@
+{% extends "assets/template.twig" %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title"><a href="{{ CONFIG.ROOTURL }}/reports/" class="text-muted">Reports</a> &rsaquo; Loans &amp; finance</h3>
+            <div class="card-tools">
+                <a class="btn btn-sm btn-default" href="{{ CONFIG.ROOTURL }}/reports/report.php?report=liabilities"><i class="fas fa-file-alt"></i> Loans &amp; finance report</a>
+                {% if "FINANCE:LIABILITIES:EDIT"|instancePermissions %}
+                    <button type="button" class="btn btn-sm btn-primary" id="liabilityAdd"><i class="fas fa-plus"></i> Add a loan or finance</button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-0">What the business owes: bank loans, equipment bought on finance or on credit and paid off over time, and money lent by a supplier or a member of the business. Record repayments as they're made; the interest and fees count as costs in the profit &amp; loss, and repaying what was borrowed doesn't.</p>
+        </div>
+        <div class="card-body table-responsive p-0">
+            <table class="table table-striped mb-0" id="liabilitiesTable">
+                <thead>
+                <tr><th>Name</th><th>Kind</th><th>Owed to</th><th>Started</th><th class="text-right">Borrowed</th><th class="text-right">Paid off</th><th class="text-right">Still owed</th><th>Next repayment</th><th class="text-right">Assets</th></tr>
+                </thead>
+                <tbody>
+                {% for liability in liabilities %}
+                    <tr id="liability_{{ liability.liabilities_id }}">
+                        <td><a href="{{ CONFIG.ROOTURL }}/reports/liability.php?id={{ liability.liabilities_id }}">{{ liability.liabilities_name }}</a></td>
+                        <td>{{ liability.typeName }}</td>
+                        <td>{{ liability.lenderName }}</td>
+                        <td>{{ liability.liabilities_startDate|date("d M Y") }}</td>
+                        <td class="text-right">{{ liability.position.borrowed|money }}</td>
+                        <td class="text-right">{{ liability.position.repaid|money }}</td>
+                        <td class="text-right"><b>{{ liability.position.balance|money }}</b></td>
+                        <td>{% if liability.schedule|length > 0 %}{{ liability.schedule[0].date|date("d M Y") }} &middot; {{ liability.schedule[0].amount|money }}{% endif %}</td>
+                        <td class="text-right">{{ liability.assets|length }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="9" class="text-muted">No loans or finance recorded.</td></tr>
+                {% endfor %}
+                </tbody>
+                <tfoot>
+                <tr><th colspan="6">Total still owed</th><th class="text-right" id="liabilitiesTotal">{{ total|money }}</th><th colspan="2"></th></tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    {% if "FINANCE:LIABILITIES:EDIT"|instancePermissions %}
+        {% include "reports/twigIncludes/liability_form.twig" %}
+        <script>
+            $(document).ready(function () {
+                $("#liabilityAdd").on("click", function () {
+                    liabilityOpen({"liabilities_id": "", "liabilities_startDate": moment().format("YYYY-MM-DD"), "liabilities_type": "LOAN", "liabilities_repaymentFrequency": "MONTHLY"}, "Add a loan or finance");
+                });
+            });
+        </script>
+    {% endif %}
+{% endblock %}

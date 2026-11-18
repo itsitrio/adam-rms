@@ -356,6 +356,7 @@
                                             <li class="nav-item"><a class="nav-link" href="#groups" data-toggle="tab">Groups</a></li>
                                             {% if assetFieldsLength > 0 %}<li class="nav-item"><a class="nav-link" href="#editAssetFields" data-toggle="tab">Custom Fields</a></li>{% endif %}
                                             {% if "ASSETS:EDIT:OVVERRIDES"|instancePermissions %}<li class="nav-item"><a class="nav-link" href="#editAssetDetailsOverrides" data-toggle="tab">Asset Type Overrides</a></li>{% endif %}
+                                            {% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}<li class="nav-item"><a class="nav-link" href="#editAssetPurchase" data-toggle="tab">Purchase</a></li>{% endif %}
                                             <li class="nav-item"><a class="nav-link" href="#editAssetType" data-toggle="tab">Change Type</a></li>
                                             {% if "ASSETS:TRANSFER"|instancePermissions and assets[0].assets_endDate is null %}<li class="nav-item"><a class="nav-link" href="#moveAsset" data-toggle="tab">Transfer Asset</a></li>{% endif %}
                                         </ul>
@@ -492,6 +493,39 @@
                                                         </div>
                                                     </form>
                                                     <button class="btn btn-default float-right" id="editAssetDetailsOverridesButton" style="margin-top:10px;margin-bottom:10px;">Save</button>
+                                                </div>
+                                            {% endif %}
+                                            {% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+                                                <div class="tab-pane" style="padding: 1.25rem" id="editAssetPurchase">
+                                                    <div class="callout">
+                                                        What the business paid for this asset and when. The reports depreciate it evenly over its life - {{ USERDATA.instance.instances_config_depreciationMonths }} months unless you give it its own - to work out its book value and how far it has paid for itself.
+                                                    </div>
+                                                    <form id="editAssetPurchaseForm">
+                                                        <div class="input-group">
+                                                            <div class="input-group-prepend"><span class="input-group-text">Purchase cost - {{ moneySymbol() }}</span></div>
+                                                            <input type="number" step="0.01" min="0" name="assets_purchaseCost" id="editAssetPurchaseCost" value="{{ assets[0].assets_purchaseCost is not null ? assets[0].assets_purchaseCost|moneyDecimal : '' }}" class="form-control" placeholder="Not recorded" />
+                                                        </div>
+                                                        <div class="input-group">
+                                                            <div class="input-group-prepend"><span class="input-group-text">Purchase date</span></div>
+                                                            <input type="date" name="assets_purchaseDate" id="editAssetPurchaseDate" value="{{ assets[0].assets_purchaseDate }}" class="form-control" />
+                                                        </div>
+                                                        <div class="input-group">
+                                                            <div class="input-group-prepend"><span class="input-group-text">Depreciate over</span></div>
+                                                            <input type="number" step="1" min="1" max="600" name="assets_depreciationMonths" id="editAssetDepreciationMonths" value="{{ assets[0].assets_depreciationMonths }}" class="form-control" placeholder="{{ USERDATA.instance.instances_config_depreciationMonths }}" />
+                                                            <div class="input-group-append"><span class="input-group-text">months</span></div>
+                                                        </div>
+                                                    </form>
+                                                    <button class="btn btn-default float-right" id="editAssetPurchaseButton" style="margin-top:10px;margin-bottom:10px;">Save</button>
+                                                    {% if "FINANCE:LIABILITIES:VIEW"|instancePermissions %}
+                                                        <div style="clear: both; padding-top: 10px;">
+                                                            <label for="editAssetLiability">Paid for with a loan or finance</label>
+                                                            <select class="form-control" id="editAssetLiability" {{ not ("FINANCE:LIABILITIES:EDIT"|instancePermissions) ? "disabled" }}>
+                                                                <option value="">No - paid for outright</option>
+                                                                {% for liability in liabilities %}<option value="{{ liability.liabilities_id }}" {{ assets[0].liabilities_id == liability.liabilities_id ? "selected" }}>{{ liability.liabilities_name }}</option>{% endfor %}
+                                                            </select>
+                                                            <small class="text-muted">Loans and finance are recorded on <a href="{{ CONFIG.ROOTURL }}/reports/liabilities.php">the Loans &amp; finance page</a>.</small>
+                                                        </div>
+                                                    {% endif %}
                                                 </div>
                                             {% endif %}
                                             <div class="tab-pane" style="padding: 1.25rem" id="editAssetType">
@@ -1752,6 +1786,22 @@
                         location.reload();
                     }, false);
                 });
+                {% if "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
+                {% if "FINANCE:LIABILITIES:EDIT"|instancePermissions %}
+                $('#editAssetLiability').on('change', function() {
+                    ajaxcall("reports/liabilities/asset.php", {"assets_id": "{{assets[0]['assets_id']}}", "liabilities_id": this.value}, function (data) {
+                        location.reload();
+                    });
+                });
+                {% endif %}
+                $('#editAssetPurchaseButton').on('click', function() {
+                    var formData = $("#editAssetPurchaseForm").serializeArray();
+                    formData.push({"name": "assets_id", "value": "{{assets[0]['assets_id']}}"});
+                    ajaxcall("assets/editAsset.php", {formData}, function (data) {
+                        location.reload();
+                    }, false);
+                });
+                {% endif %}
                 {% if "ASSETS:EDIT:OVVERRIDES"|instancePermissions %}
                 $('#editAssetDetailsOverridesButton').on('click', function() {
                     var formData = $("#editAssetDetailsOverridesForm").serializeArray();
