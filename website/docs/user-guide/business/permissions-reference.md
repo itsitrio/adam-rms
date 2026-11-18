@@ -138,6 +138,8 @@ The `BUSINESS:ROLES_AND_PERMISSIONS:EDIT` permission is effectively a **super ad
 |---|---|---|---|---|---|
 | `FINANCE:EXPENSES:EDIT` | Edit | -- | Add, change and delete overheads | `FINANCE:EXPENSES:VIEW` | -- |
 | `FINANCE:EXPENSES:VIEW` | View | -- | View the business's overheads | -- | -- |
+| `FINANCE:LIABILITIES:EDIT` | Edit | -- | Add and change loans and finance, and record repayments | `FINANCE:LIABILITIES:VIEW` | -- |
+| `FINANCE:LIABILITIES:VIEW` | View | -- | View the loans and finance the business owes | -- | -- |
 | `FINANCE:PAYMENTS_LEDGER:VIEW` | View | -- | View a list of payments for all projects | -- | -- |
 | `FINANCE:REPORTS:VIEW` | View | -- | Profit and loss, cash, debtors, pipeline and other financial reports | `FINANCE:PAYMENTS_LEDGER:VIEW` | Shows the business's revenue, costs and profit |
 

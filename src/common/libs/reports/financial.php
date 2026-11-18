@@ -59,7 +59,9 @@ function reportPnlFigures(ReportContext $ctx, $start, $end)
     ksort($f['overheads'], SORT_NATURAL | SORT_FLAG_CASE);
     $f['assetCosts'] = $f['repairs']->add($f['depreciation'], $f['disposals']);
     $f['contribution'] = $f['grossMargin']->subtract($f['assetCosts']);
-    $f['netProfit'] = $f['contribution']->subtract($f['overheadsTotal']);
+    //Interest and fees on loans and finance - repaying what was borrowed isn't a cost
+    $f['financeCosts'] = reportFinanceCosts($ctx, $start, $end);
+    $f['netProfit'] = $f['contribution']->subtract($f['overheadsTotal'], $f['financeCosts']);
     $f['uncalculated'] = reportUncalculated($projects);
     return $f;
 }
@@ -134,6 +136,7 @@ function reportProfitAndLoss(ReportContext $ctx)
         }, null, 1);
     }
     $line("Total overheads", "overheadsTotal", "subtotal");
+    $line("Interest and fees on loans and finance", "financeCosts", "subtotal");
     $line("Net profit", "netProfit", "total");
     $percent("Net margin %", "netProfit", "revenue");
 
@@ -164,6 +167,7 @@ function reportProfitAndLoss(ReportContext $ctx)
         "warnings" => $warnings,
         "notes" => [
             "Revenue is what won projects in project types with finances bill, counted in the period their delivery ends. Equipment hire has no direct cost - the cost of owning it is its depreciation and repairs.",
+            "Interest and fees are the charges added to loans and finance, and the interest part of repayments. Repaying what was borrowed isn't a cost, as buying the assets it paid for wasn't one either.",
             "Depreciation is straight line over each asset's life (" . intval($ctx->instance['instances_config_depreciationMonths'] ?? 60) . " months unless the asset has its own), from its purchase date. Repairs count in the period their job was opened.",
         ],
         "uncalculated" => $now['uncalculated'],
@@ -593,12 +597,20 @@ function reportClosePack(ReportContext $ctx)
     $pipelineCtx = clone $ctx;
     $pipelineCtx->params['horizon'] = 3;
     $pipeline = reportPipeline($pipelineCtx);
+    //Loans and finance at the end of the period, for those who can see them
+    global $AUTH;
+    $liabilities = ["sections" => [], "uncalculated" => []];
+    if (!isset($AUTH) or $AUTH->instancePermissionCheck("FINANCE:LIABILITIES:VIEW")) {
+        $liabilitiesCtx = clone $ctx;
+        $liabilitiesCtx->asAt = min($ctx->end, $ctx->today);
+        $liabilities = reportLiabilitiesReport($liabilitiesCtx);
+    }
     $sections = [];
-    foreach ([["profit-and-loss", $pnl, ["pnl"]], ["cash-receipts", $cash, ["months", "methods"]], ["billed-vs-collected", $billed, ["months"]], ["aged-debtors", $debtors, ["clients"]], ["pipeline", $pipeline, ["months"]]] as [$key, $report, $ids]) {
+    foreach ([["profit-and-loss", $pnl, ["pnl"]], ["cash-receipts", $cash, ["months", "methods"]], ["billed-vs-collected", $billed, ["months"]], ["aged-debtors", $debtors, ["clients"]], ["pipeline", $pipeline, ["months"]], ["liabilities", $liabilities, ["liabilities"]]] as [$key, $report, $ids]) {
         $first = true;
         foreach ($report['sections'] as $section) {
             if (!in_array($section['id'], $ids, true)) continue;
-            $section['heading'] = $definitions[$key]['title'] . ($key == "aged-debtors" ? " (today)" : ($key == "pipeline" ? " (next 3 months)" : ""));
+            $section['heading'] = $definitions[$key]['title'] . ($key == "aged-debtors" ? " (today)" : ($key == "pipeline" ? " (next 3 months)" : ($key == "liabilities" ? " (at the end of the period)" : "")));
             $section['headingFirst'] = $first;
             $section['id'] = $key . "-" . $section['id'];
             $first = false;

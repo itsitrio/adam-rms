@@ -16,6 +16,8 @@ FINANCE:REPORTS:VIEW - the financial, sales and asset return reports
 REPORTS:VIEW - utilisation, dead stock, asset register, maintenance and crew reports  
 FINANCE:EXPENSES:VIEW - the overheads report and list  
 FINANCE:EXPENSES:EDIT - adding, changing and deleting overheads  
+FINANCE:LIABILITIES:VIEW - the loans & finance report and pages  
+FINANCE:LIABILITIES:EDIT - adding loans and finance, and recording repayments  
 MAINTENANCE_JOBS:EDIT:COST - recording what a repair cost
 :::
 
@@ -28,6 +30,7 @@ MAINTENANCE_JOBS:EDIT:COST - recording what a repair cost
 | | Project profitability | The margin on each project once the cost of its sales, additional hire and staff lines is taken off |
 | | Monthly revenue | Revenue by month, split into equipment, sales, additional hire and staff |
 | | Overheads | Overheads by category and month |
+| | Loans & finance | What the business owes, what's been paid off, interest and fees, and the repayments due over the next year |
 | | Discounts given | How far below its rates equipment was hired out, by client, project manager and project |
 | Cash & debtors | Cash received | Payments by month, payment method and client |
 | | Aged debtors | What each client owes, by how overdue it is |
@@ -52,6 +55,19 @@ MAINTENANCE_JOBS:EDIT:COST - recording what a repair cost
 - **Depreciation** spreads an asset's purchase cost evenly over its life, from its purchase date. Set an asset's purchase cost and date on its **Purchase** tab (under Edit). Assets are depreciated over the period set in the finance settings unless they have their own. An asset that's archived has what's left of its value written off.
 - **Repairs** are the costs recorded on maintenance jobs, counted when the job was opened.
 - **Overheads** are costs that aren't part of any project - rent, vehicles, insurance, salaries. Record them on the **Record overheads** page.
+- **Interest and fees** on loans and finance are a cost in the profit & loss. Repaying what was borrowed isn't - see below.
+
+## Loans & finance
+
+Record what the business owes on the **Record loans & finance** page: a bank loan, equipment bought on finance or on credit from a supplier and paid off over time, or money lent by a supplier or a member of the business.
+
+Each one starts at the amount borrowed on its start date. Then record, as they happen:
+
+- **Repayments** - with how much of each was interest or a fee, from the lender's statement. That part is a cost; the rest pays off what's owed.
+- **Interest or fees added** to the balance, if the lender adds them rather than taking them from a repayment.
+- **More borrowed**, if the business draws down more.
+
+Give it a regular repayment, how often it's paid and the date of the first one, and the page and the Loans & finance report show the repayments still to come. Link the assets it paid for - from the loan's page, or on each asset's Purchase tab - to see their book value against what's still owed. Buying an asset on finance is recorded twice: the asset's purchase cost on its Purchase tab (so it's depreciated), and the finance here (so the repayments and interest are tracked).
 
 ## Settings
 

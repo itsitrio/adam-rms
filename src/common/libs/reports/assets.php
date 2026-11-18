@@ -194,6 +194,9 @@ function reportAssetRegister(ReportContext $ctx)
     $detail = [];
     $total = ["assets" => 0, "units" => 0, "value" => $ctx->zero(), "cost" => $ctx->zero(), "nbv" => $ctx->zero(), "uncosted" => 0];
     $unit = $ctx->instance['instances_config_massUnit'] ?? "kg";
+    //Which loan or finance paid for each asset, for those who can see them
+    global $AUTH;
+    $liabilityNames = (!isset($AUTH) or $AUTH->instancePermissionCheck("FINANCE:LIABILITIES:VIEW")) ? array_map(function ($l) { return $l['liabilities_name']; }, reportLiabilities($ctx)) : [];
     foreach (reportAssets($ctx) as $asset) {
         if (!reportAssetHeldOn($asset, $ctx->asAt)) continue;
         $depreciation = reportDepreciation($ctx, $asset, $ctx->asAt, $ctx->asAt);
@@ -216,7 +219,7 @@ function reportAssetRegister(ReportContext $ctx)
         else $total['uncosted']++;
         if ($nbv !== null) $total['nbv'] = $total['nbv']->add($nbv);
         if ($ctx->params['detail'] ?? false) {
-            $detail[] = ["asset" => reportAssetLink($asset), "manufacturer" => $asset['manufacturers_name'], "category" => $asset['categoryName'], "location" => $asset['locations_name'], "units" => $asset['quantityHeld'],
+            $detail[] = ["asset" => reportAssetLink($asset), "financedBy" => $asset['liabilities_id'] ? ($liabilityNames[$asset['liabilities_id']] ?? null) : null, "manufacturer" => $asset['manufacturers_name'], "category" => $asset['categoryName'], "location" => $asset['locations_name'], "units" => $asset['quantityHeld'],
                 "purchased" => $asset['purchaseDate'], "cost" => $asset['purchaseCost'], "nbv" => $nbv, "value" => $asset['value'], "mass" => reportMass($ctx, $asset['mass'])];
         }
     }
@@ -235,7 +238,7 @@ function reportAssetRegister(ReportContext $ctx)
         ["id" => "locations", "title" => "By storage location", "columns" => $groupColumns("Storage location"), "rows" => $locations, "totals" => reportSumColumns($ctx, $groupColumns("Storage location"), $locations)],
     ];
     if ($ctx->params['detail'] ?? false) {
-        $detailColumns = [reportColumn("asset", "Asset", "link"), reportColumn("manufacturer", "Manufacturer"), reportColumn("category", "Category"), reportColumn("location", "Stored at"), reportColumn("units", "Units", "number", true),
+        $detailColumns = [reportColumn("asset", "Asset", "link"), reportColumn("financedBy", "Paid for with"), reportColumn("manufacturer", "Manufacturer"), reportColumn("category", "Category"), reportColumn("location", "Stored at"), reportColumn("units", "Units", "number", true),
             reportColumn("purchased", "Bought", "date"), reportColumn("cost", "Purchase cost", "money", true), reportColumn("nbv", "Book value", "money", true), reportColumn("value", "Replacement value", "money", true), reportColumn("mass", "Mass (" . $unit . ")", "number", true)];
         $sections[] = ["id" => "assets", "title" => "Every asset", "columns" => $detailColumns, "rows" => $detail, "totals" => reportSumColumns($ctx, $detailColumns, $detail)];
     }

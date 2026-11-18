@@ -13,5 +13,5 @@ foreach (reportDefinitions() as $key => $definition) {
 $PAGEDATA['groups'] = array_filter($PAGEDATA['groups'], function ($group) {
     return count($group['reports']) > 0;
 });
-if (count($PAGEDATA['groups']) == 0 and !$AUTH->instancePermissionCheck("FINANCE:EXPENSES:VIEW")) die($TWIG->render('404.twig', $PAGEDATA));
+if (count($PAGEDATA['groups']) == 0 and !$AUTH->instancePermissionCheck("FINANCE:EXPENSES:VIEW") and !$AUTH->instancePermissionCheck("FINANCE:LIABILITIES:VIEW")) die($TWIG->render('404.twig', $PAGEDATA));
 echo $TWIG->render('reports/reports_index.twig', $PAGEDATA);
