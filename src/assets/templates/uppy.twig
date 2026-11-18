@@ -20,6 +20,7 @@ x-amz-meta-size
     {% set thisElementID = ('uppy' ~ random()) %}
     <div id="{{ thisElementID }}"></div>
     <script>
+        var {{ thisElementID }}Keys = {}; // The key the server chose for each file, which uploadSuccess.php needs
         function getExtension(fileName) {
             var re = /(?:\.([^.]+))?$/;
             var extension = re.exec(fileName)[1];
@@ -108,6 +109,7 @@ x-amz-meta-size
                     if (data.result === false) {
                         throw new Error(data.error.message)
                     }
+                    {{ thisElementID }}Keys[file.id] = data.key;
                     return {
                         method: data.method,
                         url: data.url,
@@ -149,7 +151,7 @@ x-amz-meta-size
                 type: "JSON",
                 method: "POST",
                 data: {
-                    "name": file.name,
+                    "name": {{ thisElementID }}Keys[file.id],
                     "public": "{{ (publicBool ? 1 : 0) }}",
                     "size": file.size,
                     "typeid": file.meta.typeid,

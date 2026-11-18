@@ -1,6 +1,7 @@
 import { test, expect, formData, mentions, newSession, seedTenants, snapshot, dbQuery, succeeded, Session, type Params, type Tenant } from "../tenants";
 import { createHash } from "crypto";
 import { BASE_URL, TEST_USER } from "../env";
+import { startFakeS3, uploadFile } from "../s3";
 
 /**
  * Tenant isolation: a user of business A must not be able to read or change business B's records by
@@ -494,11 +495,11 @@ test.describe("files", () => {
 
   test("api/s3files/uploadSuccess.php won't attach a file to another business's record", async ({ asA, tenants: { a, b } }) => {
     // s3List (which asset.php uses) doesn't filter by business, so a file attached to B's asset type would be listed on B's page
-    dbQuery("REPLACE INTO config (config_key, config_value) VALUES ('FILES_ENABLED', 'Enabled')");
+    const s3 = await startFakeS3();
     try {
-      await asA.api("/api/s3files/uploadSuccess.php", { name: "uploads/e2e/e2e-upload.pdf", size: 1, typeid: 3, subtype: b.assetTypeId, originalName: "Uploaded by e2e.pdf", public: 0 });
+      await uploadFile(asA, s3, { typeid: 3, subtype: b.assetTypeId });
       expect(dbQuery("SELECT s3files_id FROM s3files WHERE s3files_meta_type = 3 AND s3files_meta_subType = ? AND instances_id != ?", [b.assetTypeId, b.instanceId])).toHaveLength(0);
-      const control = await asA.api("/api/s3files/uploadSuccess.php", { name: "uploads/e2e/e2e-upload.pdf", size: 1, typeid: 3, subtype: a.assetTypeId, originalName: "Uploaded by e2e.pdf", public: 0 });
+      const control = await uploadFile(asA, s3, { typeid: 3, subtype: a.assetTypeId });
       expect(succeeded(control), `control: A's own asset type\n${control.body.slice(0, 300)}`).toBe(true);
       // Every other kind of record: B's is refused, A's accepted
       for (const [typeid, own, other] of [
@@ -508,24 +509,24 @@ test.describe("files", () => {
         [15, a.instanceId, b.instanceId], [16, a.instanceId, b.instanceId], [17, a.instanceId, b.instanceId], [18, a.vacantRoleId, b.vacantRoleId],
         [19, a.cmsPageId, b.cmsPageId], [20, a.projectId, b.projectId], [21, a.projectId, b.projectId], [22, a.projectId, b.projectId],
       ]) {
-        const upload = (subtype: number) => asA.api("/api/s3files/uploadSuccess.php", { name: "uploads/e2e/e2e-upload.pdf", size: 1, typeid, subtype, originalName: "Uploaded by e2e.pdf", public: 0 });
+        const upload = (subtype: number) => uploadFile(asA, s3, { typeid, subtype });
         expect(succeeded(await upload(other)), `type ${typeid}, B's record`).toBe(false);
         expect(succeeded(await upload(own)), `type ${typeid}, A's record`).toBe(true);
       }
-      expect(succeeded(await asA.api("/api/s3files/uploadSuccess.php", { name: "uploads/e2e/e2e-upload.pdf", size: 1, typeid: 99, subtype: a.projectId, originalName: "Uploaded by e2e.pdf", public: 0 })), "unknown type").toBe(false);
-      expect(succeeded(await asA.api("/api/s3files/uploadSuccess.php", { name: "uploads/e2e/e2e-upload.pdf", size: 1, typeid: 99, subtype: "", originalName: "Uploaded by e2e.pdf", public: 0 })), "unknown type, not attached").toBe(false);
-      expect(succeeded(await asA.api("/api/s3files/uploadSuccess.php", { name: "uploads/e2e/e2e-upload.pdf", size: 1, typeid: 12, subtype: "", originalName: "Uploaded by e2e.pdf", public: 0 })), "known type, not attached").toBe(true);
+      expect(succeeded(await uploadFile(asA, s3, { typeid: 99, subtype: a.projectId })), "unknown type").toBe(false);
+      expect(succeeded(await uploadFile(asA, s3, { typeid: 99, subtype: "" })), "unknown type, not attached").toBe(false);
+      expect(succeeded(await uploadFile(asA, s3, { typeid: 12, subtype: "" })), "known type, not attached").toBe(true);
       // Shared (catalogue) asset types belong to no business, and every business can attach files to them
       dbQuery("INSERT INTO assetTypes (assetTypes_name, instances_id, manufacturers_id, assetCategories_id, assetTypes_inserted) VALUES ('E2E shared upload type', NULL, ?, ?, NOW())", [a.manufacturerId, a.categoryId]);
       const [shared] = dbQuery<{ assetTypes_id: number }>("SELECT assetTypes_id FROM assetTypes WHERE assetTypes_name = 'E2E shared upload type' AND instances_id IS NULL");
       try {
-        const upload = await asA.api("/api/s3files/uploadSuccess.php", { name: "uploads/e2e/e2e-upload.pdf", size: 1, typeid: 3, subtype: shared.assetTypes_id, originalName: "Uploaded by e2e.pdf", public: 0 });
+        const upload = await uploadFile(asA, s3, { typeid: 3, subtype: shared.assetTypes_id });
         expect(succeeded(upload), `shared asset type\n${upload.body.slice(0, 300)}`).toBe(true);
       } finally {
         dbQuery("DELETE FROM assetTypes WHERE assetTypes_name = 'E2E shared upload type'");
       }
     } finally {
-      dbQuery("DELETE FROM config WHERE config_key = 'FILES_ENABLED'");
+      await s3.stop();
       dbQuery("DELETE FROM s3files WHERE s3files_original_name = 'Uploaded_by_e2e.pdf' OR s3files_name = 'Uploaded by e2e'");
     }
   });
