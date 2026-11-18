@@ -1,6 +1,6 @@
 import fs from "fs";
 import { defineConfig, devices } from "@playwright/test";
-import { APP_ENV, BASE_URL, PHP_BINARY, PORT } from "./env";
+import { APP_ENV, BASE_URL, FAKE_S3_PORT, FAKE_S3_URL, PHP_BINARY, PORT } from "./env";
 
 /**
  * E2E Test Configuration
@@ -74,12 +74,20 @@ export default defineConfig({
     screenshot: "on",
   },
 
-  webServer: {
-    command: `${PHP_BINARY} -S 127.0.0.1:${PORT} -t ../src`,
-    url: `${BASE_URL}/login/`,
-    env: APP_ENV,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      // The upload limits are the Dockerfile's
+      command: `${PHP_BINARY} -d upload_max_filesize=64M -d post_max_size=64M -S 127.0.0.1:${PORT} -t ../src`,
+      url: `${BASE_URL}/login/`,
+      env: APP_ENV,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: `${PHP_BINARY} -S 127.0.0.1:${FAKE_S3_PORT} setup/fakeS3.php`,
+      url: `${FAKE_S3_URL}/_log`,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 
   projects: [
     {

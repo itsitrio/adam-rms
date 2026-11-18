@@ -531,7 +531,7 @@ test.describe("files", () => {
   });
 
   test("uploads are refused while file storage is disabled", async ({ asA, tenants: { a } }) => {
-    for (const endpoint of ["/api/s3files/uploadSuccess.php", "/api/s3files/generateSignatureUppy.php", "/api/s3files/appUploader.php", "/api/s3files/uploadProjectInvoice.php"]) {
+    for (const endpoint of ["/api/s3files/uploadSuccess.php", "/api/s3files/generateSignatureUppy.php", "/api/s3files/appUploader.php", "/api/s3files/uploadProjectInvoice.php", "/api/s3files/upload.php"]) {
       const response = await asA.api(endpoint, { id: a.projectId, name: "uploads/e2e/e2e.pdf", size: 1, typeid: 7, subtype: a.projectId, originalName: "e2e.pdf", public: 0 });
       expect(succeeded(response), `${endpoint}\n${response.body.slice(0, 300)}`).toBe(false);
     }

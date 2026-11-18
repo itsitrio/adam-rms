@@ -3,6 +3,8 @@ require_once __DIR__ . '/../apiHeadSecure.php';
 if ($CONFIG['FILES_ENABLED'] !== "Enabled") {
     finish(false, ["code" => null, "message" => "File uploads are disabled"]);
 }
+// Files go through the server (api/s3files/upload.php) instead, and the browser is never told where the bucket is
+if ($bCMS->s3ServerTransfer()) finish(false, ["code" => null, "message" => "Files are uploaded through the server on this installation"]);
 if (!$bCMS->s3SubTypeIsInInstance($_POST['typeid'], $_POST['subtype'] ?? null)) finish(false, ["code" => null, "message" => "Record not found"]);
 $fileData = [
     "s3files_extension" => pathinfo($bCMS->sanitizeString($_POST['name']), PATHINFO_EXTENSION),

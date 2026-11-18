@@ -3,6 +3,8 @@ require_once __DIR__ . '/../apiHeadSecure.php';
 if ($CONFIG['FILES_ENABLED'] !== "Enabled") {
     finish(false, ["code" => null, "message" => "File uploads are disabled"]);
 }
+// Files go through the server (api/s3files/upload.php) instead, and the browser is never told where the bucket is
+if ($bCMS->s3ServerTransfer()) finish(false, ["code" => null, "message" => "Files are uploaded through the server on this installation"]);
 
 $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
 $storageCapacity = $DBLIB->getvalue("instances", "instances_storageLimit");
