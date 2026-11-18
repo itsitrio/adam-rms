@@ -59,14 +59,14 @@ foreach ($assets as $asset) {
     $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
     $DBLIB->where("projects.projects_deleted", 0);
     $DBLIB->orderBy("projects.projects_dates_deliver_start", "ASC");
-    $asset['assignments'] = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "projects.projects_name", "projects_dates_deliver_start", "projects_dates_deliver_end", "assetsAssignments.assetsAssignmentsStatus_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour", "projectsStatuses.projectsStatuses_assetsReleased", "projects.instances_id AS projects_instances_id", "projects.projects_dates_finances_days", "projects.projects_dates_finances_weeks", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals"]);
+    $asset['assignments'] = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "projects.projects_name", "projects_dates_deliver_start", "projects_dates_deliver_end", "assetsAssignments.assetsAssignmentsStatus_id", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour", "projectsStatuses.projectsStatuses_pipelineStage", "projects.instances_id AS projects_instances_id", "projects.projects_dates_finances_days", "projects.projects_dates_finances_weeks", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals"]);
 
-    //Revenue - priced the same way as projects/data.php prices an assignment (including its loose check on the custom price, which is 0 when there isn't one). Lost/cancelled projects (statuses that release their assets) don't count, nor do other businesses' projects
+    //Revenue - priced the same way as projects/data.php prices an assignment (including its loose check on the custom price, which is 0 when there isn't one). Only projects whose status is at the Won stage of the sales pipeline count; Leads and Opportunities are shown as the pipeline, Lost and Cancelled ones not at all, and other businesses' projects never count
     $currency = new Currency($PAGEDATA['ASSET_INSTANCE']['instances_config_currency']);
-    $asset['revenue'] = ["earned" => new Money(0, $currency), "booked" => new Money(0, $currency), "lost" => new Money(0, $currency)];
+    $asset['revenue'] = ["earned" => new Money(0, $currency), "booked" => new Money(0, $currency), "pipeline" => new Money(0, $currency)];
     foreach ($asset['assignments'] as $key => $assignment) {
         $assignment['isPast'] = strtotime($assignment['projects_dates_deliver_end']) < time();
-        $assignment['isLost'] = $assignment['projectsStatuses_assetsReleased'] == 1;
+        $assignment['pipelineStageName'] = PROJECT_PIPELINE_STAGES[$assignment['projectsStatuses_pipelineStage']] ?? null;
         $assignment['isOwnBusiness'] = $assignment['projects_instances_id'] == $PAGEDATA['ASSET_INSTANCE']['instances_id'];
         $assignment['revenue'] = null;
         if ($assignment['isOwnBusiness']) {
@@ -82,9 +82,10 @@ foreach ($assets as $asset) {
             }
             if ($assignment['assetsAssignments_discount'] > 0) $price = $price->multiply(1 - ($assignment['assetsAssignments_discount'] / 100));
             $assignment['revenue'] = $price;
-            if ($assignment['isLost']) $asset['revenue']['lost'] = $asset['revenue']['lost']->add($price);
-            elseif ($assignment['isPast']) $asset['revenue']['earned'] = $asset['revenue']['earned']->add($price);
-            else $asset['revenue']['booked'] = $asset['revenue']['booked']->add($price);
+            if ($assignment['projectsStatuses_pipelineStage'] == "WON") {
+                if ($assignment['isPast']) $asset['revenue']['earned'] = $asset['revenue']['earned']->add($price);
+                else $asset['revenue']['booked'] = $asset['revenue']['booked']->add($price);
+            } elseif (in_array($assignment['projectsStatuses_pipelineStage'], ["LEAD", "OPPORTUNITY"])) $asset['revenue']['pipeline'] = $asset['revenue']['pipeline']->add($price);
         }
         $asset['assignments'][$key] = $assignment;
     }

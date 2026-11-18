@@ -145,6 +145,12 @@ function assetFlagsAndBlocks($assetid)
     return $return;
 }
 /**
+ * The stages of the sales pipeline a project status can belong to (projectsStatuses_pipelineStage). Only Won projects
+ * count as revenue; Lead and Opportunity are still being chased; Lost and Cancelled have fallen through.
+ */
+const PROJECT_PIPELINE_STAGES = ["LEAD" => "Lead", "OPPORTUNITY" => "Opportunity", "WON" => "Won", "LOST" => "Lost", "CANCELLED" => "Cancelled"];
+
+/**
  * Work out how many units of an asset are free to assign between two dates.
  *
  * A serialized asset is one row holding one unit, so this returns 1 when it's free and 0 when

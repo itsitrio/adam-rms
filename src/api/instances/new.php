@@ -55,6 +55,7 @@ $defaultProjectStatuses = [
         "projectsStatuses_backgroundColour" => "#F5F5F5",
         "projectsStatuses_rank" => 0,
         "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "LEAD",
     ],
     [
         "projectsStatuses_name" => "Targeted",
@@ -62,7 +63,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#000000",
         "projectsStatuses_backgroundColour" => "#F5F5F5",
         "projectsStatuses_rank" => 1,
-        "projectsStatuses_assetsReleased" => false
+        "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "LEAD"
     ],
     [
         "projectsStatuses_name" => "Quote Sent",
@@ -70,7 +72,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#000000",
         "projectsStatuses_backgroundColour" => "#ffdd99",
         "projectsStatuses_rank" => 2,
-        "projectsStatuses_assetsReleased" => false
+        "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "OPPORTUNITY"
     ],
     [
         "projectsStatuses_name" => "Confirmed",
@@ -78,7 +81,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#ffffff",
         "projectsStatuses_backgroundColour" => "#66ff66",
         "projectsStatuses_rank" => 3,
-        "projectsStatuses_assetsReleased" => false
+        "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "WON"
     ],
     [
         "projectsStatuses_name" => "Prep",
@@ -86,7 +90,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#000000",
         "projectsStatuses_backgroundColour" => "#ffdd99",
         "projectsStatuses_rank" => 4,
-        "projectsStatuses_assetsReleased" => false
+        "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "WON"
     ],
     [
         "projectsStatuses_name" => "Dispatched",
@@ -94,7 +99,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#ffffff",
         "projectsStatuses_backgroundColour" => "#66ff66",
         "projectsStatuses_rank" => 5,
-        "projectsStatuses_assetsReleased" => false
+        "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "WON"
     ],
     [
         "projectsStatuses_name" => "Returned",
@@ -102,7 +108,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#000000",
         "projectsStatuses_backgroundColour" => "#ffdd99",
         "projectsStatuses_rank" => 6,
-        "projectsStatuses_assetsReleased" => false
+        "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "WON"
     ],
     [
         "projectsStatuses_name" => "Closed",
@@ -110,7 +117,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#000000",
         "projectsStatuses_backgroundColour" => "#F5F5F5",
         "projectsStatuses_rank" => 7,
-        "projectsStatuses_assetsReleased" => false
+        "projectsStatuses_assetsReleased" => false,
+        "projectsStatuses_pipelineStage" => "WON"
     ],
     [
         "projectsStatuses_name" => "Cancelled",
@@ -118,7 +126,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#000000",
         "projectsStatuses_backgroundColour" => "#F5F5F5",
         "projectsStatuses_rank" => 8,
-        "projectsStatuses_assetsReleased" => true
+        "projectsStatuses_assetsReleased" => true,
+        "projectsStatuses_pipelineStage" => "CANCELLED"
     ],
     [
         "projectsStatuses_name" => "Lead Lost",
@@ -126,7 +135,8 @@ $defaultProjectStatuses = [
         "projectsStatuses_foregroundColour" => "#000000",
         "projectsStatuses_backgroundColour" => "#F5F5F5",
         "projectsStatuses_rank" => 9,
-        "projectsStatuses_assetsReleased" => true
+        "projectsStatuses_assetsReleased" => true,
+        "projectsStatuses_pipelineStage" => "LOST"
     ]
 ];
 foreach ($defaultProjectStatuses as $projectStatus) {

@@ -127,11 +127,14 @@
                             <b>Week Rate</b> <span class="float-right text-primary">{{ asset.assetTypes_weekRate|money(ASSET_INSTANCE['instances_config_currency']) }}</span>
                         </li>
                         {% if assets|length == 1 and ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id and "PROJECTS:VIEW"|instancePermissions %}
-                        <li class="list-group-item" title="From past projects for {{ assets[0].assets_tag|aTag }}, not counting lost or cancelled ones">
+                        <li class="list-group-item" title="From past projects for {{ assets[0].assets_tag|aTag }} whose status is at the Won pipeline stage">
                             <b>Revenue to date</b> <span class="float-right text-success" id="assetRevenueEarned">{{ assets[0].revenue.earned|money }}</span>
                         </li>
-                        <li class="list-group-item" title="From upcoming and current projects for {{ assets[0].assets_tag|aTag }}, not counting lost or cancelled ones">
+                        <li class="list-group-item" title="From upcoming and current projects for {{ assets[0].assets_tag|aTag }} whose status is at the Won pipeline stage">
                             <b>Booked revenue</b> <span class="float-right text-primary" id="assetRevenueBooked">{{ assets[0].revenue.booked|money }}</span>
+                        </li>
+                        <li class="list-group-item" title="From projects for {{ assets[0].assets_tag|aTag }} that are still Leads or Opportunities - not yet won">
+                            <b>Pipeline</b> <span class="float-right text-muted" id="assetRevenuePipeline">{{ assets[0].revenue.pipeline|money }}</span>
                         </li>
                         {% endif %}
                     </ul>
@@ -299,17 +302,19 @@
                                         </thead>
                                         <tbody>
                                         {% for assignment in sectionAssignments %}
-                                            <tr{% if assignment.isLost %} class="text-muted"{% endif %}>
+                                            <tr{% if assignment.projectsStatuses_pipelineStage != "WON" %} class="text-muted"{% endif %}>
                                                 <td><a href="{{ CONFIG.ROOTURL }}/project/?id={{ assignment.projects_id }}">{{ assignment.projects_name }}</a></td>
-                                                <td><span class="badge" style="background-color: {{ assignment.projectsStatuses_backgroundColour }}; color: {{ assignment.projectsStatuses_foregroundColour }};">{{ assignment.projectsStatuses_name }}</span></td>
+                                                <td><span class="badge" style="background-color: {{ assignment.projectsStatuses_backgroundColour }}; color: {{ assignment.projectsStatuses_foregroundColour }};">{{ assignment.projectsStatuses_name }}</span> <small>{{ assignment.pipelineStageName }}</small></td>
                                                 <td>{{ assignment.projects_dates_deliver_start|date("d M Y") }} - {{ assignment.projects_dates_deliver_end|date("d M Y") }}</td>
                                                 <td>{{ assignment.assetsAssignments_quantity > 1 ? assignment.assetsAssignments_quantity : 1 }}</td>
                                                 {% if showRevenue %}
                                                     <td class="text-right">
                                                         {% if not assignment.isOwnBusiness %}
                                                             <span title="Booked by another business">-</span>
-                                                        {% elseif assignment.isLost %}
-                                                            <s title="Lost/cancelled - not counted as revenue">{{ assignment.revenue|money }}</s>
+                                                        {% elseif assignment.projectsStatuses_pipelineStage in ["LOST", "CANCELLED"] %}
+                                                            <s title="{{ assignment.pipelineStageName }} - not counted as revenue">{{ assignment.revenue|money }}</s>
+                                                        {% elseif assignment.projectsStatuses_pipelineStage != "WON" %}
+                                                            <i title="{{ assignment.pipelineStageName }} - not yet won, so counted in the pipeline rather than revenue">{{ assignment.revenue|money }}</i>
                                                         {% else %}
                                                             {{ assignment.revenue|money }}
                                                         {% endif %}
@@ -983,7 +988,7 @@
                                     <th>Value</th>
                                     <th>Cost/day</th>
                                     <th>Cost/week</th>
-                                    {% if ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id and "PROJECTS:VIEW"|instancePermissions %}<th title="Revenue to date from past projects, not counting lost or cancelled ones">Revenue</th>{% endif %}
+                                    {% if ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id and "PROJECTS:VIEW"|instancePermissions %}<th title="Revenue to date from past projects whose status is at the Won pipeline stage">Revenue</th>{% endif %}
                                     <th title="File attachments"><i class="fas fa-paperclip"></i></th>
                                     <th style="width:1%"><i class="fas fa-flag"></i></th>
                                     <th style="width:1%"><i class="fas fa-ban"></i></th>

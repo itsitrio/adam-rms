@@ -11,6 +11,7 @@ foreach ($_POST['formData'] as $item) {
         $array[$item['name']] = $item['value'];
     }
 }
+if (isset($array['projectsStatuses_pipelineStage']) and !array_key_exists($array['projectsStatuses_pipelineStage'], PROJECT_PIPELINE_STAGES)) finish(false, ["code" => "PARAM-ERROR", "message" => "Unknown pipeline stage"]);
 unset($array['instances_id']); //Statuses can't be moved to another business
 if (strlen($array['projectsStatuses_id']) <1) finish(false, ["code" => "PARAM-ERROR", "message"=> "No data for action"]);
 
