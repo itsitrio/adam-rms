@@ -14,7 +14,7 @@ test.beforeEach(async () => {
 test.afterEach(async ({ tenants: { a } }) => {
   await s3.stop();
   dbQuery("UPDATE instances SET instances_storageLimit = 0 WHERE instances_id = ?", [a.instanceId]);
-  dbQuery("DELETE FROM s3files WHERE s3files_original_name = 'Uploaded_by_e2e.pdf' OR s3files_original_name = 'Uploaded by e2e.pdf' OR s3files_name = 'e2e-journey'");
+  dbQuery("DELETE FROM s3files WHERE s3files_original_name = 'Uploaded_by_e2e.pdf' OR s3files_original_name = 'Uploaded by e2e.pdf' OR s3files_name IN ('e2e-journey', 'e2e-photo')");
 });
 
 const sign = (filename: string) => ({ filename, contentType: "application/pdf" });
@@ -123,4 +123,75 @@ test("a file can be uploaded from a location's files page", async ({ page, tenan
   expect(s3.objects.get(key)?.length, "the row points at the stored file").toBe(2048);
   expect(Number(row.s3files_meta_size)).toBe(2048);
   expect(row.s3files_meta_subType).toBe(a.locationId);
+});
+
+test("the uploader can resize an image and remove its plain background before uploading it", async ({ page, tenants: { a, password } }) => {
+  await cacheCdn(page.context());
+  await s3.routeBrowser(page.context());
+  await login(page, a.users.full.email, password);
+  const filesPage = `/location/?id=${a.locationId}&files`;
+  await page.goto(filesPage, { waitUntil: "domcontentloaded" });
+  // A 1000x600 photo: a red box on a white background
+  const photo = Buffer.from(await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1000;
+    canvas.height = 600;
+    const context = canvas.getContext("2d")!;
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, 1000, 600);
+    context.fillStyle = "#ff0000";
+    context.fillRect(300, 200, 400, 200);
+    return canvas.toDataURL("image/jpeg", 0.95).split(",")[1];
+  }), "base64");
+  /** Uploads the photo from a fresh page with the given options, and returns the stored file's row and contents */
+  const upload = async (resize: string, removeBackground: boolean) => {
+    await page.goto(filesPage, { waitUntil: "domcontentloaded" });
+    await page.locator('select[id$="Resize"]').selectOption(resize);
+    if (removeBackground) await page.locator('label[for$="RemoveBackground"]').click();
+    await page.locator(".uppy-Dashboard-input").first().setInputFiles({ name: "e2e-photo.jpg", mimeType: "image/jpeg", buffer: photo });
+    const registered = page.waitForResponse((response) => response.url().includes("/api/s3files/uploadSuccess.php"));
+    await page.locator(".uppy-StatusBar-actionBtn--upload").click();
+    const result = await (await registered).json();
+    expect(result.result, JSON.stringify(result)).toBe(true);
+    const [row] = dbQuery<{ s3files_path: string; s3files_filename: string; s3files_extension: string; s3files_meta_size: number; s3files_original_name: string }>(
+      "SELECT s3files_path, s3files_filename, s3files_extension, s3files_meta_size, s3files_original_name FROM s3files WHERE s3files_id = ?", [result.response.id]);
+    const stored = s3.objects.get(`${row.s3files_path}/${row.s3files_filename}.${row.s3files_extension}`)!;
+    expect(Number(row.s3files_meta_size)).toBe(stored.length);
+    return { row, stored };
+  };
+  /** The image's size, and the colour and alpha of a corner and the middle */
+  const inspect = (image: Buffer, type: string) => page.evaluate(async ({ base64, type }) => {
+    const bitmap = await createImageBitmap(await (await fetch(`data:${type};base64,${base64}`)).blob());
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d")!;
+    context.drawImage(bitmap, 0, 0);
+    return { width: bitmap.width, height: bitmap.height, corner: [...context.getImageData(1, 1, 1, 1).data], middle: [...context.getImageData(bitmap.width / 2, bitmap.height / 2, 1, 1).data] };
+  }, { base64: image.toString("base64"), type });
+
+  // By default the photo is uploaded as it is
+  const original = await upload("0", false);
+  expect(original.stored.equals(photo)).toBe(true);
+  expect(original.row.s3files_extension).toBe("jpg");
+
+  // Resized: still a JPEG, at most 800px across
+  const resized = await upload("800", false);
+  expect(resized.row.s3files_extension).toBe("jpg");
+  expect(resized.row.s3files_original_name).toBe("e2e-photo.jpg");
+  const resizedImage = await inspect(resized.stored, "image/jpeg");
+  expect([resizedImage.width, resizedImage.height]).toEqual([800, 480]);
+  expect(resizedImage.corner[3]).toBe(255);
+
+  // With the background removed it's saved as a PNG whose white edge is transparent and whose red box isn't
+  const cutOut = await upload("800", true);
+  expect(cutOut.row.s3files_extension).toBe("png");
+  expect(cutOut.row.s3files_original_name).toBe("e2e-photo.png");
+  expect(cutOut.stored.subarray(1, 4).toString()).toBe("PNG");
+  const cutOutImage = await inspect(cutOut.stored, "image/png");
+  expect([cutOutImage.width, cutOutImage.height]).toEqual([800, 480]);
+  expect(cutOutImage.corner[3]).toBe(0);
+  expect(cutOutImage.middle[3]).toBe(255);
+  expect(cutOutImage.middle[0]).toBeGreaterThan(200);
+  expect(cutOutImage.middle[1]).toBeLessThan(50);
 });
