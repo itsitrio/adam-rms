@@ -1,6 +1,7 @@
 import { execFileSync } from "child_process";
 import path from "path";
 import { APP_ENV, PHP_BINARY } from "./env";
+import { migrationClashes } from "./migrations";
 
 /**
  * Brings the database to a known state before the suite runs: applies every
@@ -20,6 +21,11 @@ export default function globalSetup() {
       stdio: ["ignore", "inherit", "inherit"],
     });
 
+  // Phinx won't migrate at all while two migrations clash, and only says so without -q
+  const clashes = migrationClashes();
+  if (clashes.versions.length || clashes.classNames.length) {
+    throw new Error(`Migrations clash, so Phinx won't run any of them. Give each its own version and class name: ${JSON.stringify(clashes)}`);
+  }
   run(["vendor/bin/phinx", "migrate", "-q"]);
   run(["vendor/bin/phinx", "seed:run", "-q"]);
   run(["e2e/setup/seed.php"]);
