@@ -14,8 +14,15 @@ fi
 # Database migration & seed
 echo "AdamRMS - Starting Migration Script"
 
-php vendor/bin/phinx migrate -e production
-php vendor/bin/phinx seed:run -e production
+# Stop rather than start the app on a database that isn't migrated: the pages would fail on missing tables
+if ! php vendor/bin/phinx migrate -e production; then
+    echo "AdamRMS - Database migration failed, not starting"
+    exit 1
+fi
+if ! php vendor/bin/phinx seed:run -e production; then
+    echo "AdamRMS - Database seeding failed, not starting"
+    exit 1
+fi
 
 if [[ -v DEV_MODE ]] && [[ "${DEV_MODE}" == 'true' ]]; then
     echo "AdamRMS - Running in DEV MODE"
