@@ -31,6 +31,16 @@ $PAGEDATA['pageConfig'] = ["TITLE" => $PAGEDATA["project"]['projects_name'], "BR
 if ($AUTH->instancePermissionCheck("PROJECTS:EDIT:CLIENT")) {
     $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
     $PAGEDATA['clients'] = $DBLIB->get("clients", null, ["clients_id", "clients_name", "clients_archived"]);
+
+    //The project's client's event brands
+    $PAGEDATA['clientBrands'] = [];
+    if ($PAGEDATA['project']['clients_id']) {
+        $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
+        $DBLIB->where("clients_id", $PAGEDATA['project']['clients_id']);
+        $DBLIB->where("clientsBrands_deleted", 0);
+        $DBLIB->orderBy("clientsBrands_name", "ASC");
+        $PAGEDATA['clientBrands'] = $DBLIB->get("clientsBrands", null, ["clientsBrands_id", "clientsBrands_name"]);
+    }
 }
 
 //Edit Options - Locations list

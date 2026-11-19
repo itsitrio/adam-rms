@@ -135,6 +135,9 @@ function tenant(string $letter): array {
         "clients_name" => "$marker client", "clients_deleted" => 0, "clients_archived" => 0, "clients_notes" => "$marker client notes",
         "clients_website" => null, "clients_address" => null, "clients_phone" => null,
     ], $remembered['clientId'] ?? null);
+    $t['clientBrandId'] = upsert("clientsBrands", "clientsBrands_id", ["instances_id" => $instance, "clientsBrands_notes" => "$marker brand notes"], [
+        "clients_id" => $t['clientId'], "clientsBrands_name" => "$marker brand", "clientsBrands_deleted" => 0,
+    ], $remembered['clientBrandId'] ?? null);
     $t['locationId'] = upsert("locations", "locations_id", ["instances_id" => $instance, "locations_notes" => "$marker location notes"], [
         "locations_name" => "$marker location", "clients_id" => $t['clientId'], "locations_deleted" => 0, "locations_archived" => 0,
         "locations_subOf" => null, "locations_address" => "$marker location address",
@@ -199,7 +202,7 @@ function tenant(string $letter): array {
         "assetsAssignmentsStatus_order" => 0, "assetsAssignmentsStatus_deleted" => 0,
     ], $remembered['assignmentStatusId'] ?? null);
     $project = [
-        "projects_manager" => $manager, "projects_deleted" => 0, "projects_archived" => 0, "clients_id" => $t['clientId'], "locations_id" => $t['locationId'],
+        "projects_manager" => $manager, "projects_deleted" => 0, "projects_archived" => 0, "clients_id" => $t['clientId'], "clientsBrands_id" => $t['clientBrandId'], "locations_id" => $t['locationId'],
         "projectsStatuses_id" => $t['projectStatusIds']['first'], "projectsTypes_id" => $t['projectTypeId'], "projects_status_follow_parent" => 0,
         "projects_invoiceNotes" => "$marker invoice notes", "projects_deliveryNotes" => "$marker delivery notes",
         "projects_dates_use_start" => "2030-01-02 09:00:00", "projects_dates_use_end" => "2030-01-04 18:00:00",

@@ -105,6 +105,10 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/clients/new.php", permission: "CLIENTS:CREATE", params: () => ({ clients_name: "New by e2e" }) },
   { endpoint: "/api/clients/edit.php", permission: "CLIENTS:EDIT", params: (a) => ({ formData: formData({ clients_id: a.clientId, clients_name: "Renamed by e2e" }) }) },
   { endpoint: "/api/clients/archive.php", permission: "CLIENTS:EDIT", params: (a) => ({ clients_id: a.clientId }) },
+  { endpoint: "/api/clients/brands/new.php", permission: "CLIENTS:EDIT", params: (a) => ({ clients_id: a.clientId, clientsBrands_name: "Brand by e2e" }) },
+  { endpoint: "/api/clients/brands/edit.php", permission: "CLIENTS:EDIT", params: (a) => ({ clients_id: a.clientId, clientsBrands_id: a.clientBrandId, clientsBrands_name: "Renamed by e2e" }) },
+  { endpoint: "/api/clients/brands/delete.php", permission: "CLIENTS:EDIT", params: (a) => ({ clients_id: a.clientId, clientsBrands_id: a.clientBrandId }) },
+  { endpoint: "/api/projects/changeBrand.php", permission: "PROJECTS:EDIT:CLIENT", params: (a) => ({ projects_id: a.projectId, clientsBrands_id: "" }) },
   // Locations
   { endpoint: "/api/locations/new.php", permission: "LOCATIONS:CREATE", params: () => ({ formData: formData({ locations_name: "New by e2e" }) }) },
   { endpoint: "/api/locations/edit.php", permission: "LOCATIONS:EDIT", params: (a) => ({ formData: formData({ locations_id: a.locationId, locations_name: "Renamed by e2e" }) }) },
@@ -196,5 +200,13 @@ test.describe("a user with only view permissions", () => {
 
   test("can view maintenance jobs (MAINTENANCE_JOBS:VIEW)", async ({ asLimitedA, tenants: { a } }) => {
     expect(mentions(await asLimitedA.page(`/maintenance/job.php?id=${a.maintenanceJobId}`), `${a.marker} maintenance job`)).toBe(true);
+  });
+
+  test("can view a client's event brands, but not change them (CLIENTS:VIEW)", async ({ asA, asLimitedA, tenants: { a } }) => {
+    expect(mentions(await asLimitedA.api("/api/clients/brands/list.php", { clients_id: a.clientId }), `${a.marker} brand`)).toBe(true);
+    const page = await asLimitedA.page(`/client.php?id=${a.clientId}`);
+    expect(mentions(page, `${a.marker} brand`)).toBe(true);
+    expect(mentions(page, "brandEditButton")).toBe(false);
+    expect(mentions(await asA.page(`/client.php?id=${a.clientId}`), "brandEditButton"), "control: the full-access user can").toBe(true);
   });
 });

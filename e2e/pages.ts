@@ -19,6 +19,7 @@ export const businessPages: PageCase[] = [
   { url: () => "/assets.php?view=table" },
   { url: (t) => `/assets.php?project=${t.projectId}&view=table` },
   { url: () => "/clients.php" },
+  { url: (t) => `/client.php?id=${t.clientId}` },
   { url: () => "/ledger.php" },
   { url: () => "/receivables.php" },
   { url: () => "/reports/" },

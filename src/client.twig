@@ -1,0 +1,189 @@
+{% extends "assets/template.twig" %}
+{% block content %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">{{ client.clients_name }}{% if client.clients_archived == 1 %} <span class="badge badge-secondary">Archived</span>{% endif %}</h3>
+                    <div class="card-tools">
+                        <a href="{{ CONFIG.ROOTURL }}/clients.php" class="btn btn-default btn-sm">All clients</a>
+                        {% if "PROJECTS:VIEW"|instancePermissions %}<a href="{{ CONFIG.ROOTURL }}/project/list.php?client={{ client.clients_id }}" class="btn btn-default btn-sm">Projects</a>{% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            {% if client.clients_email %}<p class="mb-1"><i class="fas fa-envelope fa-fw"></i> {{ client.clients_email }}</p>{% endif %}
+                            {% if client.clients_phone %}<p class="mb-1"><i class="fas fa-phone fa-fw"></i> {{ client.clients_phone }}</p>{% endif %}
+                            {% if client.clients_website %}<p class="mb-1"><i class="fas fa-globe fa-fw"></i> <a href="{{ client.clients_website }}" target="_blank">{{ client.clients_website }}</a></p>{% endif %}
+                            {% if client.clients_address %}<p class="mb-1"><i class="fas fa-map-marker-alt fa-fw"></i> {{ client.clients_address|nl2br }}</p>{% endif %}
+                            {% if client.clients_notes %}<p class="text-muted">{{ client.clients_notes|nl2br }}</p>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm" id="clientTotals">
+                                <tr><th>Projects</th><td class="text-right" data-total="projects">{{ totals.projects }}</td></tr>
+                                <tr><th>Assets supplied</th><td class="text-right" data-total="assets">{{ totals.assets }}</td></tr>
+                                <tr><th>Total</th><td class="text-right" data-total="total">{{ totals.total|money }}</td></tr>
+                                <tr><th>Total paid</th><td class="text-right" data-total="received">{{ totals.received|money }}</td></tr>
+                                <tr><th>To pay</th><td class="text-right" data-total="outstanding">{{ totals.outstanding|money }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Event brands</h3>
+                    {% if "CLIENTS:EDIT"|instancePermissions %}
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-success btn-sm brandEditButton" data-id="" data-name="" data-notes=""><i class="fas fa-plus"></i> Add brand</button>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body table-responsive p-0">
+                    <table class="table table-hover mb-0" id="brandsTable">
+                        <thead>
+                            <tr>
+                                <th>Brand</th>
+                                <th class="text-right">Projects</th>
+                                <th>First event</th>
+                                <th>Latest event</th>
+                                <th class="text-right">Assets supplied</th>
+                                <th class="text-right">Total</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for group in brandGroups|merge([noBrand]) %}
+                            {% if group.brand or group.projects|length > 0 %}
+                            {% set rowId = "brandProjects" ~ (group.brand ? group.brand.clientsBrands_id : "None") %}
+                            <tr class="brandRow" data-brand="{{ group.brand ? group.brand.clientsBrands_name : '' }}">
+                                <td>
+                                    {% if group.brand %}
+                                        <b>{{ group.brand.clientsBrands_name }}</b>
+                                        {% if group.brand.clientsBrands_notes %}<br/><small class="text-muted">{{ group.brand.clientsBrands_notes|nl2br }}</small>{% endif %}
+                                    {% else %}
+                                        <i>No brand</i>
+                                    {% endif %}
+                                </td>
+                                <td class="text-right" data-column="projects">{{ group.projects|length }}</td>
+                                <td>{{ group.first ? group.first|date("d M Y") }}</td>
+                                <td>{{ group.last ? group.last|date("d M Y") }}</td>
+                                <td class="text-right" data-column="assets">{{ group.assets }}</td>
+                                <td class="text-right" data-column="total">{{ group.total|money }}</td>
+                                <td class="text-right text-nowrap">
+                                    {% if group.projects|length > 0 %}
+                                        <button type="button" class="btn btn-default btn-sm" data-toggle="collapse" data-target="#{{ rowId }}" title="Show projects"><i class="fas fa-caret-down"></i></button>
+                                    {% endif %}
+                                    {% if group.brand and "CLIENTS:EDIT"|instancePermissions %}
+                                        <button type="button" class="btn btn-default btn-sm brandEditButton" data-id="{{ group.brand.clientsBrands_id }}" data-name="{{ group.brand.clientsBrands_name }}" data-notes="{{ group.brand.clientsBrands_notes }}" title="Edit"><i class="fas fa-edit"></i></button>
+                                        <button type="button" class="btn btn-danger btn-sm brandDeleteButton" data-id="{{ group.brand.clientsBrands_id }}" title="Delete"><i class="fas fa-trash"></i></button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if group.projects|length > 0 %}
+                        <tr class="collapse brandProjects" id="{{ rowId }}">
+                            <td colspan="7" class="p-0">
+                                <table class="table table-sm mb-0 bg-light">
+                                    <thead>
+                                        <tr>
+                                            <th class="pl-4">Project</th>
+                                            <th>Status</th>
+                                            <th>Dates</th>
+                                            <th class="text-right">Assets</th>
+                                            <th class="text-right">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for project in group.projects %}
+                                        <tr>
+                                            <td class="pl-4">
+                                                <a {% if "PROJECTS:VIEW"|instancePermissions %}href="{{ CONFIG.ROOTURL }}/project/?id={{ project.projects_id }}"{% endif %}>{{ project.projects_name }}</a>
+                                                {% if project.projects_archived == 1 %}<span class="badge badge-secondary">Archived</span>{% endif %}
+                                            </td>
+                                            <td>{{ project.projectsStatuses_name }}</td>
+                                            <td>{% if project.projects_dates_deliver_start %}{{ project.projects_dates_deliver_start|date("d M Y") }}{% if project.projects_dates_deliver_end %} - {{ project.projects_dates_deliver_end|date("d M Y") }}{% endif %}{% endif %}</td>
+                                            <td class="text-right">{{ project.assets }}</td>
+                                            <td class="text-right">{{ project.total|money }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                            {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if brandGroups|length == 0 and noBrand.projects|length == 0 %}
+                            <tr><td colspan="7" class="text-center"><i>No brands or projects yet</i></td></tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if "CLIENTS:EDIT"|instancePermissions %}
+    <div class="modal fade" id="brandModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Event brand</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="brandId" value=""/>
+                    <div class="form-group">
+                        <label for="brandName">Name</label>
+                        <input type="text" class="form-control" id="brandName" maxlength="200">
+                    </div>
+                    <div class="form-group">
+                        <label for="brandNotes">Notes</label>
+                        <textarea class="form-control" rows="3" id="brandNotes"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="brandSave">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        $(document).ready(function () {
+            $(".brandEditButton").click(function () {
+                $("#brandId").val($(this).data("id"));
+                $("#brandName").val($(this).attr("data-name"));
+                $("#brandNotes").val($(this).attr("data-notes"));
+                $("#brandModal").modal("show");
+            });
+            $("#brandSave").click(function () {
+                var id = $("#brandId").val();
+                var data = {"clients_id": "{{ client.clients_id }}", "clientsBrands_name": $("#brandName").val(), "clientsBrands_notes": $("#brandNotes").val()};
+                if (id) data.clientsBrands_id = id;
+                ajaxcall(id ? "clients/brands/edit.php" : "clients/brands/new.php", data, function () {
+                    location.reload();
+                });
+            });
+            $(".brandDeleteButton").click(function () {
+                var id = $(this).data("id");
+                bootbox.confirm({
+                    title: "Delete this brand?",
+                    message: "Its projects will be listed under No brand.",
+                    buttons: {
+                        confirm: {label: 'Delete', className: 'btn-danger'},
+                        cancel: {label: 'Cancel', className: 'btn-default'}
+                    },
+                    callback: function (result) {
+                        if (result) {
+                            ajaxcall("clients/brands/delete.php", {"clients_id": "{{ client.clients_id }}", "clientsBrands_id": id}, function () {
+                                location.reload();
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+    {% endif %}
+{% endblock %}

@@ -75,6 +75,25 @@ The client list provides a quick financial overview for each client:
 
 For detailed financial information about a specific client's projects, click on the client's name to view their project list.
 
+## Event Brands
+
+Some clients run several recurring events, for example a convention every year, or a company that runs a few different conventions. You can give a client an **event brand** for each one, then tag each of its projects with the right brand.
+
+Click the **chart** icon next to a client's name to open the client's page. It shows the client's totals across all of its projects (projects, assets supplied, total charged, paid and to pay), followed by an **Event brands** table with one row per brand:
+
+| Column | Description |
+|--------|-------------|
+| **Projects** | How many of the client's projects are tagged with the brand |
+| **First event** / **Latest event** | The delivery start date of the brand's earliest and most recent project |
+| **Assets supplied** | Units of equipment booked across the brand's projects |
+| **Total** | What the brand's projects come to: equipment, sales, staff and sub-hires |
+
+Click the arrow at the end of a row to see that brand's projects in date order. Projects without a brand are listed in a separate **No brand** row.
+
+With CLIENTS:EDIT you can add, rename and delete brands from this page. Deleting a brand moves its projects to the **No brand** row.
+
+To tag a project, choose the brand from the **Event brand** dropdown under the client on the project's page (this needs PROJECTS:EDIT:CLIENT). Only the project's client's brands are offered. Changing a project's client removes its brand.
+
 ## Related Features
 
 - [Projects](../projects/projects.md) -- creating and managing projects linked to clients

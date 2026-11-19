@@ -67,6 +67,7 @@
                                         <a {% if "PROJECTS:VIEW"|instancePermissions %}href="{{ CONFIG.ROOTURL }}/project/list.php?client={{ client.clients_id }}"{% endif %}>
                                             {{ client.clients_name }}
                                         </a>
+                                        <a class="btn btn-default btn-xs ml-1" href="{{ CONFIG.ROOTURL }}/client.php?id={{ client.clients_id }}" title="Event brands and history"><i class="fas fa-chart-bar"></i></a>
                                     </td>
                                     <td>
                                         {% if client.clients_address %}
