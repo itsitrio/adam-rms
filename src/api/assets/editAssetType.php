@@ -53,7 +53,7 @@ else {
         $DBLIB->where("assets_id",$asset['assets_id']);
         $DBLIB->where("assetsAssignments_deleted",0);
         $DBLIB->join("projects","assetsAssignments.projects_id=projects.projects_id","LEFT");
-        $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity','assetsAssignments_excludedFromTotals']);
+        $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_dayRate','assetsAssignments_weekRate','assetsAssignments_discount','assetsAssignments_quantity','assetsAssignments_excludedFromTotals']);
         foreach ($assetAssignments as $assignment) {
             $projectFinanceHelper = new projectFinance();
             $priceMaths = $projectFinanceHelper->durationMaths($assignment['projects_id']);
@@ -73,14 +73,15 @@ else {
             if ($assignment['assetsAssignments_customPrice'] > 0 or $assignment['assetsAssignments_excludedFromTotals'] == 1) {
                 //Old price stands (or isn't charged for) so ignore it
             } else {
+                //Priced at the rates saved on the assignment when it was added where it has them, so a new rate leaves the price as it was
                 $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-                $oldPrice = $oldPrice->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $assetType['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-                $oldPrice = $oldPrice->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $assetType['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+                $oldPrice = $oldPrice->add((new Money(projectFinance::assignmentRate(array_merge($assetType, $asset, $assignment), 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+                $oldPrice = $oldPrice->add((new Money(projectFinance::assignmentRate(array_merge($assetType, $asset, $assignment), 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
                 $oldPrice = $oldPrice->multiply($quantity);
                 //Price is now manually calculated
                 $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-                $price = $price->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $array['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-                $price = $price->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $array['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+                $price = $price->add((new Money(projectFinance::assignmentRate(array_merge($assetType, ['assetTypes_dayRate' => $array['assetTypes_dayRate']], $asset, $assignment), 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+                $price = $price->add((new Money(projectFinance::assignmentRate(array_merge($assetType, ['assetTypes_weekRate' => $array['assetTypes_weekRate']], $asset, $assignment), 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
                 $price = $price->multiply($quantity);
 
                 //Remove the old price

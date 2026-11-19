@@ -96,10 +96,10 @@ test("a line left out of the totals isn't charged for, and its running totals ke
     await expectFinances(asA, a, project, now);
   });
 
-  await test.step("putting it back in the totals charges for it, with its discount, at the current rates", async () => {
+  await test.step("putting it back in the totals charges for it, with its discount, at the rates it was added at", async () => {
     await ok(api("/api/projects/assets/setHidden.php", { assetsAssignments: [line], assetsAssignments_excludedFromTotals: 0 }), "including it");
-    // £30.00 a week + 2 days at its own £15.00, half off
-    now = { ...now, subTotal: 11000, discounts: 3000, total: 8000, grandTotal: 8000 };
+    // £30.00 a week + 2 days at the £10.00 it was added at (not its own £15.00 since), half off
+    now = { ...now, subTotal: 10000, discounts: 2500, total: 7500, grandTotal: 7500 };
     await expectFinances(asA, a, project, now);
   });
 

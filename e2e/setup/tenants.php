@@ -224,6 +224,8 @@ function tenant(string $letter): array {
     $t['assignmentId'] = upsert("assetsAssignments", "assetsAssignments_id", ["assets_id" => $t['assetId'], "projects_id" => $t['projectId']], [
         "assetsAssignments_comment" => "$marker assignment comment", "assetsAssignments_customPrice" => 0, "assetsAssignments_discount" => 0,
         "assetsAssignments_deleted" => 0, "assetsAssignmentsStatus_id" => null, "assetsAssignments_linkedTo" => null,
+        // No saved rates, so it's priced at the asset's current rates until refreshRates.php saves them
+        "assetsAssignments_dayRate" => null, "assetsAssignments_weekRate" => null,
     ], $remembered['assignmentId'] ?? null);
     // Tests assign the spare asset (assign.php); it starts off free
     $db->prepare("UPDATE assetsAssignments SET assetsAssignments_deleted = 1 WHERE assets_id = ? AND assetsAssignments_id != ?")->execute([$t['spareAssetId'], $t['assignmentId']]);

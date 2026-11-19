@@ -5,6 +5,20 @@ use Money\Currency;
 
 class projectFinance
 {
+  /**
+   * The day or week rate an asset assignment is charged at ($rate is "dayRate" or "weekRate"): the rate saved on
+   * the assignment when the asset was added to the project, or if none was saved, the asset's own rate or its type's.
+   * $row needs whichever of assetsAssignments_*, assets_* and assetTypes_* it has.
+   */
+  public static function assignmentRate($row, $rate)
+  {
+    return $row['assetsAssignments_' . $rate] ?? $row['assets_' . $rate] ?? $row['assetTypes_' . $rate] ?? null;
+  }
+  /** The asset's current day or week rate: its own if it has one, otherwise its type's */
+  public static function currentRate($row, $rate)
+  {
+    return $row['assets_' . $rate] ?? $row['assetTypes_' . $rate] ?? null;
+  }
   public function durationMathsByDates($start, $end)
   {
     $start = strtotime(date("d F Y 00:00:00", strtotime($start)));

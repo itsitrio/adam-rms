@@ -28,7 +28,7 @@ $DBLIB->where("assets.assets_deleted", 0);
 $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
 $DBLIB->join("assets", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
 $DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
-$assignment = $DBLIB->getone("assetsAssignments", ["assetsAssignments.assetsAssignments_id", "assetsAssignments.assetsAssignments_quantity", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals", "assetsAssignments.projects_id", "projects.projects_dates_deliver_start", "projects.projects_dates_deliver_end", "assets.assets_id", "assets.assets_unserialized", "assets.assets_quantity", "assets.assets_dayRate", "assets.assets_weekRate", "assets.assets_mass", "assets.assets_value", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate", "assetTypes.assetTypes_mass", "assetTypes.assetTypes_value"]);
+$assignment = $DBLIB->getone("assetsAssignments", ["assetsAssignments.assetsAssignments_id", "assetsAssignments.assetsAssignments_quantity", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_dayRate", "assetsAssignments.assetsAssignments_weekRate", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals", "assetsAssignments.projects_id", "projects.projects_dates_deliver_start", "projects.projects_dates_deliver_end", "assets.assets_id", "assets.assets_unserialized", "assets.assets_quantity", "assets.assets_dayRate", "assets.assets_weekRate", "assets.assets_mass", "assets.assets_value", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate", "assetTypes.assetTypes_mass", "assetTypes.assetTypes_value"]);
 if (!$assignment) finish(false, ["message" => "Could not find assignment"]);
 if ($assignment['assets_unserialized'] != 1 and $quantity != 1) finish(false, ["message" => "Only unserialized assets can be assigned in quantities - assign another asset of this type instead"]);
 
@@ -58,8 +58,8 @@ if ($assignment['assetsAssignments_excludedFromTotals'] != 1) { //An assignment 
         $price = new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency']));
     } else {
         $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-        $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-        $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+        $price = $price->add((new Money(projectFinance::assignmentRate($assignment, 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+        $price = $price->add((new Money(projectFinance::assignmentRate($assignment, 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
     }
     $price = $price->multiply(abs($difference));
     $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, $difference < 0);

@@ -110,10 +110,8 @@ test("a project's finances add up, and its running totals keep up, through every
     await expectFinances(asA, a, project, now);
   });
 
-  await test.step("the first asset's own day rate changed to £20.00", async () => {
+  await test.step("the first asset's own day rate changed to £20.00: the project keeps the rate it was added at", async () => {
     await ok(api("/api/assets/editAsset.php", { formData: formData({ assets_id: assets[0], assets_dayRate: "20.00" }) }), "editing the asset");
-    // £30.00 + 2 x £20.00 = £70.00, half off
-    now = { ...now, subTotal: 9000, discounts: 3500, total: 5500, grandTotal: 5500 };
     await expectFinances(asA, a, project, now);
   });
 
@@ -178,7 +176,7 @@ test("custom days and weeks can't be negative,and -1 for both goes back to charg
   expect(duration()).toEqual({ days: null, weeks: null });
 });
 
-test("changing an asset type's rates, value and mass updates the projects its assets are on", async ({ asA, tenants: { a } }) => {
+test("a project keeps the rates its assets were added at when an asset or its type is repriced, until it's updated to the current rates", async ({ asA, tenants: { a } }) => {
   const api = (endpoint: string, params: Parameters<Session["api"]>[1]) => asA.api(endpoint, { instances_id: a.instanceId, ...params });
   const type = { manufacturers_id: a.manufacturerId, assetCategories_id: a.categoryId, assetTypes_name: "Rate change test type" };
   const createdType = await api("/api/assets/newAssetType.php", { formData: formData({
@@ -188,26 +186,72 @@ test("changing an asset type's rates, value and mass updates the projects its as
   const newAsset = async () => (await api("/api/assets/newAssetFromType.php", { formData: formData({ assetTypes_id: typeId }) })).json.response.assets_id as number;
   const byType = await newAsset();
   const ownRate = await newAsset();
+  const customPriced = await newAsset();
   await ok(api("/api/assets/editAsset.php", { formData: formData({ assets_id: ownRate, assets_dayRate: "8.00" }) }), "giving an asset its own rate");
 
-  const created = await api("/api/projects/new.php", { projects_name: "Rate change test", projects_manager: a.users.full.id, projectsType_id: a.projectTypeId });
-  const project: number = created.json.response.projects_id;
-  await ok(api("/api/projects/changeProjectDeliverDates.php", {
-    projects_id: project, projects_dates_deliver_start: "2036-03-01 09:00:00", projects_dates_deliver_end: "2036-03-03 18:00:00",
-  }), "setting the dates");
-  await expectFinances(asA, a, project, { subTotal: 0, discounts: 0, total: 0, received: 0, sales: 0, subHire: 0, staff: 0, grandTotal: 0, value: 0, mass: 0 });
-  for (const asset of [byType, ownRate]) await ok(api("/api/projects/assets/assign.php", { projects_id: project, assets_id: asset }), "assigning");
-  const [{ id }] = dbQuery<{ id: number }>("SELECT assetsAssignments_id id FROM assetsAssignments WHERE projects_id = ? AND assets_id = ?", [project, byType]);
-  await ok(api("/api/projects/assets/setDiscount.php", { assetsAssignments: [id], assetsAssignments_discount: 50 }), "discounting");
-  // 3 x £5.00 (half off) + 3 x £8.00
   const none = { received: 0, sales: 0, subHire: 0, staff: 0 };
-  await expectFinances(asA, a, project, { ...none, subTotal: 3900, discounts: 750, total: 3150, grandTotal: 3150, value: 10000, mass: 4 });
+  const zero: Finances = { ...none, subTotal: 0, discounts: 0, total: 0, grandTotal: 0, value: 0, mass: 0 };
+  const project = await newProject(asA, a, a.users.full.id, { start: "2036-03-01 09:00:00", end: "2036-03-03 18:00:00" });
+  await expectFinances(asA, a, project, zero);
+  for (const asset of [byType, ownRate, customPriced]) await ok(api("/api/projects/assets/assign.php", { projects_id: project, assets_id: asset }), "assigning");
+  const assignment = (asset: number, onProject = project) => dbQuery<{ id: number; dayRate: number | null; weekRate: number | null; customPrice: number | null }>(
+    `SELECT assetsAssignments_id id, assetsAssignments_dayRate dayRate, assetsAssignments_weekRate weekRate, assetsAssignments_customPrice customPrice
+     FROM assetsAssignments WHERE projects_id = ? AND assets_id = ? AND assetsAssignments_deleted = 0`, [onProject, asset])[0];
+  await ok(api("/api/projects/assets/setDiscount.php", { assetsAssignments: [assignment(byType).id], assetsAssignments_discount: 50 }), "discounting");
+  await ok(api("/api/projects/assets/setPrice.php", { assetsAssignments: [assignment(customPriced).id], assetsAssignments_customPrice: "20.00" }), "setting a custom price");
+  // 3 x £5.00 (half off) + 3 x £8.00 + £20.00
+  const atOldRates: Finances = { ...none, subTotal: 5900, discounts: 750, total: 5150, grandTotal: 5150, value: 15000, mass: 6 };
+  await expectFinances(asA, a, project, atOldRates);
+  // The rates in effect when each asset was added are kept with the assignment
+  expect(assignment(byType), "the rates saved for the asset priced by its type").toMatchObject({ dayRate: 500, weekRate: 1500 });
+  expect(assignment(ownRate), "the rates saved for the asset with its own day rate").toMatchObject({ dayRate: 800, weekRate: 1500 });
 
   await ok(api("/api/assets/editAssetType.php", { formData: formData({
     ...type, assetTypes_id: typeId, assetTypes_dayRate: "10.00", assetTypes_weekRate: "15.00", assetTypes_value: "60.00", assetTypes_mass: 3,
   }) }), "editing the asset type");
-  // The asset with its own rate keeps it: 3 x £10.00 (half off) + 3 x £8.00
-  await expectFinances(asA, a, project, { ...none, subTotal: 5400, discounts: 1500, total: 3900, grandTotal: 3900, value: 12000, mass: 6 });
+  await ok(api("/api/assets/editAsset.php", { formData: formData({ assets_id: ownRate, assets_dayRate: "9.00" }) }), "changing the asset's own rate");
+  // The prices on the project stay as quoted; what the kit is worth and weighs still follows the assets
+  const repriced: Finances = { ...atOldRates, value: 18000, mass: 9 };
+  await expectFinances(asA, a, project, repriced);
+
+  await test.step("a new project gets the new rates", async () => {
+    const later = await newProject(asA, a, a.users.full.id, { start: "2036-03-10 09:00:00", end: "2036-03-12 18:00:00" });
+    await expectFinances(asA, a, later, zero);
+    for (const asset of [byType, ownRate]) await ok(api("/api/projects/assets/assign.php", { projects_id: later, assets_id: asset }), "assigning");
+    // 3 x £10.00 + 3 x £9.00
+    await expectFinances(asA, a, later, { ...none, subTotal: 5700, discounts: 0, total: 5700, grandTotal: 5700, value: 12000, mass: 6 });
+  });
+
+  await test.step("updating the first project to the current rates", async () => {
+    // A dry run says what the update would do, and changes nothing
+    const preview = await api("/api/projects/assets/refreshRates.php", { projects_id: project, dryRun: 1 });
+    expect(preview.json).toMatchObject({ result: true, response: { changed: false, before: { total: { amount: "5150" } }, after: { total: { amount: "6200" } } } });
+    await expectFinances(asA, a, project, repriced);
+
+    const refreshed = await api("/api/projects/assets/refreshRates.php", { projects_id: project });
+    expect(refreshed.json).toMatchObject({ result: true, response: { changed: true, before: { total: { amount: "5150" } }, after: { total: { amount: "6200" } } } });
+    // 3 x £10.00 (half off) + 3 x £9.00 + £20.00: the custom price stands
+    await expectFinances(asA, a, project, { ...repriced, subTotal: 7700, discounts: 1500, total: 6200, grandTotal: 6200 });
+    expect(assignment(byType)).toMatchObject({ dayRate: 1000, weekRate: 1500 });
+    expect(assignment(ownRate)).toMatchObject({ dayRate: 900, weekRate: 1500 });
+    expect(assignment(customPriced).customPrice, "the custom price is kept").toBe(2000);
+    expect(dbQuery("SELECT auditLog_id FROM auditLog WHERE auditLog_actionType = 'REFRESH-RATES' AND projects_id = ?", [project]), "an audit log entry").toHaveLength(1);
+  });
+
+  await test.step("an asset swapped for another comes off at its saved rates, and the new one goes on at its current rates", async () => {
+    await ok(api("/api/assets/editAsset.php", { formData: formData({ assets_id: ownRate, assets_dayRate: "12.00" }) }), "repricing the asset again");
+    const spare = await newAsset();
+    await ok(api("/api/assets/editAsset.php", { formData: formData({ assets_id: spare, assets_dayRate: "4.00" }) }), "giving the spare its own rate");
+    await ok(api("/api/projects/assets/swap.php", { assetsAssignments_id: assignment(ownRate).id, assets_id: spare }), "swapping");
+    expect(assignment(spare)).toMatchObject({ dayRate: 400, weekRate: 1500 });
+    // 3 x £10.00 (half off) + 3 x £4.00 + £20.00
+    await expectFinances(asA, a, project, { ...repriced, subTotal: 6200, discounts: 1500, total: 4700, grandTotal: 4700 });
+
+    await ok(api("/api/assets/editAsset.php", { formData: formData({ assets_id: spare, assets_dayRate: "6.00" }) }), "repricing the spare");
+    await ok(api("/api/assets/delete.php", { assets_id: spare }), "deleting it");
+    // It comes off at the £4.00 it was charged at
+    await expectFinances(asA, a, project, { ...repriced, subTotal: 5000, discounts: 1500, total: 3500, grandTotal: 3500, value: 12000, mass: 6 });
+  });
 });
 
 // transfer.php copies the asset into the other business as a new asset and archives the original, which stays on the

@@ -5565,6 +5565,40 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/assets/refreshRates.php:
+    post:
+      tags:
+        - project_assets
+      summary: 'Update Project to Current Rates'
+      description: "Assets on a project are priced at the day and week rates in effect when each was added. This re-saves the assets' current rates on every asset assigned to the project, and updates the project's totals to match. Custom prices and discounts are left as they are.\nRequires Instance Permission PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE\n"
+      operationId: refreshProjectAssetRates
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: dryRun
+          in: query
+          description: 'Set to 1 to only work out what the update would change, without saving anything'
+          required: 'false'
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                  response: { description: 'What the update changes', properties: { changed: { description: 'Whether any rates were updated (always false for a dry run)', type: boolean }, assignments: { description: "How many assignments' rates are out of date", type: number }, before: { description: "The project's equipment subTotal, discounts and total (and formattedTotal) at the saved rates", type: object }, after: { description: "The project's equipment subTotal, discounts and total (and formattedTotal) at the current rates", type: object } }, type: object }
+                type: object
+        default:
+          description: Error
   /projects/assets/setComment.php:
     post:
       tags:

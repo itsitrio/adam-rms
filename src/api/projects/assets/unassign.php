@@ -60,8 +60,8 @@ foreach ($assignmentsRemove["assignments"] as $assignment) {
                 $price = new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency']));
             } else {
                 $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-                $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-                $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+                $price = $price->add((new Money(projectFinance::assignmentRate($assignment, 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+                $price = $price->add((new Money(projectFinance::assignmentRate($assignment, 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
             }
             $price = $price->multiply($quantity);
             $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, true);
