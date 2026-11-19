@@ -1906,6 +1906,154 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimpleResponse'
+  /clients/brands/delete.php:
+    post:
+      tags:
+        - clients
+      summary: 'Delete Client Brand'
+      description: "Delete an event brand. Its projects are then counted as having no brand.\nRequires Instance Permission CLIENTS:EDIT"
+      operationId: deleteClientBrand
+      parameters:
+        -
+          name: clientsBrands_id
+          in: query
+          description: 'Brand ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: clients_id
+          in: query
+          description: 'The client the brand belongs to'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /clients/brands/edit.php:
+    post:
+      tags:
+        - clients
+      summary: 'Edit Client Brand'
+      description: "Rename an event brand, or change its notes\nRequires Instance Permission CLIENTS:EDIT"
+      operationId: editClientBrand
+      parameters:
+        -
+          name: clientsBrands_id
+          in: query
+          description: 'Brand ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: clients_id
+          in: query
+          description: 'The client the brand belongs to'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: clientsBrands_name
+          in: query
+          description: 'Brand name'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: clientsBrands_notes
+          in: query
+          description: Notes
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /clients/brands/list.php:
+    post:
+      tags:
+        - clients
+      summary: 'List Client Brands'
+      description: "List the event brands of a client\nRequires Instance Permission CLIENTS:VIEW"
+      operationId: listClientBrands
+      parameters:
+        -
+          name: clients_id
+          in: query
+          description: 'Client ID'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                  response: { description: "The client's brands, by name", type: object }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /clients/brands/new.php:
+    post:
+      tags:
+        - clients
+      summary: 'Create Client Brand'
+      description: "Create an event brand for a client\nRequires Instance Permission CLIENTS:EDIT"
+      operationId: createClientBrand
+      parameters:
+        -
+          name: clients_id
+          in: query
+          description: 'Client ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: clientsBrands_name
+          in: query
+          description: 'Brand name'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: clientsBrands_notes
+          in: query
+          description: Notes
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                  response: { description: "The new brand's clientsBrands_id", type: object }
+                type: object
+        '404':
+          description: 'Permission Error'
   /clients/edit.php:
     post:
       tags:
@@ -5990,6 +6138,39 @@ paths:
           name: projects_id
           in: query
           description: 'Project ID'
+          required: 'false'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
+        '404':
+          description: 'Permission Error'
+  /projects/changeBrand.php:
+    post:
+      tags:
+        - projects
+      summary: 'Change Brand'
+      description: "Tag a project with one of its client's event brands, or remove its brand\nRequires Instance Permission PROJECTS:EDIT:CLIENT\n"
+      operationId: changeBrand
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: clientsBrands_id
+          in: query
+          description: "Brand ID, which must belong to the project's client. Empty to remove the brand."
           required: 'false'
           schema:
             type: number
