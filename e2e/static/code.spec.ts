@@ -2,6 +2,7 @@ import { execFileSync } from "child_process";
 import path from "path";
 import { expect, test } from "@playwright/test";
 import { PHP_BINARY } from "../env";
+import { migrationClashes } from "../migrations";
 
 /**
  * Checks on the source that need no server or database (see setup/lint.php). They catch a broken
@@ -25,4 +26,8 @@ test("every Twig template compiles, with only filters, functions and tags that e
 
 test("every template named in a render() call or an extends/include/embed/import tag exists", () => {
   expect(problems.templates).toEqual([]);
+});
+
+test("every migration has its own version and class name", () => {
+  expect(migrationClashes()).toEqual({ versions: [], classNames: [] });
 });
