@@ -307,11 +307,6 @@
                                                             {% else %}
                                                                 <b class="d-block">{{ FINANCIALS['priceMaths']["weeks"] }} week{{ FINANCIALS['priceMaths']["weeks"] != 1 ? 's' : '' }} and {{ FINANCIALS['priceMaths']["days"] }} day{{ FINANCIALS['priceMaths']["days"] != 1 ? 's' : ''}}</b>
                                                             {% endif %}
-                                                            {% if "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions and project.projectsTypes_config_finance == 1 %}
-                                                                <div style="width: 100%;text-align: right;">
-                                                                    <button type="button" class="btn btn-link btn-sm" id="refreshProjectAssetRates" title="Assets are priced at the rates in effect when they were added to the project">Update to current rates</button>
-                                                                </div>
-                                                            {% endif %}
                                                         </div>
                                                         {% endif %}
                                                     </div>
@@ -1346,35 +1341,6 @@
             });
 
             {% endif %}
-            {% if "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions and project.projectsTypes_config_finance == 1 %}
-            $("#refreshProjectAssetRates").click(function () {
-                ajaxcall("projects/assets/refreshRates.php", {"projects_id": "{{ project.projects_id }}", "dryRun": 1}, function (preview) {
-                    if (preview.response.assignments < 1) {
-                        bootbox.alert("This project's assets are already priced at their current rates");
-                        return;
-                    }
-                    bootbox.confirm({
-                        title: "Update to current rates?",
-                        message: $("<div/>").append(
-                            $("<p/>").text("Assets on this project are priced at the day and week rates in effect when they were added. This re-prices them at their current rates. Custom prices and discounts stay as they are."),
-                            $("<p/>").append("Equipment total now: ", $("<b/>").text(preview.response.before.formattedTotal)),
-                            $("<p/>").append("Equipment total after the update: ", $("<b/>").text(preview.response.after.formattedTotal))
-                        ),
-                        buttons: {
-                            confirm: {label: "Update", className: "btn-success"},
-                            cancel: {label: "Cancel", className: "btn-default"}
-                        },
-                        callback: function (result) {
-                            if (result) {
-                                ajaxcall("projects/assets/refreshRates.php", {"projects_id": "{{ project.projects_id }}"}, function () {
-                                    location.reload();
-                                });
-                            }
-                        }
-                    });
-                });
-            });
-            {% endif %}
             {% if "PROJECTS:EDIT:NAME"|instancePermissions %}
             $("#editProjectName").click(function () {
                 bootbox.prompt({
@@ -1916,6 +1882,7 @@
             })
         });
     </script>
+{% include 'project/twigIncludes/refreshRatesScript.twig' %}
 {% embed 'assets/templates/fileBoxJS.twig' %}
 
     {% endembed %}

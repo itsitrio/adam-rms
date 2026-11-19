@@ -1,0 +1,73 @@
+{# The "Update to current rates" buttons (class refreshProjectAssetRates) on the assets list and the Finance tab #}
+{% if "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions and project.projectsTypes_config_finance == 1 %}
+<script>
+    $(document).on("click", ".refreshProjectAssetRates", function () {
+        ajaxcall("projects/assets/refreshRates.php", {"projects_id": "{{ project.projects_id }}", "dryRun": 1}, function (preview) {
+            var response = preview.response;
+            if (response.assignments < 1) {
+                bootbox.alert("This project's assets are already priced at their current rates");
+                return;
+            }
+            //Built with .text() throughout, as asset tags and type names are user content
+            var cell = function (text, className) {
+                return $("<td/>").addClass(className || "").text(text);
+            };
+            var change = function (before, after) {
+                return (before === after ? before : before + " → " + after);
+            };
+            var lines = $("<tbody/>");
+            $.each(response.lines, function (index, line) {
+                var price = change(line.price.before, line.price.after);
+                if (line.priceUnchangedBecause === "CUSTOM_PRICE") price = line.price.before + " (custom price kept)";
+                else if (line.priceUnchangedBecause === "EXCLUDED_FROM_TOTALS") price = "Not charged";
+                lines.append($("<tr/>").append(
+                    cell(line.assets_tag + " " + line.assetTypes_name + (line.quantity > 1 ? " ×" + line.quantity : "")),
+                    cell(change(line.dayRate.before, line.dayRate.after), "text-nowrap"),
+                    cell(change(line.weekRate.before, line.weekRate.after), "text-nowrap"),
+                    cell(price, "text-right text-nowrap")
+                ));
+            });
+            var totals = $("<tbody/>");
+            $.each([["Equipment subtotal", "formattedSubTotal"], ["Discounts", "formattedDiscounts"], ["Equipment total", "formattedTotal"]], function (index, row) {
+                totals.append($("<tr/>").append(
+                    cell(row[0]), cell(response.before[row[1]], "text-right"), cell(response.after[row[1]], "text-right")
+                ));
+            });
+            var message = $("<div/>").append(
+                $("<p/>").text("Assets on this project are priced at the day and week rates in effect when they were added. This re-prices them at their current rates. Custom prices and discounts stay as they are.")
+            );
+            if (response.lines.length > 0) {
+                message.append(
+                    $("<h6/>").text(response.lines.length + " line" + (response.lines.length === 1 ? "" : "s") + " with new rates"),
+                    $("<div/>").addClass("table-responsive").css({"max-height": "40vh", "overflow-y": "auto"}).append(
+                        $("<table/>").addClass("table table-sm refreshRatesLines").append(
+                            $("<thead/>").append($("<tr/>").append(cell("Asset"), cell("Day rate"), cell("Week rate"), cell("Price", "text-right"))),
+                            lines
+                        )
+                    )
+                );
+            }
+            message.append($("<table/>").addClass("table table-sm refreshRatesTotals").append(
+                $("<thead/>").append($("<tr/>").append(cell(""), cell("Now", "text-right"), cell("After the update", "text-right"))),
+                totals
+            ));
+            bootbox.confirm({
+                title: "Update to current rates?",
+                size: "large",
+                message: message,
+                buttons: {
+                    confirm: {label: "Update", className: "btn-success"},
+                    cancel: {label: "Cancel", className: "btn-default"}
+                },
+                callback: function (result) {
+                    if (result) {
+                        ajaxcall("projects/assets/refreshRates.php", {"projects_id": "{{ project.projects_id }}"}, function () {
+                            location.reload();
+                        });
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endif %}

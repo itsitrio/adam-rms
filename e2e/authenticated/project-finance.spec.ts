@@ -226,6 +226,15 @@ test("a project keeps the rates its assets were added at when an asset or its ty
     // A dry run says what the update would do, and changes nothing
     const preview = await api("/api/projects/assets/refreshRates.php", { projects_id: project, dryRun: 1 });
     expect(preview.json).toMatchObject({ result: true, response: { changed: false, before: { total: { amount: "5150" } }, after: { total: { amount: "6200" } } } });
+    // Line by line: the custom-priced asset gets the new rates saved too, but keeps its price
+    const lines = Object.fromEntries(preview.json.response.lines.map((line: any) => [line.assetsAssignments_id, { dayRate: line.dayRate, price: line.price, unchangedBecause: line.priceUnchangedBecause }]));
+    expect(lines).toEqual({
+      [assignment(byType).id]: { dayRate: { before: "£5.00", after: "£10.00" }, price: { before: "£7.50", after: "£15.00" }, unchangedBecause: null },
+      [assignment(ownRate).id]: { dayRate: { before: "£8.00", after: "£9.00" }, price: { before: "£24.00", after: "£27.00" }, unchangedBecause: null },
+      [assignment(customPriced).id]: { dayRate: { before: "£5.00", after: "£10.00" }, price: { before: "£20.00", after: "£20.00" }, unchangedBecause: "CUSTOM_PRICE" },
+    });
+    expect(preview.json.response.before).toMatchObject({ formattedSubTotal: "£59.00", formattedDiscounts: "£7.50", formattedTotal: "£51.50" });
+    expect(preview.json.response.after).toMatchObject({ formattedSubTotal: "£77.00", formattedDiscounts: "£15.00", formattedTotal: "£62.00" });
     await expectFinances(asA, a, project, repriced);
 
     const refreshed = await api("/api/projects/assets/refreshRates.php", { projects_id: project });

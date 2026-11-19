@@ -67,23 +67,35 @@ test("recording a payment from the project's Finance tab", async ({ page, asA, t
   await expect(page.locator("#payments-view")).toContainText("£12.50");
 });
 
-test("updating a project to the current rates from the project page", async ({ page, asA, tenants: { a } }) => {
+test("updating a project to the current rates from its assets list or its Finance tab", async ({ page, asA, tenants: { a } }) => {
   const type = { manufacturers_id: a.manufacturerId, assetCategories_id: a.categoryId, assetTypes_name: `Journey rates type ${Date.now()}` };
-  const created = await asA.api("/api/assets/newAssetType.php", { instances_id: a.instanceId, formData: formData({ ...type, assetTypes_dayRate: "1.00" }) });
+  const created = await asA.api("/api/assets/newAssetType.php", { instances_id: a.instanceId, formData: formData({ ...type, assetTypes_dayRate: "1.00", assetTypes_weekRate: "5.00" }) });
   const typeId: number = created.json.response.assetTypes_id;
   const asset = (await asA.api("/api/assets/newAssetFromType.php", { instances_id: a.instanceId, formData: formData({ assetTypes_id: typeId }) })).json.response.assets_id as number;
+  const tag = dbQuery<{ tag: string }>("SELECT assets_tag tag FROM assets WHERE assets_id = ?", [asset])[0].tag;
   const project = await newProject(asA, a, a.users.full.id, { start: "2036-07-05 09:00:00", end: "2036-07-06 18:00:00" });
   expect((await assign(asA, a, project, asset)).json).toMatchObject({ result: true });
-  await asA.api("/api/assets/editAssetType.php", { instances_id: a.instanceId, formData: formData({ ...type, assetTypes_id: typeId, assetTypes_dayRate: "2.00" }) });
+  await asA.api("/api/assets/editAssetType.php", { instances_id: a.instanceId, formData: formData({ ...type, assetTypes_id: typeId, assetTypes_dayRate: "2.00", assetTypes_weekRate: "5.00" }) });
+  const dialog = page.locator(".bootbox.modal");
+  // What changes, line by line, and the totals before and after: two days at the rate it was added at, and at today's
+  const expectSummary = async () => {
+    await expect(dialog.locator(".refreshRatesLines tbody tr td")).toHaveText([`${tag} ${type.assetTypes_name}`, "£1.00 → £2.00", "£5.00", "£2.00 → £4.00"]);
+    await expect(dialog.locator(".refreshRatesTotals tbody tr")).toHaveText([/Equipment subtotal\s*£2\.00\s*£4\.00/, /Discounts\s*£0\.00\s*£0\.00/, /Equipment total\s*£2\.00\s*£4\.00/]);
+  };
 
   await page.goto(`/project/?id=${project}`);
-  await page.locator("#refreshProjectAssetRates").click();
-  // Two days at the rate it was added at, and at today's
-  const dialog = page.locator(".bootbox.modal");
-  await expect(dialog).toContainText("Equipment total now: £2.00");
-  await expect(dialog).toContainText("Equipment total after the update: £4.00");
-  await dialog.locator("button.bootbox-accept").click();
+  await page.locator('a[href="#assets-view"]').click();
+  await page.locator("#assets-view .refreshProjectAssetRates").click();
+  await expectSummary();
+  await dialog.locator("button.bootbox-cancel").click();
+  await expect(dialog).toHaveCount(0);
+  expect(dbQuery("SELECT assetsAssignments_dayRate dayRate FROM assetsAssignments WHERE projects_id = ? AND assets_id = ?", [project, asset]), "cancelling changes nothing")
+    .toEqual([{ dayRate: 100 }]);
 
+  await page.locator('a[href="#payments-view"]').click();
+  await page.locator("#payments-view .refreshProjectAssetRates").click();
+  await expectSummary();
+  await dialog.locator("button.bootbox-accept").click();
   await expect.poll(() => dbQuery("SELECT assetsAssignments_dayRate dayRate FROM assetsAssignments WHERE projects_id = ? AND assets_id = ?", [project, asset]))
     .toEqual([{ dayRate: 200 }]);
 });
