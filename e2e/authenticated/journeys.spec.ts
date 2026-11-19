@@ -67,6 +67,27 @@ test("recording a payment from the project's Finance tab", async ({ page, asA, t
   await expect(page.locator("#payments-view")).toContainText("£12.50");
 });
 
+test("updating a project to the current rates from the project page", async ({ page, asA, tenants: { a } }) => {
+  const type = { manufacturers_id: a.manufacturerId, assetCategories_id: a.categoryId, assetTypes_name: `Journey rates type ${Date.now()}` };
+  const created = await asA.api("/api/assets/newAssetType.php", { instances_id: a.instanceId, formData: formData({ ...type, assetTypes_dayRate: "1.00" }) });
+  const typeId: number = created.json.response.assetTypes_id;
+  const asset = (await asA.api("/api/assets/newAssetFromType.php", { instances_id: a.instanceId, formData: formData({ assetTypes_id: typeId }) })).json.response.assets_id as number;
+  const project = await newProject(asA, a, a.users.full.id, { start: "2036-07-05 09:00:00", end: "2036-07-06 18:00:00" });
+  expect((await assign(asA, a, project, asset)).json).toMatchObject({ result: true });
+  await asA.api("/api/assets/editAssetType.php", { instances_id: a.instanceId, formData: formData({ ...type, assetTypes_id: typeId, assetTypes_dayRate: "2.00" }) });
+
+  await page.goto(`/project/?id=${project}`);
+  await page.locator("#refreshProjectAssetRates").click();
+  // Two days at the rate it was added at, and at today's
+  const dialog = page.locator(".bootbox.modal");
+  await expect(dialog).toContainText("Equipment total now: £2.00");
+  await expect(dialog).toContainText("Equipment total after the update: £4.00");
+  await dialog.locator("button.bootbox-accept").click();
+
+  await expect.poll(() => dbQuery("SELECT assetsAssignments_dayRate dayRate FROM assetsAssignments WHERE projects_id = ? AND assets_id = ?", [project, asset]))
+    .toEqual([{ dayRate: 200 }]);
+});
+
 test("dispatching an asset on the Asset Dispatch board, with the arrows and by typing its tag", async ({ page, asA, tenants: { a } }) => {
   // Two statuses of our own, after the business's others, so the "»" arrow on the first goes to the second
   const statuses = ["Journey out", "Journey back"].map((name, i) => {

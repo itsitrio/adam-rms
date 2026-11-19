@@ -97,6 +97,9 @@ foreach ($assetsToProcess as $asset) {
             "assetsAssignments_deleted" => 0,
             "assetsAssignments_timestamp" => date('Y-m-d H:i:s'),
             "assetsAssignments_quantity" => $quantity,
+            //The project keeps the rates in effect now, so a later change to the asset's or its type's rates doesn't reprice it
+            "assetsAssignments_dayRate" => projectFinance::currentRate($asset, 'dayRate'),
+            "assetsAssignments_weekRate" => projectFinance::currentRate($asset, 'weekRate'),
             "assetsAssignments_linkedTo" => ($asset['linkedto'] !== false ? $assetsProcessing[$asset['linkedto']]['insertedid'] : null),
             "assetsAssignments_discount" => ($asset['linkedto'] !== false ? $AUTH->data['instance']['instances_config_linkedDefaultDiscount'] : $project['projects_defaultDiscount'])
         ];
@@ -107,8 +110,8 @@ foreach ($assetsToProcess as $asset) {
             $projectFinanceCacher->adjust('projectsFinanceCache_value',(new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $asset['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity));
 
             $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-            $price = $price->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-            $price = $price->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+            $price = $price->add((new Money(projectFinance::currentRate($asset, 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+            $price = $price->add((new Money(projectFinance::currentRate($asset, 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
             $price = $price->multiply($quantity);
             $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price,false);
 

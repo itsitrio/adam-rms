@@ -31,7 +31,7 @@ $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
 $DBLIB->where("assetsAssignments.projects_id", $project['projects_id']);
 $DBLIB->join("assets", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
 $DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
-$assets = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assetsAssignments.assetsAssignments_id", "assetsAssignments_customPrice", "assetsAssignments_discount", "assetsAssignments_quantity", "assetsAssignments_excludedFromTotals", "assetTypes_weekRate", "assetTypes_dayRate", "assets_dayRate", "assets_weekRate"]);
+$assets = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assetsAssignments.assetsAssignments_id", "assetsAssignments_customPrice", "assetsAssignments_dayRate", "assetsAssignments_weekRate", "assetsAssignments_discount", "assetsAssignments_quantity", "assetsAssignments_excludedFromTotals", "assetTypes_weekRate", "assetTypes_dayRate", "assets_dayRate", "assets_weekRate"]);
 if ($assets) {
     foreach ($assets as $asset) {
         if ($asset['assetsAssignments_customPrice'] != null) continue; //There is a custom price set - so this asset is date agnostic anyway
@@ -40,14 +40,14 @@ if ($assets) {
         $quantity = (intval($asset['assetsAssignments_quantity']) > 0 ? intval($asset['assetsAssignments_quantity']) : 1);
 
         $priceOriginal = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-        $priceOriginal = $priceOriginal->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsOld['days']));
-        $priceOriginal = $priceOriginal->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsOld['weeks']));
+        $priceOriginal = $priceOriginal->add((new Money(projectFinance::assignmentRate($asset, 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsOld['days']));
+        $priceOriginal = $priceOriginal->add((new Money(projectFinance::assignmentRate($asset, 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsOld['weeks']));
         $priceOriginal = $priceOriginal->multiply($quantity);
         $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $priceOriginal, true);
 
         $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-        $price = $price->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsNew['days']));
-        $price = $price->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsNew['weeks']));
+        $price = $price->add((new Money(projectFinance::assignmentRate($asset, 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsNew['days']));
+        $price = $price->add((new Money(projectFinance::assignmentRate($asset, 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMathsNew['weeks']));
         $price = $price->multiply($quantity);
         $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, false);
 

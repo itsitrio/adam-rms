@@ -51,13 +51,17 @@ $availability = assetAvailableQuantity($assetToSwap, $currentAsset["projects_dat
 $flagsBlocks = assetFlagsAndBlocks($assetToSwap['assets_id']);
 
 if ($availability['available'] >= $quantity and $flagsBlocks['COUNT']['BLOCK'] < 1) {
-    $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
-    $assignment = $DBLIB->update("assetsAssignments", ["assets_id" => $assetToSwap['assets_id']],1);
-    if (!$assignment) finish(false);
-
     // Both assets are the same type, but either can have its own rates, value and mass, so take the old asset's off the project's finances and add the new one's
     $DBLIB->where("assetTypes_id", $currentAsset['assetTypes_id']);
     $assetType = $DBLIB->getone("assetTypes", ["assetTypes_dayRate", "assetTypes_weekRate", "assetTypes_value", "assetTypes_mass"]);
+    // The old asset comes off at the rates saved when it was added, and the new one goes on at its rates now, which the assignment keeps from here on
+    $currentAsset['rates'] = ["dayRate" => projectFinance::assignmentRate(array_merge($assetType, $currentAsset), 'dayRate'), "weekRate" => projectFinance::assignmentRate(array_merge($assetType, $currentAsset), 'weekRate')];
+    $assetToSwap['rates'] = ["dayRate" => projectFinance::currentRate(array_merge($assetType, $assetToSwap), 'dayRate'), "weekRate" => projectFinance::currentRate(array_merge($assetType, $assetToSwap), 'weekRate')];
+
+    $DBLIB->where('assetsAssignments_id', $currentAsset['assetsAssignments_id']);
+    $assignment = $DBLIB->update("assetsAssignments", ["assets_id" => $assetToSwap['assets_id'], "assetsAssignments_dayRate" => $assetToSwap['rates']['dayRate'], "assetsAssignments_weekRate" => $assetToSwap['rates']['weekRate']],1);
+    if (!$assignment) finish(false);
+
     $projectFinanceHelper = new projectFinance();
     $priceMaths = $projectFinanceHelper->durationMaths($currentAsset['projects_id']);
     $projectFinanceCacher = new projectFinanceCacher($currentAsset['projects_id']);
@@ -67,8 +71,8 @@ if ($availability['available'] >= $quantity and $flagsBlocks['COUNT']['BLOCK'] <
         $projectFinanceCacher->adjust('projectsFinanceCache_value', (new Money(($asset['assets_value'] !== null ? $asset['assets_value'] : $assetType['assetTypes_value']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($quantity), $subtract);
         if ($currentAsset['assetsAssignments_customPrice'] == null and $currentAsset['assetsAssignments_excludedFromTotals'] != 1) { // A custom price stays the same whichever asset it's for, and an assignment left out of the totals isn't charged for
             $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-            $price = $price->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $assetType['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-            $price = $price->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $assetType['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+            $price = $price->add((new Money($asset['rates']['dayRate'], new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+            $price = $price->add((new Money($asset['rates']['weekRate'], new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
             $price = $price->multiply($quantity);
             $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $price, $subtract);
             if ($currentAsset['assetsAssignments_discount'] > 0) $projectFinanceCacher->adjust('projectsFinanceCache_equiptmentDiscounts', $price->subtract($price->multiply(1 - ($currentAsset['assetsAssignments_discount'] / 100))), $subtract);

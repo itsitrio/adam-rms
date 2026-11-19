@@ -28,7 +28,7 @@ else {
     $DBLIB->where("assets_id",$asset['assets_id']);
     $DBLIB->where("assetsAssignments_deleted",0);
     $DBLIB->join("projects","assetsAssignments.projects_id=projects.projects_id","LEFT");
-    $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_discount','assetsAssignments_quantity','assetsAssignments_excludedFromTotals']);
+    $assetAssignments = $DBLIB->get("assetsAssignments",null,['projects.projects_id','assetsAssignments_id','assetsAssignments_customPrice','assetsAssignments_dayRate','assetsAssignments_weekRate','assetsAssignments_discount','assetsAssignments_quantity','assetsAssignments_excludedFromTotals']);
     foreach ($assetAssignments as $assignment) {
         $projectFinanceHelper = new projectFinance();
         $priceMaths = $projectFinanceHelper->durationMaths($assignment['projects_id']);
@@ -51,8 +51,8 @@ else {
             }
         } else {
             $oldPrice = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-            $oldPrice = $oldPrice->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-            $oldPrice = $oldPrice->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+            $oldPrice = $oldPrice->add((new Money(projectFinance::assignmentRate(array_merge($asset, $assignment), 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+            $oldPrice = $oldPrice->add((new Money(projectFinance::assignmentRate(array_merge($asset, $assignment), 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
             $oldPrice = $oldPrice->multiply($quantity);
             $projectFinanceCacher->adjust('projectsFinanceCache_equipmentSubTotal', $oldPrice,true);
             if ($assignment['assetsAssignments_discount'] > 0) {

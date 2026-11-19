@@ -31,7 +31,7 @@ $DBLIB->where("assets.assets_deleted", 0);
 $DBLIB->join("projects", "assetsAssignments.projects_id=projects.projects_id", "LEFT");
 $DBLIB->join("assets", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
 $DBLIB->join("assetTypes", "assets.assetTypes_id=assetTypes.assetTypes_id", "LEFT");
-$assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assetsAssignments_id", "assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_hidden", "assetsAssignments.assetsAssignments_excludedFromTotals", "assets.assets_dayRate", "assets.assets_weekRate", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate"]);
+$assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assetsAssignments_id", "assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity", "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_dayRate", "assetsAssignments.assetsAssignments_weekRate", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_hidden", "assetsAssignments.assetsAssignments_excludedFromTotals", "assets.assets_dayRate", "assets.assets_weekRate", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate"]);
 if (count($assignments) != count(array_unique($_POST['assetsAssignments']))) finish(false, ["message" => "Cannot find assignment"]);
 $projectIds = array_unique(array_column($assignments, "projects_id"));
 if (count($projectIds) != 1) finish(false, ["message" => "Assets must all be on the same project"]);
@@ -55,8 +55,8 @@ foreach ($assignments as $assignment) {
         $price = new Money($assignment['assetsAssignments_customPrice'], new Currency($AUTH->data['instance']['instances_config_currency']));
     } else {
         $price = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-        $price = $price->add((new Money(($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
-        $price = $price->add((new Money(($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
+        $price = $price->add((new Money(projectFinance::assignmentRate($assignment, 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['days']));
+        $price = $price->add((new Money(projectFinance::assignmentRate($assignment, 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($priceMaths['weeks']));
     }
     $price = $price->multiply($quantity);
     $subtract = ($update['assetsAssignments_excludedFromTotals'] == 1);

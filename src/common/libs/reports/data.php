@@ -248,8 +248,8 @@ function reportAssignmentPrice(ReportContext $ctx, $assignment)
     if ($assignment['projects_dates_finances_days'] !== null and $assignment['projects_dates_finances_weeks'] !== null) $duration = ["days" => $assignment['projects_dates_finances_days'], "weeks" => $assignment['projects_dates_finances_weeks']];
     elseif ($assignment['projects_dates_deliver_start'] and $assignment['projects_dates_deliver_end']) $duration = (new projectFinance())->durationMathsByDates($assignment['projects_dates_deliver_start'], $assignment['projects_dates_deliver_end']);
     else $duration = ["days" => 0, "weeks" => 0];
-    $list = $ctx->money($assignment['assets_dayRate'] !== null ? $assignment['assets_dayRate'] : $assignment['assetTypes_dayRate'])->multiply($duration['days']);
-    $list = $list->add($ctx->money($assignment['assets_weekRate'] !== null ? $assignment['assets_weekRate'] : $assignment['assetTypes_weekRate'])->multiply($duration['weeks']));
+    $list = $ctx->money(projectFinance::assignmentRate($assignment, 'dayRate'))->multiply($duration['days']);
+    $list = $list->add($ctx->money(projectFinance::assignmentRate($assignment, 'weekRate'))->multiply($duration['weeks']));
     $list = $list->multiply($quantity);
 
     if ($assignment['assetsAssignments_excludedFromTotals'] == 1) return ["price" => $ctx->zero(), "list" => $ctx->zero(), "excluded" => true];
@@ -275,7 +275,7 @@ function reportAssignments(ReportContext $ctx)
     $DBLIB->where("assetsAssignments.assetsAssignments_deleted", 0);
     $rows = $DBLIB->get("assetsAssignments", null, [
         "assetsAssignments.assetsAssignments_id", "assetsAssignments.assets_id", "assetsAssignments.projects_id", "assetsAssignments.assetsAssignments_quantity",
-        "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals",
+        "assetsAssignments.assetsAssignments_customPrice", "assetsAssignments.assetsAssignments_dayRate", "assetsAssignments.assetsAssignments_weekRate", "assetsAssignments.assetsAssignments_discount", "assetsAssignments.assetsAssignments_excludedFromTotals",
         "assets.assets_tag", "assets.assets_dayRate", "assets.assets_weekRate", "assets.assetTypes_id", "assets.instances_id AS assets_instances_id",
         "assetTypes.assetTypes_name", "assetTypes.assetTypes_dayRate", "assetTypes.assetTypes_weekRate",
         "projects.projects_dates_deliver_start", "projects.projects_dates_deliver_end", "projects.projects_dates_finances_days", "projects.projects_dates_finances_weeks",

@@ -36,6 +36,7 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/projects/assets/swap.php", permission: "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN", params: (a) => ({ assetsAssignments_id: a.assignmentId, assets_id: a.spareAssetId }) },
   { endpoint: "/api/projects/assets/setHidden.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_hidden: 1 }) },
   { endpoint: "/api/projects/assets/setHidden.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_excludedFromTotals: 1 }) },
+  { endpoint: "/api/projects/assets/refreshRates.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE", params: (a) => ({ projects_id: a.projectId }) },
   { endpoint: "/api/projects/assets/setPublishedName.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_publishedName: 1 }) },
   // Quote layout
   ...([

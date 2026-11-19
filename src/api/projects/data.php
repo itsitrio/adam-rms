@@ -284,8 +284,8 @@ function projectFinancials($project) {
         if ($asset['assetsAssignments_customPrice'] == null) {
             //The actual pricing calculator
             $asset['price'] = new Money(null, new Currency($AUTH->data['instance']['instances_config_currency']));
-            $asset['price'] = $asset['price']->add((new Money(($asset['assets_dayRate'] !== null ? $asset['assets_dayRate'] : $asset['assetTypes_dayRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['days']));
-            $asset['price'] = $asset['price']->add((new Money(($asset['assets_weekRate'] !== null ? $asset['assets_weekRate'] : $asset['assetTypes_weekRate']), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['weeks']));
+            $asset['price'] = $asset['price']->add((new Money(projectFinance::assignmentRate($asset, 'dayRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['days']));
+            $asset['price'] = $asset['price']->add((new Money(projectFinance::assignmentRate($asset, 'weekRate'), new Currency($AUTH->data['instance']['instances_config_currency'])))->multiply($return['priceMaths']['weeks']));
         } else $asset['price'] = new Money($asset['assetsAssignments_customPrice'],new Currency($AUTH->data['instance']['instances_config_currency']));
         $asset['unitPrice'] = $asset['price'];
         $asset['price'] = $asset['price']->multiply($asset['assetsAssignments_quantity']);
