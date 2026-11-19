@@ -16,6 +16,8 @@ export type Tenant = {
   users: { full: TenantUser; limited: TenantUser; deleted: TenantUser };
   deletedMembershipId: number;
   clientId: number;
+  /** One of the client's event brands, which the project and sub-project are tagged with */
+  clientBrandId: number;
   locationId: number;
   locationBarcodeValue: string;
   locationBarcodeId: number;

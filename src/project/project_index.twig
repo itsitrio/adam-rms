@@ -173,13 +173,27 @@
                                                                         {% endif %}
                                                                     {% endfor %}
                                                                 </select>
+                                                                {% if project.clients_id %}
+                                                                    <p class="text-sm mt-2 mb-1">Event brand{% if "CLIENTS:VIEW"|instancePermissions %} <a href="{{ CONFIG.ROOTURL }}/client.php?id={{ project.clients_id }}" class="ml-1">(manage)</a>{% endif %}</p>
+                                                                    <select class="form-control" id="editProjectBrand">
+                                                                        <option value="">No brand</option>
+                                                                        {% for brand in clientBrands %}
+                                                                            <option value="{{ brand.clientsBrands_id }}" {{ project.clientsBrands_id == brand.clientsBrands_id ? 'selected' }}>{{ brand.clientsBrands_name }}</option>
+                                                                        {% endfor %}
+                                                                    </select>
+                                                                {% endif %}
                                                             {% elseif project.projectsTypes_config_client == 1  %}
                                                                 <p class="text-sm">Client
                                                                     <b class="d-block">
-                                                                        <a  style="color: inherit; text-decoration: inherit;"  {% if "CLIENTS:VIEW"|instancePermissions %}href="{{ CONFIG.ROOTURL }}/clients.php"{% endif %}>
+                                                                        <a  style="color: inherit; text-decoration: inherit;"  {% if "CLIENTS:VIEW"|instancePermissions %}href="{{ CONFIG.ROOTURL }}/client.php?id={{ project.clients_id }}"{% endif %}>
                                                                             {{ project.clients_name }}</a>
                                                                     </b>
                                                                 </p>
+                                                                {% if project.clientsBrands_name %}
+                                                                    <p class="text-sm">Event brand
+                                                                        <b class="d-block">{{ project.clientsBrands_name }}</b>
+                                                                    </p>
+                                                                {% endif %}
                                                             {% endif %}
                                                         </div>
                                                         <div id="projectManagerContainer">
@@ -1055,6 +1069,14 @@
             $('#editProjectClient').on("change", function (e) {
                 ajaxcall("projects/changeClient.php", {
                     "clients_id": $(this).val(),
+                    "projects_id": "{{ project.projects_id }}"
+                }, function (data) {
+                    location.reload();
+                });
+            });
+            $('#editProjectBrand').on("change", function (e) {
+                ajaxcall("projects/changeBrand.php", {
+                    "clientsBrands_id": $(this).val(),
                     "projects_id": "{{ project.projects_id }}"
                 }, function (data) {
                     location.reload();

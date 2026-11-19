@@ -54,7 +54,7 @@ function endpoints() {
 function realValue(param: string, a: Tenant): string | number {
   const ids: Record<string, number | string> = {
     instances_id: a.instanceId, projects_id: a.projectId, assets_id: a.spareAssetId, assetTypes_id: a.assetTypeId,
-    clients_id: a.clientId, locations_id: a.locationId, manufacturers_id: a.manufacturerId, assetCategories_id: a.categoryId,
+    clients_id: a.clientId, clientsBrands_id: a.clientBrandId, locations_id: a.locationId, manufacturers_id: a.manufacturerId, assetCategories_id: a.categoryId,
     assetCategoriesGroups_id: a.categoryGroupId, assetGroups_id: a.assetGroupId, assetsAssignments_id: a.assignmentId,
     maintenanceJobs_id: a.maintenanceJobId, maintenanceJobsMessages_id: a.maintenanceMessageId, cmsPages_id: a.cmsPageId,
     modules_id: a.moduleId, modulesSteps_id: a.moduleStepId, payments_id: a.paymentId, expenses_id: a.expenseId, liabilities_id: a.liabilityId, liabilityTransactions_id: a.liabilityTransactionId, crewAssignments_id: a.crewAssignmentId,

@@ -9,6 +9,13 @@ $client = $DBLIB->getone("clients",["clients_id", "clients_name"]);
 if (!$client) die("404");
 
 
+//A brand belongs to one client, so moving the project to another client removes its brand
+$DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
+$DBLIB->where("projects.projects_deleted", 0);
+$DBLIB->where("projects.projects_id", $_POST['projects_id']);
+$DBLIB->where("(projects.clients_id IS NULL OR projects.clients_id != ?)", [$client['clients_id']]);
+$DBLIB->update("projects", ["projects.clientsBrands_id" => null]);
+
 $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("projects.projects_deleted", 0);
 $DBLIB->where("projects.projects_id", $_POST['projects_id']);

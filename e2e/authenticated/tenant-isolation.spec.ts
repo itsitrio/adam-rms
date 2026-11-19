@@ -76,6 +76,7 @@ const readCases: ReadCase[] = [
   { endpoint: "/api/instances/users.php", params: () => ({}), method: "GET", shows: (t) => t.users.limited.email },
   { endpoint: "/api/instances/list.php", params: () => ({}), shows: (t) => `${t.marker} Ltd` },
   { endpoint: "/api/projects/getComments.php", params: (t) => ({ projects_id: t.projectId }), shows: (t) => `${t.marker} quick comment` },
+  { endpoint: "/api/clients/brands/list.php", params: (t) => ({ clients_id: t.clientId }), shows: (t) => `${t.marker} brand` },
 ];
 
 const pageCases: PageCase[] = [
@@ -89,6 +90,7 @@ const pageCases: PageCase[] = [
   { file: "asset.php", url: (t) => `/asset.php?id=${t.assetTypeId}`, shows: (t) => `${t.marker} asset type` },
   { file: "assets.php", url: () => `/assets.php`, shows: (t) => `${t.marker} asset type` },
   { file: "clients.php", url: () => `/clients.php`, shows: (t) => `${t.marker} client` },
+  { file: "client.php", url: (t) => `/client.php?id=${t.clientId}`, shows: (t) => `${t.marker} brand` },
   { file: "location/index.php", url: () => `/location/`, shows: (t) => `${t.marker} location` },
   { file: "maintenance/index.php", url: () => `/maintenance/`, shows: (t) => `${t.marker} maintenance job` },
   { file: "maintenance/job.php", url: (t) => `/maintenance/job.php?id=${t.maintenanceJobId}`, shows: (t) => `${t.marker} maintenance job` },
@@ -252,6 +254,11 @@ const writeCases: WriteCase[] = [
   { endpoint: "/api/clients/edit.php", params: (t) => ({ formData: formData({ clients_id: t.clientId, clients_name: "Renamed by e2e" }) }) },
   { endpoint: "/api/clients/archive.php", params: (t) => ({ clients_id: t.clientId }) },
   { endpoint: "/api/clients/unarchive.php", params: (t) => ({ clients_id: t.clientId }), control: false },
+  { endpoint: "/api/clients/brands/new.php", params: (t) => ({ clients_id: t.clientId, clientsBrands_name: "Brand by e2e" }) },
+  { endpoint: "/api/clients/brands/edit.php", params: (t) => ({ clients_id: t.clientId, clientsBrands_id: t.clientBrandId, clientsBrands_name: "Renamed by e2e" }) },
+  { endpoint: "/api/clients/brands/delete.php", params: (t) => ({ clients_id: t.clientId, clientsBrands_id: t.clientBrandId }) },
+  // An empty brand removes the project's brand
+  { endpoint: "/api/projects/changeBrand.php", params: (t) => ({ projects_id: t.projectId, clientsBrands_id: "" }) },
   // Locations
   { endpoint: "/api/locations/edit.php", params: (t) => ({ formData: formData({ locations_id: t.locationId, locations_name: "Renamed by e2e" }) }) },
   { endpoint: "/api/locations/archive.php", params: (t) => ({ locations_id: t.locationId }) },
@@ -304,6 +311,8 @@ const linkCases: LinkCase[] = [
   { endpoint: "/api/projects/quote/newLine.php", params: (t, a) => ({ projects_id: a.projectId, projectsQuoteLines_text: "Line by e2e", projectsQuoteSections_id: t.quoteSectionId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projectsQuoteLines WHERE projects_id = ? AND projectsQuoteSections_id = ? AND projectsQuoteLines_deleted = 0", [a.projectId, b.quoteSectionId]] },
   { endpoint: "/api/projects/quote/editLine.php", params: (t, a) => ({ projectsQuoteLines_id: a.quoteLineId, projectsQuoteSections_id: t.quoteSectionId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projectsQuoteLines WHERE projectsQuoteLines_id = ? AND projectsQuoteSections_id = ?", [a.quoteLineId, b.quoteSectionId]] },
   { endpoint: "/api/projects/changeClient.php", params: (t, a) => ({ projects_id: a.projectId, clients_id: t.clientId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND clients_id = ?", [a.projectId, b.clientId]] },
+  { endpoint: "/api/projects/changeBrand.php", params: (t, a) => ({ projects_id: a.projectId, clientsBrands_id: t.clientBrandId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND clientsBrands_id = ?", [a.projectId, b.clientBrandId]] },
+  { endpoint: "/api/clients/brands/new.php", params: (t) => ({ clients_id: t.clientId, clientsBrands_name: "Brand by e2e" }), linked: (b, a) => ["SELECT COUNT(*) n FROM clientsBrands WHERE instances_id = ? AND clients_id = ?", [a.instanceId, b.clientId]] },
   { endpoint: "/api/projects/changeVenue.php", params: (t, a) => ({ projects_id: a.projectId, locations_id: t.locationId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND locations_id = ?", [a.projectId, b.locationId]] },
   { endpoint: "/api/projects/changeProjectType.php", params: (t, a) => ({ projects_id: a.projectId, projectsTypes_id: t.projectTypeId }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND projectsTypes_id = ?", [a.projectId, b.projectTypeId]] },
   { endpoint: "/api/projects/changeStatus.php", params: (t, a) => ({ projects_id: a.projectId, projectsStatuses_id: t.projectStatusIds.second }), linked: (b, a) => ["SELECT COUNT(*) n FROM projects WHERE projects_id = ? AND projectsStatuses_id = ?", [a.projectId, b.projectStatusIds.second]] },

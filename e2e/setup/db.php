@@ -22,7 +22,7 @@ if ($argv[1] === "query") {
 if ($argv[1] !== "snapshot") exit("Unknown command\n");
 
 $instance = (int) $argv[2];
-$byInstance = ["instancePositions", "clients", "locations", "manufacturers", "assetCategoriesGroups", "assetCategories", "assetTypes",
+$byInstance = ["instancePositions", "clients", "clientsBrands", "locations", "manufacturers", "assetCategoriesGroups", "assetCategories", "assetTypes",
     "assetGroups", "assets", "projectsTypes", "projectsStatuses", "assetsAssignmentsStatus", "projects", "maintenanceJobs",
     "maintenanceJobsStatuses", "cmsPages", "modules", "signupCodes", "s3files", "usersPersonas", "expenses", "liabilities"];
 $children = [ // table => SQL picking the rows that belong to the business through a parent row
