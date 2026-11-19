@@ -43,6 +43,10 @@
                         <button type="button" class="btn btn-tool" title="Set custom price" id="setAssetAssignmentPrice">
                             <i class="fas fa-coins"></i></button>
                     {% endif %}
+                    {% if "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions and project.projectsTypes_config_finance == 1 %}
+                        <button type="button" class="btn btn-tool refreshProjectAssetRates" title="Update to current rates - assets are priced at the rates in effect when they were added">
+                            <i class="fas fa-redo-alt"></i></button>
+                    {% endif %}
                     {% if "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES"|instancePermissions %}
                         <button type="button" class="btn btn-tool" title="Place in quote section" id="setAssetAssignmentQuoteSection">
                             <i class="fas fa-layer-group"></i></button>

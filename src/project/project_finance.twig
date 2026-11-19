@@ -3,6 +3,11 @@
 		<div class="card">
 			<div class="card-header">
 				<h3 class="card-title">Overview</h3>
+				{% if "PROJECTS:PROJECT_ASSETS:EDIT:CUSTOM_PRICE"|instancePermissions %}
+				<div class="card-tools">
+					<button type="button" class="btn btn-tool refreshProjectAssetRates" title="Assets are priced at the rates in effect when they were added to the project"><i class="fas fa-redo-alt"></i> Update to current rates</button>
+				</div>
+				{% endif %}
 			</div>
 			<div class="card-body p-0">
 				<table class="table">
