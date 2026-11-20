@@ -255,6 +255,11 @@
 											<button data-toggle="modal" data-target="#filesModal{{ payment.payments_id }}" type="button" class="btn btn-outline-secondary btn-sm">{{ (payment.files|length > 0 ? payment.files|length ~ '&nbsp;' : '')|raw }}<i class="fas fa-paperclip" style="display:inline;"></i>
 											</button>
 										{% endif %}
+										{% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions %}
+											<button title="Edit" class="btn btn-sm btn-default editPaymentButton" data-payment="{{ {"payments_id": payment.payments_id, "payments_type": payment.payments_type, "payments_quantity": payment.payments_quantity, "payments_supplier": payment.payments_supplier, "payments_comment": payment.payments_comment, "payments_amount": payment.payments_amount|moneyDecimal, "payments_cost": ("FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions and payment.payments_cost is not null) ? payment.payments_cost|moneyDecimal : "", "payments_date": payment.payments_date, "payments_reference": payment.payments_reference, "payments_method": payment.payments_method}|json_encode }}">
+												<i class="fa fa-pen"></i>
+											</button>
+										{% endif %}
 										{% if "PROJECTS:PROJECT_PAYMENTS:DELETE"|instancePermissions %}
 											<button title="Delete" class="btn btn-sm btn-danger deletePaymentButton" data-paymentid="{{ payment.payments_id }}">
 												<i class="fa fa-trash"></i>
@@ -312,6 +317,11 @@
 											<button data-toggle="modal" data-target="#filesModal{{ payment.payments_id }}" type="button" class="btn btn-outline-secondary btn-sm">{{ (payment.files|length > 0 ? payment.files|length ~ '&nbsp;' : '')|raw }}<i class="fas fa-paperclip" style="display:inline;"></i>
 											</button>
 										{% endif %}
+										{% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions %}
+											<button title="Edit" class="btn btn-sm btn-default editPaymentButton" data-payment="{{ {"payments_id": payment.payments_id, "payments_type": payment.payments_type, "payments_quantity": payment.payments_quantity, "payments_supplier": payment.payments_supplier, "payments_comment": payment.payments_comment, "payments_amount": payment.payments_amount|moneyDecimal, "payments_cost": ("FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions and payment.payments_cost is not null) ? payment.payments_cost|moneyDecimal : "", "payments_date": payment.payments_date, "payments_reference": payment.payments_reference, "payments_method": payment.payments_method}|json_encode }}">
+												<i class="fa fa-pen"></i>
+											</button>
+										{% endif %}
 										{% if "PROJECTS:PROJECT_PAYMENTS:DELETE"|instancePermissions %}
 											<button title="Delete" class="btn btn-sm btn-danger deletePaymentButton" data-paymentid="{{ payment.payments_id }}">
 												<i class="fa fa-trash"></i>
@@ -360,6 +370,11 @@
 											<button data-toggle="modal" data-target="#filesModal{{ payment.payments_id }}" type="button" class="btn btn-outline-secondary btn-sm">{{ (payment.files|length > 0 ? payment.files|length ~ '&nbsp;' : '')|raw }}<i class="fas fa-paperclip" style="display:inline;"></i>
 											</button>
 										{% endif %}
+										{% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions %}
+											<button title="Edit" class="btn btn-sm btn-default editPaymentButton" data-payment="{{ {"payments_id": payment.payments_id, "payments_type": payment.payments_type, "payments_quantity": payment.payments_quantity, "payments_supplier": payment.payments_supplier, "payments_comment": payment.payments_comment, "payments_amount": payment.payments_amount|moneyDecimal, "payments_cost": ("FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions and payment.payments_cost is not null) ? payment.payments_cost|moneyDecimal : "", "payments_date": payment.payments_date, "payments_reference": payment.payments_reference, "payments_method": payment.payments_method}|json_encode }}">
+												<i class="fa fa-pen"></i>
+											</button>
+										{% endif %}
 										{% if "PROJECTS:PROJECT_PAYMENTS:DELETE"|instancePermissions %}
 											<button title="Delete" class="btn btn-sm btn-danger deletePaymentButton" data-paymentid="{{ payment.payments_id }}">
 												<i class="fa fa-trash"></i>
@@ -403,6 +418,11 @@
 									<td>
 										{% if  CONFIG.FILES_ENABLED == "Enabled" and "PROJECTS:PROJECT_PAYMENTS:VIEW:FILE_ATTACHMENTS"|instancePermissions %}
 											<button data-toggle="modal" data-target="#filesModal{{ payment.payments_id }}" type="button" class="btn btn-outline-secondary btn-sm">{{ (payment.files|length > 0 ? payment.files|length ~ '&nbsp;' : '')|raw }}<i class="fas fa-paperclip" style="display:inline;"></i>
+											</button>
+										{% endif %}
+										{% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions %}
+											<button title="Edit" class="btn btn-sm btn-default editPaymentButton" data-payment="{{ {"payments_id": payment.payments_id, "payments_type": payment.payments_type, "payments_quantity": payment.payments_quantity, "payments_supplier": payment.payments_supplier, "payments_comment": payment.payments_comment, "payments_amount": payment.payments_amount|moneyDecimal, "payments_cost": ("FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions and payment.payments_cost is not null) ? payment.payments_cost|moneyDecimal : "", "payments_date": payment.payments_date, "payments_reference": payment.payments_reference, "payments_method": payment.payments_method}|json_encode }}">
+												<i class="fa fa-pen"></i>
 											</button>
 										{% endif %}
 										{% if "PROJECTS:PROJECT_PAYMENTS:DELETE"|instancePermissions %}

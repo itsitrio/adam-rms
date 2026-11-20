@@ -491,6 +491,7 @@
                 <form id="newPaymentModal-form">
                     <input type="hidden" id="newPaymentModal-form-type" name="payments_type" value="1"/>
                     <input type="hidden" name="projects_id" value="{{ project.projects_id }}"/>
+                    <input type="hidden" name="payments_id" id="newPaymentModal-form-id" value="" disabled/>
                     <div class="input-group newPaymentModal-paymentOnly" style="margin-bottom: 5px;">
                         <div class="input-group-prepend">
                             <span class="input-group-text">Date</span>
@@ -1538,8 +1539,7 @@
                 startDate: "{{ "now"|date("j M Y h:i:sa") }}",
                 maxDate:"{{ "now"|date("j M Y h:i:sa") }}",
             });
-            $(".newPayment").click(function () {
-                var type = $(this).data("type");
+            function showPaymentModal(type) {
                 $("#newPaymentModal-form-type").val(type);
                 $("#newPaymentModal").modal('show');
                 $(".newPaymentModal-paymentOnly").hide();
@@ -1560,15 +1560,33 @@
                         $("#newPaymentModal-title").html("Add Staff cost");
                         break;
                 }
+            }
+            $(".newPayment").click(function () {
+                $("#newPaymentModal-form")[0].reset();
+                $("#newPaymentModal-form-id").val("").prop("disabled", true);
+                $("#newPaymentModal-form-date").data("daterangepicker").setStartDate(moment());
+                showPaymentModal($(this).data("type"));
+            });
+            $(".editPaymentButton").click(function () {
+                var payment = $(this).data("payment");
+                var form = $("#newPaymentModal-form");
+                form[0].reset();
+                $("#newPaymentModal-form-id").val(payment.payments_id).prop("disabled", false);
+                $.each(["payments_quantity", "payments_supplier", "payments_comment", "payments_amount", "payments_cost", "payments_reference", "payments_method"], function (i, field) {
+                    form.find("[name=" + field + "]").val(payment[field] === null ? "" : payment[field]);
+                });
+                if (payment.payments_date) $("#newPaymentModal-form-date").data("daterangepicker").setStartDate(moment(payment.payments_date));
+                showPaymentModal(parseInt(payment.payments_type));
+                $("#newPaymentModal-title").html(parseInt(payment.payments_type) === 1 ? "Edit payment received" : "Edit line");
             });
             $("#newPaymentModal-button").click(function () {
                 var formData = $("#newPaymentModal-form").serializeArray();
-                ajaxcall("projects/newPayment.php", {formData}, function (data) {
+                var editing = !$("#newPaymentModal-form-id").prop("disabled");
+                ajaxcall(editing ? "projects/editPayment.php" : "projects/newPayment.php", {formData}, function (data) {
                     location.reload();
                 });
             });
             {% endif %}
-            {% if "PROJECTS:PROJECT_PAYMENTS:DELETE"|instancePermissions %}
             {% if "PROJECTS:PROJECT_PAYMENTS:CREATE"|instancePermissions and "FINANCE:PAYMENTS_LEDGER:VIEW"|instancePermissions %}
             $(".paymentCostButton").click(function (event) {
                 event.preventDefault();
@@ -1588,6 +1606,7 @@
                 });
             });
             {% endif %}
+            {% if "PROJECTS:PROJECT_PAYMENTS:DELETE"|instancePermissions %}
             $(".deletePaymentButton").click(function () {
                 var id = $(this).data("paymentid");
                 bootbox.confirm({

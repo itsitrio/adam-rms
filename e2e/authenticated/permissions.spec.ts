@@ -23,6 +23,7 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/projects/newNote.php", permission: "PROJECTS:PROJECT_NOTES:CREATE:NOTES", params: (a) => ({ projects_id: a.projectId, projectsNotes_title: "Note by e2e" }) },
   { endpoint: "/api/projects/newPayment.php", permission: "PROJECTS:PROJECT_PAYMENTS:CREATE", params: (a) => ({ formData: formData({ projects_id: a.projectId, payments_amount: "1.00", payments_type: 1, payments_date: "2024-02-01" }) }) },
   { endpoint: "/api/projects/deletePayment.php", permission: "PROJECTS:PROJECT_PAYMENTS:DELETE", params: (a) => ({ payments_id: a.paymentId }) },
+  { endpoint: "/api/projects/editPayment.php", permission: "PROJECTS:PROJECT_PAYMENTS:CREATE", params: (a) => ({ formData: formData({ payments_id: a.paymentId, payments_amount: "99.00" }) }) },
   { endpoint: "/api/projects/assets/setComment.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:ASSIGNMNET_COMMENT", params: (a) => ({ assetsAssignments: [a.assignmentId], assetsAssignments_comment: "Changed by e2e" }) },
   { endpoint: "/api/projects/assets/unassign.php", permission: "PROJECTS:PROJECT_ASSETS:CREATE:ASSIGN_AND_UNASSIGN", params: (a) => ({ assetsAssignments: [a.assignmentId] }) },
   { endpoint: "/api/projects/crew/edit.php", permission: "PROJECTS:PROJECT_CREW:EDIT", params: (a) => ({ crewAssignments_id: a.crewAssignmentId, crewAssignments_comment: "Changed by e2e" }) },
