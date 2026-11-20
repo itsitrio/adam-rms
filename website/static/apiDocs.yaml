@@ -7299,6 +7299,30 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/editPayment.php:
+    post:
+      tags:
+        - projects
+      summary: 'Edit Payment'
+      description: "Edit a payment received, sales item, additional hire or staff cost on a project. Its type can't be changed.\nRequires Instance Permission PROJECTS:PROJECT_PAYMENTS:CREATE (and FINANCE:PAYMENTS_LEDGER:VIEW to change our cost)\n"
+      operationId: editPayment
+      parameters:
+        -
+          name: formData
+          in: query
+          description: 'Form data: payments_id, payments_amount, payments_comment, and payments_quantity, payments_supplier and payments_cost for sales, additional hire and staff lines, or payments_date, payments_reference and payments_method for payments received'
+          required: 'true'
+          schema:
+            type: object
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  result: { description: 'Whether the request was successful', type: boolean }
+                type: object
   /projects/followParentStatus.php:
     post:
       tags:
