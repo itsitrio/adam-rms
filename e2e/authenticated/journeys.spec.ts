@@ -67,6 +67,31 @@ test("recording a payment from the project's Finance tab", async ({ page, asA, t
   await expect(page.locator("#payments-view")).toContainText("£12.50");
 });
 
+test("editing a staff line from the project's Finance tab", async ({ page, asA, tenants: { a } }) => {
+  const project = await newProject(asA, a, a.users.full.id, { start: "2036-07-05 09:00:00", end: "2036-07-06 18:00:00" });
+  await asA.api("/api/projects/newPayment.php", { instances_id: a.instanceId, formData: formData({
+    projects_id: project, payments_type: 4, payments_quantity: 5, payments_amount: "35.00", payments_comment: "DJ Hire", payments_date: "2036-07-05",
+  }) });
+  await page.goto(`/project/?id=${project}`);
+  await page.locator('a[href="#payments-view"]').click();
+  await page.locator("#payments-view .editPaymentButton").click();
+  const modal = page.locator("#newPaymentModal");
+  await expect(modal).toBeVisible();
+  // The form opens with the line as it is
+  await expect(modal.locator('input[name="payments_quantity"]')).toHaveValue("5");
+  await expect(modal.locator('input[name="payments_amount"]')).toHaveValue("35.00");
+  await expect(modal.locator('textarea[name="payments_comment"]')).toHaveValue("DJ Hire");
+  await modal.locator('input[name="payments_quantity"]').fill("4");
+  await modal.locator('input[name="payments_amount"]').fill("40.00");
+  await page.locator("#newPaymentModal-button").click();
+
+  await page.waitForLoadState("load");
+  await expect.poll(() => dbQuery("SELECT payments_type, payments_quantity, payments_amount, payments_comment FROM payments WHERE projects_id = ? AND payments_deleted = 0", [project]))
+    .toEqual([{ payments_type: 4, payments_quantity: 4, payments_amount: 4000, payments_comment: "DJ Hire" }]);
+  await page.locator('a[href="#payments-view"]').click();
+  await expect(page.locator("#payments-view")).toContainText("£160.00");
+});
+
 test("updating a project to the current rates from its assets list or its Finance tab", async ({ page, asA, tenants: { a } }) => {
   const type = { manufacturers_id: a.manufacturerId, assetCategories_id: a.categoryId, assetTypes_name: `Journey rates type ${Date.now()}` };
   const created = await asA.api("/api/assets/newAssetType.php", { instances_id: a.instanceId, formData: formData({ ...type, assetTypes_dayRate: "1.00", assetTypes_weekRate: "5.00" }) });

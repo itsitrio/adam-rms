@@ -152,6 +152,7 @@ const writeCases: WriteCase[] = [
   { endpoint: "/api/projects/editNote.php", params: (t) => ({ projects_id: t.projectId, projectsNotes_id: t.noteId, projectsNotes_text: "Changed by e2e" }) },
   { endpoint: "/api/projects/newPayment.php", params: (t) => ({ formData: formData({ projects_id: t.projectId, payments_amount: "1.00", payments_type: 1, payments_date: "2024-02-01" }) }) },
   { endpoint: "/api/projects/deletePayment.php", params: (t) => ({ payments_id: t.paymentId }) },
+  { endpoint: "/api/projects/editPayment.php", params: (t) => ({ formData: formData({ payments_id: t.paymentId, payments_amount: "99.00" }) }) },
   { endpoint: "/api/reports/expenses/save.php", params: (t) => ({ expenses_id: t.expenseId, expenses_date: "2024-02-01", expenses_category: "Changed by e2e", expenses_amount: "1.00" }) },
   { endpoint: "/api/reports/expenses/delete.php", params: (t) => ({ expenses_id: t.expenseId }) },
   { endpoint: "/api/reports/liabilities/save.php", params: (t) => ({ liabilities_id: t.liabilityId, liabilities_name: "Changed by e2e", liabilities_type: "LOAN", liabilities_amount: "5.00", liabilities_startDate: "2024-01-01" }) },

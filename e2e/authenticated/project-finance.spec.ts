@@ -104,6 +104,21 @@ test("a project's finances add up, and its running totals keep up, through every
     });
   });
 
+  await test.step("payments edited", async () => {
+    const edit = (id: number, fields: Record<string, string | number>) => ok(api("/api/projects/editPayment.php", { formData: formData({ payments_id: id, ...fields }) }), "editing a payment");
+    // Staff: 1 x £3.00 becomes 5 x £3.50
+    await edit(payments["staff"], { payments_quantity: 5, payments_amount: "3.50", payments_supplier: "Crew Co", payments_comment: "DJ Hire", payments_cost: "2.00" });
+    expect(dbQuery("SELECT payments_quantity q, payments_amount a, payments_supplier s, payments_comment c, payments_cost cost, payments_type t FROM payments WHERE payments_id = ?", [payments["staff"]])[0])
+      .toEqual({ q: 5, a: 350, s: "Crew Co", c: "DJ Hire", cost: 200, t: 4 });
+    // Received: £10.00 becomes £24.50 - the same £14.50 more, so what's outstanding stays the same. It stays a single payment
+    await edit(payments["received"], { payments_amount: "24.50", payments_quantity: 3, payments_reference: "e2e edited", payments_date: "2036-01-02", payments_method: "Cash", payments_comment: "" });
+    now = { ...now, received: 2450, staff: 1750 };
+    await expectFinances(asA, a, project, now);
+    // A payment that isn't a number is refused, and changes nothing
+    expect((await api("/api/projects/editPayment.php", { formData: formData({ payments_id: payments["staff"], payments_amount: "lots" }) })).json).toMatchObject({ result: false });
+    await expectFinances(asA, a, project, now);
+  });
+
   await test.step("a payment deleted", async () => {
     await ok(api("/api/projects/deletePayment.php", { payments_id: payments["sales"] }), "deleting a payment");
     now = { ...now, sales: 0, grandTotal: 4500 };
