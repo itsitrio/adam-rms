@@ -36,7 +36,7 @@
                         <label for="instances_config_paymentDueDays">Payment due</label>
                         <div class="input-group" style="max-width: 320px;">
                             <input type="number" min="0" max="365" step="1" class="form-control" id="instances_config_paymentDueDays" value="{{ USERDATA.instance.instances_config_paymentDueDays }}">
-                            <div class="input-group-append"><span class="input-group-text">days after a project ends</span></div>
+                            <div class="input-group-append"><span class="input-group-text">days after a project's last date</span></div>
                         </div>
                         <small class="form-text text-muted">Once this has passed, anything still owed on a won project shows as past due. A project can have its own due date instead, set on its Finance tab.</small>
                     </div>

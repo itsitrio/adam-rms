@@ -873,6 +873,16 @@
                                     <input class="form-check-input" type="checkbox" name="paymentTerms" checked>
                                     <label class="form-check-label">Footer Text</label>
                                 </div>
+                                <div class="form-check" id="pdfDueDateOptions">
+                                    <input class="form-check-input" type="checkbox" name="dueDate" checked>
+                                    <label class="form-check-label">Invoice &amp; Payment Due Dates</label>
+                                </div>
+                                {% if "PROJECTS:EDIT:PAYMENT_COLLECTION"|instancePermissions %}
+                                    <div class="form-check" id="pdfLockDueDate">
+                                        <input class="form-check-input" type="checkbox" name="lockDueDate" {% if project.projects_invoiceDueDate %}checked disabled{% endif %}>
+                                        <label class="form-check-label" title="Keeps the invoice date and due date on the project, so later changes to the project's dates or the payment terms don't move them. Applies when you generate the PDF, not for a draft printout">{% if project.projects_invoiceDueDate %}Due date locked in ({{ project.projects_invoiceDueDate|date("d M Y") }}){% else %}Lock in the due date when generating the PDF{% endif %}</label>
+                                    </div>
+                                {% endif %}
                             {% endif %}
                         </div>
                         {% if USERDATA.instance.userInstances_id %}
@@ -913,7 +923,7 @@
         function pdfGenerateOptions() {
             var options = {};
             $('#pdfGenerateModal input[type="checkbox"]').each(function () {
-                if ($(this).attr('name') != "subProjects" && !$(this).prop('disabled') && $(this).parent().css('display') != 'none') options[$(this).attr('name')] = $(this).prop('checked');
+                if ($(this).attr('name') != "subProjects" && $(this).attr('name') != "lockDueDate" && !$(this).prop('disabled') && $(this).parent().css('display') != 'none') options[$(this).attr('name')] = $(this).prop('checked');
             });
             return options;
         }
@@ -942,6 +952,7 @@
                         $('#pdfGenerateModal input[name="type"]').val("invoice");
                     }
                 }
+                $("#pdfDueDateOptions, #pdfLockDueDate").toggle($('#pdfGenerateModal input[name="type"]').val() == "invoice");
                 //The saved defaults for this type of document - not for options this type doesn't offer
                 var type = $('#pdfGenerateModal input[name="type"]').val();
                 $.each($.extend({}, pdfGenerateDefaults.business[type], pdfGenerateDefaults.mine[type]), function (name, checked) {

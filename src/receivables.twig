@@ -17,7 +17,7 @@
         {% endfor %}
     </div>
     <p class="text-muted">
-        Won projects that have ended, or whose payment is already due, and still have something owing. Payment is due {{ USERDATA.instance.instances_config_paymentDueDays }} days after a project ends unless the project has its own due date{% if "BUSINESS:BUSINESS_SETTINGS:VIEW"|instancePermissions %} - <a href="{{ CONFIG.ROOTURL }}/instances/configuration/invoices.php">change the payment terms</a>{% endif %}.
+        Won projects that have ended, or whose payment is already due, and still have something owing. Payment is due {{ USERDATA.instance.instances_config_paymentDueDays }} days after the latest date a project has (usually when it ends) unless the project has its own due date{% if "BUSINESS:BUSINESS_SETTINGS:VIEW"|instancePermissions %} - <a href="{{ CONFIG.ROOTURL }}/instances/configuration/invoices.php">change the payment terms</a>{% endif %}.
         A project can be marked as in collections or written off from its Finance tab.
     </p>
     {% for state, name in states %}

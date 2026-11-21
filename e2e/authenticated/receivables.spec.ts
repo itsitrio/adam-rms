@@ -159,3 +159,83 @@ test("the Finance tab says which permission marks a project as in collections, t
   expect(full).toContain('id="paymentCollectionForm"');
   expect(full).not.toContain('id="paymentCollectionNoPermission"');
 });
+
+test("a payment falls due after the latest date a project has, so projects without assets get a due date too", async ({ asA, tenants: { a } }) => {
+  const dueShown = async (project: number) => (await asA.page(`/project/?id=${project}`)).body.match(/id="paymentCollectionDueDate">\s*([^<]*?)\s*</)?.[1];
+  // A project that only has use dates (as one whose type has no assets does) - its terms run from the end of its use
+  const created = await asA.api("/api/projects/new.php", {
+    instances_id: a.instanceId, projects_name: "Use dates only", projects_manager: a.users.full.id, projectsType_id: a.projectTypeId,
+    projects_dates_use_start: "2020-05-01 09:00:00", projects_dates_use_end: "2020-05-03 18:00:00",
+  });
+  expect(created.json, "creating the project").toMatchObject({ result: true });
+  const useOnly: number = created.json.response.projects_id;
+  expect(dbQuery("SELECT projects_dates_deliver_end e FROM projects WHERE projects_id = ?", [useOnly])[0]).toMatchObject({ e: null });
+  expect(await dueShown(useOnly)).toBe("02 Jun 2020"); // 3 May + 30 days
+
+  // Whichever of its dates is latest wins
+  const both = await newProject(asA, a, a.users.full.id, { start: "2020-06-01 09:00:00", end: "2020-06-03 18:00:00" });
+  dbQuery("UPDATE projects SET projects_dates_use_start = '2020-06-10 09:00:00', projects_dates_use_end = '2020-06-12 18:00:00' WHERE projects_id = ?", [both]);
+  expect(await dueShown(both)).toBe("12 Jul 2020"); // 12 June + 30 days, not 3 June
+  dbQuery("UPDATE projects SET projects_dates_use_end = '2020-06-02 18:00:00', projects_dates_use_start = '2020-06-01 09:00:00' WHERE projects_id = ?", [both]);
+  expect(await dueShown(both)).toBe("03 Jul 2020"); // 3 June + 30 days
+
+});
+
+test("an invoice's due date can be locked in when it's generated, and unlocked again", async ({ asA, tenants: { a } }) => {
+  const project = await newProject(asA, a, a.users.full.id, DAYS_3("09")); // Ends 3 September 2020, so due 3 October on 30 day terms
+  const stored = () => dbQuery<{ issue: string | null; due: string | null; terms: number | null }>(
+    "SELECT DATE_FORMAT(projects_invoiceIssueDate, '%Y-%m-%d') issue, DATE_FORMAT(projects_invoiceDueDate, '%Y-%m-%d') due, projects_invoiceTermsDays terms FROM projects WHERE projects_id = ?", [project],
+  )[0];
+  const dueShown = async () => (await asA.page(`/project/?id=${project}`)).body.match(/id="paymentCollectionDueDate">\s*([^<]*?)\s*</)?.[1];
+  // The document's script escapes spaces in what it shows
+  const invoice = async (extra: string) => { const page = await asA.page(`/project/projectInvoice.php?id=${project}&type=invoice&dueDate=on${extra}`); return { ...page, body: page.body.replace(/\\u0020/g, " ") }; };
+
+  // An invoice shows when it's due even before anything is locked, and a draft or preview locks nothing
+  const unlocked = (await invoice("")).body;
+  expect(unlocked).toContain("Payment Due:");
+  expect(unlocked).toContain("3 Oct 2020");
+  await invoice("&upload=true&lockDueDate=on&preview=1");
+  await invoice("&draft=true&lockDueDate=on");
+  expect(stored()).toEqual({ issue: null, due: null, terms: null });
+  expect((await asA.page(`/project/projectInvoice.php?id=${project}&type=invoice`)).body).not.toContain("Payment Due:");
+
+  // Generating the PDF with the option on locks it in, with the date it was issued and the terms it was issued on
+  const generated = (await invoice("&upload=true&lockDueDate=on")).body;
+  expect(generated).toContain("3 Oct 2020");
+  const today = new Date().toISOString().slice(0, 10);
+  expect(stored()).toEqual({ issue: today, due: "2020-10-03", terms: 30 });
+  expect(await dueShown()).toBe("03 Oct 2020");
+
+  // Later changes to the project's dates or the business's terms don't move it
+  const set = (value: string) => asA.api("/api/instances/editInstance.php", { instances_id: a.instanceId, formData: formData({ instances_config_paymentDueDays: value }) });
+  expect((await set("14")).json).toMatchObject({ result: true });
+  dbQuery("UPDATE projects SET projects_dates_deliver_end = '2020-12-25 18:00:00' WHERE projects_id = ?", [project]);
+  expect(await dueShown()).toBe("03 Oct 2020");
+  expect((await invoice("")).body).toContain("3 Oct 2020");
+  // Locking again changes nothing, and an explicit date can't be locked over it
+  expect((await asA.api("/api/projects/changeInvoiceDueDate.php", { instances_id: a.instanceId, projects_id: project, action: "lock", projects_invoiceDueDate: "2021-01-01" })).json).toMatchObject({ result: true, response: { dueDate: "2020-10-03" } });
+  expect(stored().due).toBe("2020-10-03");
+  // A due date set on the project itself still wins
+  expect((await collection(asA, a, project, { projects_paymentDueDate: "2020-11-11" })).json).toMatchObject({ result: true });
+  expect(await dueShown()).toBe("11 Nov 2020");
+  expect((await collection(asA, a, project, { projects_paymentDueDate: "" })).json).toMatchObject({ result: true });
+
+  // Unlocking goes back to working it out: 25 December + 14 days
+  expect((await asA.api("/api/projects/changeInvoiceDueDate.php", { instances_id: a.instanceId, projects_id: project, action: "unlock" })).json).toMatchObject({ result: true });
+  expect(stored()).toEqual({ issue: null, due: null, terms: null });
+  expect(await dueShown()).toBe("08 Jan 2021");
+  await set("30");
+
+  // A date can be chosen when locking, but it has to be a real one, and the action a known one
+  for (const bad of [{ action: "lock", projects_invoiceDueDate: "2020-13-45" }, { action: "delete" }]) {
+    expect((await asA.api("/api/projects/changeInvoiceDueDate.php", { instances_id: a.instanceId, projects_id: project, ...bad })).json, JSON.stringify(bad)).toMatchObject({ result: false });
+  }
+  expect((await asA.api("/api/projects/changeInvoiceDueDate.php", { instances_id: a.instanceId, projects_id: project, action: "lock", projects_invoiceDueDate: "2021-02-02" })).json).toMatchObject({ result: true });
+  expect(stored().due).toBe("2021-02-02");
+});
+
+test("an invoice's due date isn't locked by someone without the payment collection permission", async ({ asLimitedA, asA, tenants: { a } }) => {
+  const project = await newProject(asA, a, a.users.full.id, DAYS_3("11"));
+  await asLimitedA.page(`/project/projectInvoice.php?id=${project}&type=invoice&dueDate=on&upload=true&lockDueDate=on`);
+  expect(dbQuery("SELECT projects_invoiceDueDate d FROM projects WHERE projects_id = ?", [project])[0]).toMatchObject({ d: null });
+});

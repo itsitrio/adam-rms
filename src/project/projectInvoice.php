@@ -83,4 +83,17 @@ if ($PAGEDATA['documentType'] == "quote") $footer = html_entity_decode(strip_tag
 elseif ($PAGEDATA['documentType'] == "invoice") $footer = html_entity_decode(strip_tags(str_replace(["</p>", "<br/>"], "\n", (string) $AUTH->data['instance']['instances_termsAndPayment'])), ENT_QUOTES | ENT_HTML5);
 $PAGEDATA['FOOTERTEXT'] = documentFormattedText(trim($footer), $PAGEDATA['documentPlaceholders'], $PAGEDATA['DOCUMENTS']['contentWidth'] - 10, $PAGEDATA['DOCUMENTS']['accentColour'] ?: "#000000");
 
+//When an invoice was issued and is due: the dates locked in with the project if it has them, otherwise today and the date worked out from the project's dates
+$PAGEDATA['INVOICEDATES'] = null;
+//Generating the PDF can lock the dates in, for those allowed to - a draft or a preview never does
+if ($PAGEDATA['documentType'] == "invoice" and !empty($_GET['upload']) and !empty($_GET['lockDueDate']) and !$PAGEDATA['PREVIEW'] and $AUTH->instancePermissionCheck("PROJECTS:EDIT:PAYMENT_COLLECTION")) {
+    $locked = projectLockInvoiceDueDate($PAGEDATA['project']);
+    if (is_array($locked)) $PAGEDATA['project'] = array_merge($PAGEDATA['project'], ["projects_invoiceIssueDate" => $locked['issueDate'], "projects_invoiceDueDate" => $locked['dueDate']]);
+}
+if ($PAGEDATA['documentType'] == "invoice" and !empty($PAGEDATA['GET']['dueDate'])) {
+    $invoiceProject = $PAGEDATA['project'];
+    $dueDate = projectPaymentDueDate($invoiceProject, $AUTH->data['instance']['instances_config_paymentDueDays']);
+    if ($dueDate !== null) $PAGEDATA['INVOICEDATES'] = ["issue" => !empty($invoiceProject['projects_invoiceDueDate']) ? $invoiceProject['projects_invoiceIssueDate'] : date("Y-m-d"), "due" => $dueDate, "locked" => !empty($invoiceProject['projects_invoiceDueDate'])];
+}
+
 echo $TWIG->render('project/pdf.twig', $PAGEDATA);

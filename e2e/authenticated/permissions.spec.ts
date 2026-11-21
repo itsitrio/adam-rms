@@ -16,6 +16,7 @@ const writeCases: ApiCase[] = [
   { endpoint: "/api/projects/new.php", permission: "PROJECTS:CREATE", params: (a) => ({ projects_name: "New by e2e", projects_manager: a.users.full.id, projectsType_id: a.projectTypeId }) },
   { endpoint: "/api/projects/changeName.php", permission: "PROJECTS:EDIT:NAME", params: (a) => ({ projects_id: a.projectId, projects_name: "Renamed by e2e" }) },
   { endpoint: "/api/projects/changePaymentCollection.php", permission: "PROJECTS:EDIT:PAYMENT_COLLECTION", params: (a) => ({ projects_id: a.projectId, projects_collectionStatus: "COLLECTIONS", projects_paymentDueDate: "2030-02-01" }) },
+  { endpoint: "/api/projects/changeInvoiceDueDate.php", permission: "PROJECTS:EDIT:PAYMENT_COLLECTION", params: (a) => ({ projects_id: a.projectId, action: "unlock" }) },
   { endpoint: "/api/projects/changePublishedNames.php", permission: "PROJECTS:PROJECT_ASSETS:EDIT:QUOTE_SECTIONS_AND_LINES", params: (a) => ({ projects_id: a.projectId, projects_publishedNames: 1 }) },
   { endpoint: "/api/projects/changeStatus.php", permission: "PROJECTS:EDIT:STATUS", params: (a) => ({ projects_id: a.projectId, projectsStatuses_id: a.projectStatusIds.second }) },
   { endpoint: "/api/projects/archive.php", permission: "PROJECTS:ARCHIVE", params: (a) => ({ projects_id: a.projectId }) },

@@ -6318,6 +6318,44 @@ paths:
                 type: object
         '404':
           description: 'Permission Error'
+  /projects/changeInvoiceDueDate.php:
+    post:
+      tags:
+        - projects
+      summary: 'Lock or Unlock the Invoice Due Date'
+      description: "Lock in the date a project's invoice is due (and the date it was issued and the payment terms it was issued on), so that changes to the project's dates or the business's payment terms don't move it, or unlock it again\nRequires Instance Permission PROJECTS:EDIT:PAYMENT_COLLECTION\n"
+      operationId: changeInvoiceDueDate
+      parameters:
+        -
+          name: projects_id
+          in: query
+          description: 'Project ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: action
+          in: query
+          description: 'lock or unlock'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: projects_invoiceDueDate
+          in: query
+          description: "When locking, the date to lock in (YYYY-MM-DD) - otherwise the date worked out from the project's dates and the business's payment terms"
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '404':
+          description: 'Permission Error'
   /projects/changeInvoiceNotes.php:
     post:
       tags:

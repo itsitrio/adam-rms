@@ -509,7 +509,7 @@ function reportAgedDebtors(ReportContext $ctx)
             ["label" => "In collections or written off", "value" => $bandTotals['collections']->add($bandTotals['writtenOff']), "type" => "money"],
         ],
         "sections" => $sections,
-        "notes" => ["Won projects that have ended, or whose payment is already due, with something still to pay. Payment is due " . intval($ctx->instance['instances_config_paymentDueDays']) . " days after a project ends unless it has its own due date. Balances are as they stand today."],
+        "notes" => ["Won projects that have ended, or whose payment is already due, with something still to pay. Payment is due " . intval($ctx->instance['instances_config_paymentDueDays']) . " days after the latest date a project has (usually when it ends) unless it has its own due date. Balances are as they stand today."],
         "uncalculated" => $data['uncalculated'],
     ];
 }

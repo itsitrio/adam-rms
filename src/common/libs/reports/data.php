@@ -130,7 +130,7 @@ function reportProjects(ReportContext $ctx)
     $DBLIB->orderBy("projects.projects_dates_deliver_end", "ASC");
     $rows = $DBLIB->get("projects", null, [
         "projects.projects_id", "projects.projects_name", "projects.projects_created", "projects.projects_archived", "projects.projects_parent_project_id",
-        "projects.projects_dates_deliver_start", "projects.projects_dates_deliver_end", "projects.projects_paymentDueDate", "projects.projects_collectionStatus",
+        "projects.projects_dates_deliver_start", "projects.projects_dates_deliver_end", "projects.projects_dates_use_start", "projects.projects_dates_use_end", "projects.projects_paymentDueDate", "projects.projects_invoiceDueDate", "projects.projects_collectionStatus",
         "projects.clients_id", "clients.clients_name", "projects.projects_manager", "users.users_name1", "users.users_name2",
         "projects.projectsTypes_id", "projectsTypes.projectsTypes_name", "projectsTypes.projectsTypes_config_finance",
         "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_pipelineStage",

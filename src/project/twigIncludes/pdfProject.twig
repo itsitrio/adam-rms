@@ -80,6 +80,10 @@
                             {% if project.projects_dates_deliver_end %}
                                 [{{ (DOCUMENTS.labels.collect ~ ':')|jsString }},"{{ project.projects_dates_deliver_end|date(DOCUMENTS.dateTimeFormat)|escape("js") }}"],
                             {% endif %}
+                            {% if INVOICEDATES %}
+                                [{{ (DOCUMENTS.labels.invoiceDate ~ ':')|jsString }},"{{ INVOICEDATES.issue|date(DOCUMENTS.dateFormat)|escape("js") }}"],
+                                [{{ (DOCUMENTS.labels.paymentDue ~ ':')|jsString }},"{{ INVOICEDATES.due|date(DOCUMENTS.dateFormat)|escape("js") }}"],
+                            {% endif %}
                             {% if GET['totalmass'] and project.projectsTypes_config_assets == 1 %}
                                 [{{ (DOCUMENTS.labels.massEstimate ~ ':')|jsString }},"{{FINANCIALS.mass|mass|escape("js") }}"],
                             {% endif %}
