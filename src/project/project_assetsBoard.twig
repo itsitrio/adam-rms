@@ -277,7 +277,7 @@
      * @param value The barcode value
      * @param type The barcode format type (e.g. 'QR_CODE', 'CODE_128', or 'UNKNOWN' for USB/Bluetooth)
      */
-    function dispatchBarcodeScanned(value, type) {
+    function dispatchBarcodeScanned(value, type, holdOverride) {
         var assetStatus = $(".assetStatusSelectorBarcodeDispatch:visible").val();
         var instanceId = $(".assetStatusSelectorBarcodeDispatch:visible").data("instanceid");
         var requestData = {
@@ -289,6 +289,7 @@
         if (type && type !== "UNKNOWN") {
             requestData.type = type;
         }
+        if (holdOverride) requestData.holdOverride = 1;
         $.ajax({
             url: "{{ CONFIG.ROOTURL }}/api/projects/assets/setStatusBarcode.php",
             type: "POST",
@@ -303,6 +304,8 @@
                         type: 'success',
                         title: 'Asset dispatched via barcode'
                     });
+                } else if (holdConfirm(result.error, function () { dispatchBarcodeScanned(value, type, true); })) {
+                    // Held asset - waiting for whoever is scanning it to say whether to send it anyway
                 } else if (result.error && result.error.code === "NOTASSIGNED" && ('assets_id' in result.error) && canAssignAssets) {
                     // Supermarket Sweep: asset exists but is not assigned to this project
                     // Prevent multiple concurrent NOTASSIGNED flows (scanner may fire repeatedly)
@@ -446,8 +449,8 @@
             assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetNextStatus + "][data-instance=" + assetCard.data("instance") + "]");
         });
 
-        function doQuickDispatch() {
-            const assetTag = $("#assetTagQuickDispatch").val();
+        function doQuickDispatch(assetTagToRetry, holdOverride) {
+            const assetTag = assetTagToRetry || $("#assetTagQuickDispatch").val();
             const assetStatus = $(".assetStatusSelectorQuickDispatch:visible").val();
             const instanceId = $(".assetStatusSelectorQuickDispatch:visible").data("instanceid");
             // Not using ajaxcall so we can have our own error handling for the alert boxes
@@ -458,6 +461,7 @@
                     text: assetTag,
                     assetsAssignments_status: assetStatus,
                     projects_id: {{ project.projects_id }},
+                    holdOverride: holdOverride ? 1 : 0,
                 },
                 cache: false,
                 success: function(result, status, data) {
@@ -465,6 +469,8 @@
                         const assetCard = $(".assetDispatchAssetList[data-instance=" + instanceId + "] .assetDispatchAssetList-card[data-asset=" + result.response.assets_id + "]");
                         assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]");
                         drawButtons();
+                    } else if (holdConfirm(result.error, function () { doQuickDispatch(assetTag, true); })) {
+                        // Held asset - waiting for whoever is sending it to say whether to send it anyway
                     } else {
                         Toast.fire({
                             type: 'error',
@@ -492,7 +498,7 @@
             e.preventDefault();
             doQuickDispatch();
         });
-        $("#goQuickDispatch").on("click", doQuickDispatch);
+        $("#goQuickDispatch").on("click", function () { doQuickDispatch(); });
         {% endif %}
 
 

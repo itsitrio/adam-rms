@@ -52,6 +52,7 @@ $projectBalances = [];
 foreach ($assets as $asset) {
     //Flags&Blocks
     $asset['flagsblocks'] = assetFlagsAndBlocks($asset['assets_id']);
+    $asset['holds'] = assetHolds($asset['assets_id']);
 
     //Calendar
     $DBLIB->where("assets_id", $asset['assets_id']);

@@ -119,32 +119,156 @@ function generateNewTag()
     } else
         return "A-0001";
 }
-function assetFlagsAndBlocks($assetid)
+/** What a hold does at one stage of an asset's life on a project, from least to most strict */
+const ASSET_HOLD_MODES = ["ALLOW" => "Allow", "WARN" => "Warn", "BLOCK" => "Block"];
+/** The stages a hold has a rule for: adding the asset to a project, and sending it out (a status that leaves the warehouse) */
+const ASSET_HOLD_STAGES = ["assign" => "Adding to a project", "dispatch" => "Sending out"];
+/** What a status can do to where the gear is - only one so far, which is what makes a hold's dispatch rule apply */
+const ASSET_STATUS_EFFECTS = ["LEAVES_WAREHOUSE" => "Gear leaves the warehouse"];
+
+/**
+ * Every active hold on an asset, from the maintenance jobs it's on and the holds put on it directly, each with the
+ * rule it has for adding the asset to a project (assign) and for sending it out (dispatch).
+ *
+ * A maintenance job's assign rule comes from its flag and block settings: a block blocks, a flag warns.
+ *
+ * @return array[] Each with source (JOB or HOLD), maintenanceJobs_id or assetHolds_id, title, description, assign,
+ *                 dispatch and overridable (whether the dispatch rule can be signed off by whoever is sending it)
+ */
+function assetHolds($assetid)
 {
     global $DBLIB;
+    $holds = [];
     $DBLIB->where("maintenanceJobs.maintenanceJobs_deleted", 0);
-    $DBLIB->where("(maintenanceJobs.maintenanceJobs_blockAssets = 1 OR maintenanceJobs.maintenanceJobs_flagAssets = 1)");
+    $DBLIB->where("(maintenanceJobs.maintenanceJobs_blockAssets = 1 OR maintenanceJobs.maintenanceJobs_flagAssets = 1 OR maintenanceJobs.maintenanceJobs_dispatchMode != 'ALLOW')");
     $DBLIB->where("(FIND_IN_SET(?, maintenanceJobs.maintenanceJobs_assets) > 0)", [$assetid]);
     $DBLIB->join("maintenanceJobsStatuses", "maintenanceJobs.maintenanceJobsStatuses_id=maintenanceJobsStatuses.maintenanceJobsStatuses_id", "LEFT");
-    //$DBLIB->join("users AS userCreator", "userCreator.users_userid=maintenanceJobs.maintenanceJobs_user_creator", "LEFT");
-    //$DBLIB->join("users AS userAssigned", "userAssigned.users_userid=maintenanceJobs.maintenanceJobs_user_assignedTo", "LEFT");
     $DBLIB->orderBy("maintenanceJobs.maintenanceJobs_priority", "DESC");
-    $jobs = $DBLIB->get('maintenanceJobs', null, ["maintenanceJobs.maintenanceJobs_id", "maintenanceJobs.maintenanceJobs_faultDescription", "maintenanceJobs.maintenanceJobs_title", "maintenanceJobs.maintenanceJobs_faultDescription", "maintenanceJobs.maintenanceJobs_flagAssets", "maintenanceJobs.maintenanceJobs_blockAssets", "maintenanceJobsStatuses.maintenanceJobsStatuses_name"]);
+    $jobs = $DBLIB->get('maintenanceJobs', null, ["maintenanceJobs.maintenanceJobs_id", "maintenanceJobs.maintenanceJobs_faultDescription", "maintenanceJobs.maintenanceJobs_title", "maintenanceJobs.maintenanceJobs_flagAssets", "maintenanceJobs.maintenanceJobs_blockAssets", "maintenanceJobs.maintenanceJobs_dispatchMode", "maintenanceJobs.maintenanceJobs_dispatchOverridable", "maintenanceJobsStatuses.maintenanceJobsStatuses_name"]);
+    foreach ($jobs ?: [] as $job) {
+        $holds[] = $job + [
+            "source" => "JOB", "title" => $job["maintenanceJobs_title"], "description" => $job["maintenanceJobs_faultDescription"],
+            "assign" => $job["maintenanceJobs_blockAssets"] == 1 ? "BLOCK" : ($job["maintenanceJobs_flagAssets"] == 1 ? "WARN" : "ALLOW"),
+            "dispatch" => array_key_exists($job["maintenanceJobs_dispatchMode"], ASSET_HOLD_MODES) ? $job["maintenanceJobs_dispatchMode"] : "ALLOW",
+            "overridable" => $job["maintenanceJobs_dispatchOverridable"] == 1,
+        ];
+    }
+    $DBLIB->where("assetHolds.assets_id", $assetid);
+    $DBLIB->where("assetHolds.assetHolds_deleted", 0);
+    $DBLIB->orderBy("assetHolds.assetHolds_id", "ASC");
+    foreach ($DBLIB->get("assetHolds") ?: [] as $hold) {
+        $holds[] = $hold + [
+            "source" => "HOLD", "maintenanceJobs_id" => null, "title" => "On hold", "description" => $hold["assetHolds_reason"],
+            "maintenanceJobs_title" => "On hold", "maintenanceJobs_faultDescription" => $hold["assetHolds_reason"],
+            "assign" => array_key_exists($hold["assetHolds_assignMode"], ASSET_HOLD_MODES) ? $hold["assetHolds_assignMode"] : "ALLOW",
+            "dispatch" => array_key_exists($hold["assetHolds_dispatchMode"], ASSET_HOLD_MODES) ? $hold["assetHolds_dispatchMode"] : "ALLOW",
+            "overridable" => $hold["assetHolds_overridable"] == 1,
+        ];
+    }
+    return $holds;
+}
+
+/**
+ * The flags and blocks on an asset that apply when adding it to a project - its holds with a WARN (a flag) or a BLOCK
+ * for that stage. Everything that decides whether an asset can be assigned, or shows a flag or block, goes through this.
+ */
+function assetFlagsAndBlocks($assetid)
+{
     $return = ["BLOCK" => [], "FLAG" => [], "COUNT" => ["BLOCK" => 0, "FLAG" => 0]];
-    if (!$jobs)
-        return $return;
-    foreach ($jobs as $job) {
-        if ($job["maintenanceJobs_blockAssets"] == 1) {
-            $return['BLOCK'][] = $job;
+    foreach (assetHolds($assetid) as $hold) {
+        if ($hold["assign"] == "BLOCK") {
+            $return['BLOCK'][] = $hold;
             $return['COUNT']['BLOCK'] += 1;
-        }
-        if ($job["maintenanceJobs_flagAssets"] == 1) {
-            $return['FLAG'][] = $job;
+        } elseif ($hold["assign"] == "WARN") {
+            $return['FLAG'][] = $hold;
             $return['COUNT']['FLAG'] += 1;
         }
     }
     return $return;
 }
+
+/**
+ * Whether an asset can be sent out: its holds with a rule for the dispatch stage.
+ *
+ * @return array ["mode" => the strictest rule (ALLOW, WARN or BLOCK), "overridable" => whether every blocking hold
+ *               can be signed off, "holds" => the holds that aren't ALLOW]
+ */
+function assetDispatchHolds($assetid)
+{
+    $result = ["mode" => "ALLOW", "overridable" => true, "holds" => []];
+    foreach (assetHolds($assetid) as $hold) {
+        if ($hold["dispatch"] == "ALLOW") continue;
+        $result["holds"][] = $hold;
+        if ($hold["dispatch"] == "BLOCK") {
+            $result["mode"] = "BLOCK";
+            if (!$hold["overridable"]) $result["overridable"] = false;
+        } elseif ($result["mode"] == "ALLOW") $result["mode"] = "WARN";
+    }
+    return $result;
+}
+
+/**
+ * Check that some assets can be sent out before an assignment is given a status that takes them out of the warehouse.
+ * Finishes the request with the reason if they can't: a hold that can't be overridden, or holds that need someone to
+ * confirm (PARAM holdOverride) that they're happy to send the asset anyway - the packer has tested it, say.
+ *
+ * @param int[] $assetIds The assets whose assignments are changing to a status that leaves the warehouse
+ * @param int|null $projectId The project, for the audit log
+ */
+function assetDispatchHoldsCheckOrFinish($assetIds, $projectId = null)
+{
+    global $AUTH, $bCMS, $DBLIB;
+    $problems = [];
+    $needsSignOff = false;
+    $absolute = false;
+    foreach (array_unique($assetIds) as $assetId) {
+        $check = assetDispatchHolds($assetId);
+        if ($check["mode"] == "ALLOW") continue;
+        $problems[$assetId] = $check;
+        if ($check["mode"] == "BLOCK" and !$check["overridable"]) $absolute = true;
+        $needsSignOff = true;
+    }
+    if (!$needsSignOff) return;
+    $tags = [];
+    foreach ($problems as $assetId => $check) {
+        $DBLIB->where("assets_id", $assetId);
+        $tags[$assetId] = $bCMS->aTag($DBLIB->getValue("assets", "assets_tag"));
+    }
+    $describe = function ($holds) { return implode("; ", array_map(function ($hold) { return $hold["title"] . ($hold["description"] ? " - " . strip_tags($hold["description"]) : ""); }, $holds)); };
+    $summary = [];
+    foreach ($problems as $assetId => $check) $summary[] = ["assets_id" => $assetId, "assets_tag" => $tags[$assetId], "mode" => $check["mode"], "overridable" => $check["overridable"], "holds" => array_map(function ($hold) { return ["title" => $hold["title"], "description" => $hold["description"], "mode" => $hold["dispatch"], "overridable" => $hold["overridable"]]; }, $check["holds"])];
+    $messages = [];
+    foreach ($problems as $assetId => $check) $messages[] = $tags[$assetId] . ": " . $describe($check["holds"]);
+    if ($absolute) finish(false, ["code" => "HOLD-BLOCKED", "message" => "Can't be sent out: " . implode(" | ", $messages), "holds" => $summary]);
+    if (empty($_POST['holdOverride'])) {
+        $blocked = count(array_filter($problems, function ($check) { return $check["mode"] == "BLOCK"; })) > 0;
+        finish(false, ["code" => $blocked ? "HOLD-BLOCKED-OVERRIDABLE" : "HOLD-WARNING", "message" => ($blocked ? "Shouldn't be sent out: " : "Held: ") . implode(" | ", $messages), "holds" => $summary]);
+    }
+    //Someone has signed them off - say who did and what they were told
+    $bCMS->auditLog("SIGN-OFF-HOLD", "assetsAssignments", "Sent out despite: " . implode(" | ", $messages), $AUTH->data['users_userid'], null, $projectId);
+}
+
+/**
+ * Before assignments are given a status, check the holds on their assets if that status means the gear leaves the
+ * warehouse - and the assignments aren't already on a status that does. Finishes the request if they can't be sent.
+ *
+ * @param int[] $assignmentIds The assignments being changed
+ * @param int $newStatusId The status they're being changed to
+ * @param int|null $projectId The project, for the audit log
+ */
+function assetDispatchHoldsForStatusChange($assignmentIds, $newStatusId, $projectId = null)
+{
+    global $DBLIB;
+    if (count($assignmentIds) < 1) return;
+    $DBLIB->where("assetsAssignmentsStatus_id", $newStatusId);
+    if ($DBLIB->getValue("assetsAssignmentsStatus", "assetsAssignmentsStatus_effect") != "LEAVES_WAREHOUSE") return;
+    $DBLIB->where("assetsAssignments.assetsAssignments_id", $assignmentIds, "IN");
+    $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
+    $DBLIB->where("(assetsAssignmentsStatus.assetsAssignmentsStatus_effect IS NULL OR assetsAssignmentsStatus.assetsAssignmentsStatus_effect != 'LEAVES_WAREHOUSE')");
+    $assetIds = array_column($DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id"]) ?: [], "assets_id");
+    assetDispatchHoldsCheckOrFinish($assetIds, $projectId);
+}
+
 /**
  * The stages of the sales pipeline a project status can belong to (projectsStatuses_pipelineStage). Only Won projects
  * count as revenue; Lead and Opportunity are still being chased; Lost and Cancelled have fallen through.

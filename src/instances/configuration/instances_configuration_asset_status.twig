@@ -47,6 +47,12 @@
                                     <td class="w-75">
                                         <input type="text" class="assetStatusName form-control" name="{{ status.assetsAssignmentsStatus_id }}" value="{{ status.assetsAssignmentsStatus_name }}" />
                                     </td>
+                                    <td class="w-25">
+                                        <select class="assetStatusEffect form-control" data-status="{{ status.assetsAssignmentsStatus_id }}" title="What setting this status means for where the gear is. Holds on an asset can stop it being given a status that sends it out." {% if not ("BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions) %}disabled{% endif %}>
+                                            <option value="">No change to where it is</option>
+                                            <option value="LEAVES_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "LEAVES_WAREHOUSE" ? "selected" : "" }}>Gear leaves the warehouse</option>
+                                        </select>
+                                    </td>
                                     <td class="text-right border-left">
                                         <button type="button" class="btn btn-danger" onclick="removeStatus({{ status.assetsAssignmentsStatus_id }})"><i class="fa fa-trash"></i></button>
                                     </td>
@@ -90,6 +96,14 @@
                                 );
                             }
                         });
+                    });
+                    $(".assetStatusEffect").on("change", function () {
+                        ajaxcall(
+                            "instances/assetAssignmentStatus/edit.php",
+                            {"statusName": $('.assetStatusName[name="' + $(this).data("status") + '"]').val(), "statusId": $(this).data("status"), "statusEffect": $(this).val()},
+                            null,
+                            true
+                        );
                     });
                     $(".assetStatusName").on("focusout", function () {
                         ajaxcall(

@@ -135,6 +135,19 @@
                                         </select>
                                     </b>
                                 </p>
+                                <p class="text-sm">Sending out
+                                    <b class="d-block">
+                                        <select class="form-control" id="maintenanceJobsdispatchMode" title="What happens when someone gives these assets a status that means they leave the warehouse" {% if "MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS"|instancePermissions != true or job.maintenanceJobsStatuses_id == 2 %} disabled {% endif %}>
+                                            <option value="ALLOW" {% if job.maintenanceJobs_dispatchMode == "ALLOW" %} selected {% endif %}>Allow</option>
+                                            <option value="WARN" {% if job.maintenanceJobs_dispatchMode == "WARN" %} selected {% endif %}>Warn before sending out</option>
+                                            <option value="BLOCK" {% if job.maintenanceJobs_dispatchMode == "BLOCK" %} selected {% endif %}>Block from being sent out</option>
+                                        </select>
+                                        <span class="form-check mt-1" id="maintenanceJobsdispatchOverridableBox" {% if job.maintenanceJobs_dispatchMode != "BLOCK" %}style="display: none;"{% endif %}>
+                                            <input class="form-check-input" type="checkbox" id="maintenanceJobsdispatchOverridable" {% if job.maintenanceJobs_dispatchOverridable == 1 %} checked {% endif %} {% if "MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS"|instancePermissions != true or job.maintenanceJobsStatuses_id == 2 %} disabled {% endif %}>
+                                            <label class="form-check-label" for="maintenanceJobsdispatchOverridable">Can be signed off by whoever is sending it</label>
+                                        </span>
+                                    </b>
+                                </p>
                                 <p class="text-sm">Priority
                                     <b class="d-block">
                                         <select class="form-control" id="jobPriority" {% if "MAINTENANCE_JOBS:EDIT:JOB_PRIORITY"|instancePermissions != true %} disabled {% endif %}>
@@ -704,6 +717,15 @@
             });
             {% endif %}
             {% if "MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS"|instancePermissions %}
+            $('#maintenanceJobsdispatchMode, #maintenanceJobsdispatchOverridable').on('change', function() {
+                ajaxcall("maintenance/job/changeDispatchHold.php", {
+                    "maintenanceJobs_dispatchMode": $('#maintenanceJobsdispatchMode').val(),
+                    "maintenanceJobs_dispatchOverridable": $('#maintenanceJobsdispatchOverridable').prop('checked') ? 1 : 0,
+                    "maintenanceJobs_id": "{{ job.maintenanceJobs_id }}"
+                }, function (data) {
+                    location.reload();
+                });
+            });
             $('#maintenanceJobsblockAssets').on('change', function() {
                 ajaxcall("maintenance/job/changeBlock.php", {
                     "maintenanceJobs_blockAssets": this.value,

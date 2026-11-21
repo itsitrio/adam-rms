@@ -48,6 +48,9 @@ if ($barcode and $barcode['assets_id'] != null) {
     $status = $DBLIB->getone("assetsAssignmentsStatus", ["assetsAssignmentsStatus_id"]);
     if (!$status or $status['assetsAssignmentsStatus_id'] == null) finish(false, ["message" => "Status not found", "code" => "STATUSNOTFOUND"]);
 
+    // Gear that's about to leave the warehouse can be held back, or need someone to sign it off
+    assetDispatchHoldsForStatusChange([$currentAssignment['assetsAssignments_id']], $status['assetsAssignmentsStatus_id'], $_POST['projects_id']);
+
     // Update using the assignment ID while also asserting the originally matched
     // asset/project identity still holds, so a concurrent swap cannot cause this
     // scan to update the status of a replacement asset on the same assignment row.

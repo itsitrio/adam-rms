@@ -20,6 +20,7 @@ if ($status['maintenanceJobsStatuses_id'] == "2") {
     //Job being closed so remove flags and blocks
     $updateData['maintenanceJobs_flagAssets'] = 0;
     $updateData['maintenanceJobs_blockAssets'] = 0;
+    $updateData['maintenanceJobs_dispatchMode'] = 'ALLOW';
 }
 $DBLIB->where("maintenanceJobs_id", $job['maintenanceJobs_id']);
 $update = $DBLIB->update("maintenanceJobs", $updateData);
