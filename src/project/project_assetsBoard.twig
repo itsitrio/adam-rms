@@ -277,7 +277,7 @@
      * @param value The barcode value
      * @param type The barcode format type (e.g. 'QR_CODE', 'CODE_128', or 'UNKNOWN' for USB/Bluetooth)
      */
-    function dispatchBarcodeScanned(value, type, holdOverride) {
+    function dispatchBarcodeScanned(value, type, extra) {
         var assetStatus = $(".assetStatusSelectorBarcodeDispatch:visible").val();
         var instanceId = $(".assetStatusSelectorBarcodeDispatch:visible").data("instanceid");
         var requestData = {
@@ -289,7 +289,7 @@
         if (type && type !== "UNKNOWN") {
             requestData.type = type;
         }
-        if (holdOverride) requestData.holdOverride = 1;
+        if (extra) $.extend(requestData, extra);
         $.ajax({
             url: "{{ CONFIG.ROOTURL }}/api/projects/assets/setStatusBarcode.php",
             type: "POST",
@@ -304,7 +304,9 @@
                         type: 'success',
                         title: 'Asset dispatched via barcode'
                     });
-                } else if (holdConfirm(result.error, function () { dispatchBarcodeScanned(value, type, true); })) {
+                } else if (skipConfirm(result.error, function (wentOut) { dispatchBarcodeScanned(value, type, $.extend({}, extra, {wentOut: wentOut})); })) {
+                    // Skipped being sent out - waiting for whoever is scanning it to say whether it went
+                } else if (holdConfirm(result.error, function () { dispatchBarcodeScanned(value, type, $.extend({}, extra, {holdOverride: 1})); })) {
                     // Held asset - waiting for whoever is scanning it to say whether to send it anyway
                 } else if (result.error && result.error.code === "NOTASSIGNED" && ('assets_id' in result.error) && canAssignAssets) {
                     // Supermarket Sweep: asset exists but is not assigned to this project
@@ -449,7 +451,7 @@
             assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetNextStatus + "][data-instance=" + assetCard.data("instance") + "]");
         });
 
-        function doQuickDispatch(assetTagToRetry, holdOverride) {
+        function doQuickDispatch(assetTagToRetry, extra) {
             const assetTag = assetTagToRetry || $("#assetTagQuickDispatch").val();
             const assetStatus = $(".assetStatusSelectorQuickDispatch:visible").val();
             const instanceId = $(".assetStatusSelectorQuickDispatch:visible").data("instanceid");
@@ -457,19 +459,20 @@
             $.ajax({
                 url: "{{ CONFIG.ROOTURL }}/api/projects/assets/setStatusByTag.php",
                 type: "POST",
-                data: {
+                data: $.extend({
                     text: assetTag,
                     assetsAssignments_status: assetStatus,
                     projects_id: {{ project.projects_id }},
-                    holdOverride: holdOverride ? 1 : 0,
-                },
+                }, extra),
                 cache: false,
                 success: function(result, status, data) {
                     if (result.result === true) {
                         const assetCard = $(".assetDispatchAssetList[data-instance=" + instanceId + "] .assetDispatchAssetList-card[data-asset=" + result.response.assets_id + "]");
                         assetCard.detach().appendTo(".assetDispatchAssetList[data-statusid=" + assetStatus + "][data-instance=" + instanceId + "]");
                         drawButtons();
-                    } else if (holdConfirm(result.error, function () { doQuickDispatch(assetTag, true); })) {
+                    } else if (skipConfirm(result.error, function (wentOut) { doQuickDispatch(assetTag, $.extend({}, extra, {wentOut: wentOut})); })) {
+                        // Skipped being sent out - waiting for whoever is sending it to say whether it went
+                    } else if (holdConfirm(result.error, function () { doQuickDispatch(assetTag, $.extend({}, extra, {holdOverride: 1})); })) {
                         // Held asset - waiting for whoever is sending it to say whether to send it anyway
                     } else {
                         Toast.fire({

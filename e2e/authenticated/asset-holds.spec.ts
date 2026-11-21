@@ -13,8 +13,8 @@ import { dbQuery, expect, formData, test, type Session, type Tenant } from "../t
 let n = 0;
 const dates = () => { n += 1; const d = String(n).padStart(2, "0"); return { start: `2037-03-${d} 09:00:00`, end: `2037-03-${d} 18:00:00` }; };
 
-async function statusFor(t: Tenant, name: string, effect: string | null) {
-  dbQuery("INSERT INTO assetsAssignmentsStatus (instances_id, assetsAssignmentsStatus_name, assetsAssignmentsStatus_order, assetsAssignmentsStatus_deleted, assetsAssignmentsStatus_effect) VALUES (?, ?, 900, 0, ?)", [t.instanceId, name, effect]);
+async function statusFor(t: Tenant, name: string, effect: string | null, order = 900) {
+  dbQuery("INSERT INTO assetsAssignmentsStatus (instances_id, assetsAssignmentsStatus_name, assetsAssignmentsStatus_order, assetsAssignmentsStatus_deleted, assetsAssignmentsStatus_effect) VALUES (?, ?, ?, 0, ?)", [t.instanceId, name, order, effect]);
   return dbQuery<{ id: number }>("SELECT MAX(assetsAssignmentsStatus_id) id FROM assetsAssignmentsStatus WHERE instances_id = ?", [t.instanceId])[0].id;
 }
 
@@ -34,9 +34,10 @@ const assignmentOf = (project: number, asset: number) =>
 test.describe("holds on assets", () => {
   let out: number, back: number, storage: number;
   test.beforeEach(async ({ tenants: { a } }) => {
-    out = await statusFor(a, "Hold test out", "LEAVES_WAREHOUSE");
-    back = await statusFor(a, "Hold test out again", "LEAVES_WAREHOUSE");
-    storage = await statusFor(a, "Hold test stored", null);
+    // In the business's order: stored, then the two that leave the warehouse
+    storage = await statusFor(a, "Hold test stored", null, 905);
+    out = await statusFor(a, "Hold test out", "LEAVES_WAREHOUSE", 910);
+    back = await statusFor(a, "Hold test out again", "LEAVES_WAREHOUSE", 911);
   });
   test.afterEach(async () => {
     dbQuery(`UPDATE assetsAssignmentsStatus SET assetsAssignmentsStatus_deleted = 1 WHERE assetsAssignmentsStatus_id IN (${out}, ${back}, ${storage})`);
@@ -186,6 +187,8 @@ test.describe("holds on assets", () => {
     expect(effect()).toBe("LEAVES_WAREHOUSE");
     expect((await edit({})).json).toMatchObject({ result: true }); // Not sent: it keeps its effect
     expect(effect()).toBe("LEAVES_WAREHOUSE");
+    expect((await edit({ statusEffect: "RETURNS_TO_WAREHOUSE" })).json).toMatchObject({ result: true });
+    expect(effect()).toBe("RETURNS_TO_WAREHOUSE");
     expect((await edit({ statusEffect: "" })).json).toMatchObject({ result: true });
     expect(effect()).toBeNull();
     expect((await asA.page("/instances/configuration/asset-status.php")).body).toContain("assetStatusEffect");
@@ -227,5 +230,104 @@ test.describe("holds on assets", () => {
     await expect(dialog).toContainText("Cracked case");
     await dialog.locator("button.bootbox-accept").click();
     await expect.poll(() => assignmentOf(project, asset).status).toBe(out);
+  });
+
+  /** The business's statuses in order: before, leaves the warehouse, still out (no effect), returns, later - after the others the tests use */
+  async function skipStatuses(a: Tenant) {
+    dbQuery(`UPDATE assetsAssignmentsStatus SET assetsAssignmentsStatus_order = assetsAssignmentsStatus_order + 9000 WHERE assetsAssignmentsStatus_id IN (${out}, ${back}, ${storage})`);
+    const ids = {
+      before: await statusFor(a, "Hold test before", null, 5000), gone: await statusFor(a, "Hold test gone", "LEAVES_WAREHOUSE", 5001),
+      stillOut: await statusFor(a, "Hold test still out", null, 5002), returns: await statusFor(a, "Hold test returns", "RETURNS_TO_WAREHOUSE", 5003),
+      later: await statusFor(a, "Hold test later", null, 5004),
+    };
+    return { ids, done: () => dbQuery(`UPDATE assetsAssignmentsStatus SET assetsAssignmentsStatus_deleted = 1 WHERE assetsAssignmentsStatus_id IN (${Object.values(ids).join(",")})`) };
+  }
+  const logged = (project: number, type: string) => dbQuery<{ d: string }>("SELECT auditLog_actionData d FROM auditLog WHERE auditLog_actionType = ? AND projects_id = ?", [type, project]);
+  const moveTo = (asA: Session, a: Tenant, project: number, asset: number, status: number, extra: Record<string, string | number> = {}) => setStatus(asA, a, project, asset, status, extra);
+  const resetTo = (project: number, asset: number, status: number) =>
+    dbQuery("UPDATE assetsAssignments SET assetsAssignmentsStatus_id = ? WHERE assetsAssignments_id = ?", [status, assignmentOf(project, asset).id]);
+
+  test("skipping past the status that sends gear out has to say whether it went out, held or not, and that's logged", async ({ asA, tenants: { a } }) => {
+    const { ids, done } = await skipStatuses(a);
+    try {
+      const { asset, project } = await setUp(asA, a); // No hold at all
+      expect((await assign(asA, a, project, asset)).json).toMatchObject({ result: true });
+      // With no status yet, going straight to one that returns the gear is skipping being sent out
+      const asked = (await moveTo(asA, a, project, asset, ids.returns)).json;
+      expect(asked).toMatchObject({ result: false, error: { code: "DISPATCH-SKIPPED", assets: [{ assets_id: asset }] } });
+      expect(assignmentOf(project, asset).status).not.toBe(ids.returns);
+      expect((await moveTo(asA, a, project, asset, ids.returns, { wentOut: 2 })).json).toMatchObject({ result: false, error: { code: "DISPATCH-SKIPPED" } });
+      // It stayed in the warehouse - they're just clearing it
+      expect((await moveTo(asA, a, project, asset, ids.returns, { wentOut: 0 })).json).toMatchObject({ result: true });
+      expect(assignmentOf(project, asset).status).toBe(ids.returns);
+      expect(logged(project, "STAYED-IN-SKIPPED-DISPATCH")).toHaveLength(1);
+      // Past the status that sends it out already: nothing to ask
+      expect((await moveTo(asA, a, project, asset, ids.later)).json).toMatchObject({ result: true });
+      // It did go out, and came back
+      resetTo(project, asset, ids.before);
+      expect((await moveTo(asA, a, project, asset, ids.returns)).json).toMatchObject({ result: false, error: { code: "DISPATCH-SKIPPED" } });
+      expect((await moveTo(asA, a, project, asset, ids.returns, { wentOut: 1 })).json).toMatchObject({ result: true });
+      expect(logged(project, "WENT-OUT-SKIPPED-DISPATCH")).toHaveLength(1);
+      // Reaching the status that sends it out isn't skipping it, and once out, moving along isn't asked about
+      resetTo(project, asset, ids.before);
+      expect((await moveTo(asA, a, project, asset, ids.gone)).json).toMatchObject({ result: true });
+      expect((await moveTo(asA, a, project, asset, ids.stillOut)).json).toMatchObject({ result: true });
+      expect((await moveTo(asA, a, project, asset, ids.before)).json).toMatchObject({ result: true }); // Back again is nothing to ask
+      expect(logged(project, "WENT-OUT-SKIPPED-DISPATCH")).toHaveLength(1);
+    } finally { done(); }
+  });
+
+  test("a hold can't stop gear that has already gone out, but still stops a move that has it going out when it didn't", async ({ asA, tenants: { a } }) => {
+    const { ids, done } = await skipStatuses(a);
+    try {
+      const { asset, project } = await setUp(asA, a, { assign: "ALLOW", dispatch: "BLOCK", overridable: 0 });
+      expect((await assign(asA, a, project, asset)).json).toMatchObject({ result: true });
+      resetTo(project, asset, ids.before);
+      // It went out already, so there's nothing to hold - but it's logged with what held it
+      expect((await moveTo(asA, a, project, asset, ids.later, { wentOut: 1 })).json).toMatchObject({ result: true });
+      expect(logged(project, "WENT-OUT-SKIPPED-DISPATCH")[0].d).toContain("Cracked case");
+      // It stayed, and ends on a status that returns it: nothing is going out
+      resetTo(project, asset, ids.before);
+      expect((await moveTo(asA, a, project, asset, ids.returns, { wentOut: 0 })).json).toMatchObject({ result: true });
+      // It stayed, but ends on a status that has it out: held as for sending it out
+      resetTo(project, asset, ids.before);
+      expect((await moveTo(asA, a, project, asset, ids.later, { wentOut: 0 })).json).toMatchObject({ result: false, error: { code: "HOLD-BLOCKED" } });
+      expect(assignmentOf(project, asset).status).toBe(ids.before);
+      expect((await moveTo(asA, a, project, asset, ids.gone)).json).toMatchObject({ result: false, error: { code: "HOLD-BLOCKED" } });
+      // And a block that can be signed off asks for that too
+      dbQuery("UPDATE assetHolds SET assetHolds_overridable = 1 WHERE assets_id = ?", [asset]);
+      expect((await moveTo(asA, a, project, asset, ids.later, { wentOut: 0 })).json).toMatchObject({ result: false, error: { code: "HOLD-BLOCKED-OVERRIDABLE" } });
+      expect((await moveTo(asA, a, project, asset, ids.later, { wentOut: 0, holdOverride: 1 })).json).toMatchObject({ result: true });
+    } finally { done(); }
+  });
+
+  test("on the dispatch board, dragging past the status that sends gear out asks whether it went", async ({ page, asA, tenants: { a, password } }) => {
+    await cacheCdn(page.context());
+    await login(page, a.users.full.email, password);
+    const { ids, done } = await skipStatuses(a);
+    try {
+      const { asset, project } = await setUp(asA, a);
+      expect((await assign(asA, a, project, asset)).json).toMatchObject({ result: true });
+      resetTo(project, asset, ids.before);
+      const [{ tag }] = dbQuery<{ tag: string }>("SELECT assets_tag tag FROM assets WHERE assets_id = ?", [asset]);
+      const go = async () => {
+        await page.goto(`/project/?id=${project}`);
+        await page.locator('a[href="#assets-board"]').click();
+        await page.locator("#navItemQuickDispatch button").click();
+        await page.locator(".assetStatusSelectorQuickDispatch:visible").selectOption(String(ids.returns));
+        await page.locator("#assetTagQuickDispatch").fill(tag);
+        await page.locator("#goQuickDispatch").click();
+      };
+      await go();
+      const dialog = page.locator(".bootbox.modal.show");
+      await expect(dialog).toContainText("go out?");
+      await dialog.locator("button.bootbox-close-button, button:has-text('Cancel')").first().click();
+      await expect(dialog).toHaveCount(0);
+      expect(assignmentOf(project, asset).status).toBe(ids.before);
+      await go();
+      await dialog.locator("button:has-text('stayed in the warehouse')").click();
+      await expect.poll(() => assignmentOf(project, asset).status).toBe(ids.returns);
+      expect(logged(project, "STAYED-IN-SKIPPED-DISPATCH")).toHaveLength(1);
+    } finally { done(); }
   });
 });

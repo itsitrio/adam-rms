@@ -25,8 +25,19 @@
     </div>
 </div>
 <div class="row">
-    <div class="col-12 col-md-6 offset-md-3">
+    <div class="col-12 col-lg-8 offset-lg-2">
         <div class="card">
+            <style>
+    .assetStatusRow .assetStatusNameCell { flex: 1 1 12rem; min-width: 0; }
+    .assetStatusRow .assetStatusEffectCell { flex: 0 0 12rem; }
+    /* On a phone the name keeps the top line with the handle and delete button, and the effect goes underneath, full width */
+    @media (max-width: 767.98px) {
+        .assetStatusRow .assetStatusHandleCell { order: 1; }
+        .assetStatusRow .assetStatusNameCell { order: 2; flex: 1 1 0; }
+        .assetStatusRow .assetStatusDeleteCell { order: 3; border-left: 0 !important; }
+        .assetStatusRow .assetStatusEffectCell { order: 4; flex: 1 1 100%; padding-top: 0; }
+    }
+</style>
             <form id="asstStatuses">
                 <div class="card-header">
                     <h3 class="card-title">Asset Status</h3>
@@ -35,25 +46,26 @@
                     <table class="table table-borderless" id="statusTable">
                         {% for status in USERDATA.instance['assetStatus'] %}
                             <tbody value="{{ status.assetsAssignmentsStatus_id }}">
-                                <tr class="row border">
+                                <tr class="row border align-items-center assetStatusRow">
                                     {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
-                                    <td class="border-right">
+                                    <td class="border-right assetStatusHandleCell">
                                         <span class="handle">
                                             <i class="fas fa-ellipsis-v"></i>
                                             <i class="fas fa-ellipsis-v"></i>
                                         </span>
                                     </td>
                                     {% endif %}
-                                    <td class="w-75">
+                                    <td class="assetStatusNameCell">
                                         <input type="text" class="assetStatusName form-control" name="{{ status.assetsAssignmentsStatus_id }}" value="{{ status.assetsAssignmentsStatus_name }}" />
                                     </td>
-                                    <td class="w-25">
-                                        <select class="assetStatusEffect form-control" data-status="{{ status.assetsAssignmentsStatus_id }}" title="What setting this status means for where the gear is. Holds on an asset can stop it being given a status that sends it out." {% if not ("BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions) %}disabled{% endif %}>
-                                            <option value="">No change to where it is</option>
-                                            <option value="LEAVES_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "LEAVES_WAREHOUSE" ? "selected" : "" }}>Gear leaves the warehouse</option>
+                                    <td class="assetStatusEffectCell">
+                                        <select class="assetStatusEffect form-control" data-status="{{ status.assetsAssignmentsStatus_id }}" title="What this status means for where the gear is. Holds on an asset can stop it reaching a status that leaves the warehouse, or going past one - unless it ends on a status marked as returning it to the warehouse." {% if not ("BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions) %}disabled{% endif %}>
+                                            <option value="">No effect</option>
+                                            <option value="LEAVES_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "LEAVES_WAREHOUSE" ? "selected" : "" }}>Leaves warehouse</option>
+                                            <option value="RETURNS_TO_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "RETURNS_TO_WAREHOUSE" ? "selected" : "" }}>Returns to warehouse</option>
                                         </select>
                                     </td>
-                                    <td class="text-right border-left">
+                                    <td class="text-right border-left assetStatusDeleteCell">
                                         <button type="button" class="btn btn-danger" onclick="removeStatus({{ status.assetsAssignmentsStatus_id }})"><i class="fa fa-trash"></i></button>
                                     </td>
                                 </tr>

@@ -123,8 +123,8 @@ function generateNewTag()
 const ASSET_HOLD_MODES = ["ALLOW" => "Allow", "WARN" => "Warn", "BLOCK" => "Block"];
 /** The stages a hold has a rule for: adding the asset to a project, and sending it out (a status that leaves the warehouse) */
 const ASSET_HOLD_STAGES = ["assign" => "Adding to a project", "dispatch" => "Sending out"];
-/** What a status can do to where the gear is - only one so far, which is what makes a hold's dispatch rule apply */
-const ASSET_STATUS_EFFECTS = ["LEAVES_WAREHOUSE" => "Gear leaves the warehouse"];
+/** What a status says about where the gear is. Reaching a status that leaves the warehouse is sending it out, and going past one has to say whether it went out; a status that returns the gear to the warehouse is where the gear that went out comes back to */
+const ASSET_STATUS_EFFECTS = ["LEAVES_WAREHOUSE" => "Gear leaves the warehouse", "RETURNS_TO_WAREHOUSE" => "Gear returns to the warehouse"];
 
 /**
  * Every active hold on an asset, from the maintenance jobs it's on and the holds put on it directly, each with the
@@ -245,12 +245,22 @@ function assetDispatchHoldsCheckOrFinish($assetIds, $projectId = null)
         finish(false, ["code" => $blocked ? "HOLD-BLOCKED-OVERRIDABLE" : "HOLD-WARNING", "message" => ($blocked ? "Shouldn't be sent out: " : "Held: ") . implode(" | ", $messages), "holds" => $summary]);
     }
     //Someone has signed them off - say who did and what they were told
-    $bCMS->auditLog("SIGN-OFF-HOLD", "assetsAssignments", "Sent out despite: " . implode(" | ", $messages), $AUTH->data['users_userid'], null, $projectId);
+    $bCMS->auditLog("SIGN-OFF-HOLD", "projects", "Sent out despite: " . implode(" | ", $messages), $AUTH->data['users_userid'], null, $projectId);
 }
 
 /**
- * Before assignments are given a status, check the holds on their assets if that status means the gear leaves the
- * warehouse - and the assignments aren't already on a status that does. Finishes the request if they can't be sent.
+ * Before assignments are given a status, check whether the change sends gear out of the warehouse.
+ *
+ * - Reaching a status that leaves the warehouse is sending it out, so the holds on the assets are checked.
+ * - Skipping past one - reaching a status later in the business's order, whatever it is, from before it or from no
+ *   status at all - might have been sent out or might not, and whoever is doing it has to say which (POST wentOut:
+ *   1 or 0): either the gear went, and the system needs to know, or it stayed on the shelf and they are tidying up
+ *   the statuses. That's asked whether or not there's a hold. If it did go out the holds can't stop it - it's
+ *   happened, and it's logged with them - but if it didn't and the status is still one that has it out, the holds
+ *   are checked as for sending it out.
+ * - Assets already on a status that leaves the warehouse aren't asked about or checked again.
+ *
+ * Finishes the request with the question, or the reason it can't, if there's one.
  *
  * @param int[] $assignmentIds The assignments being changed
  * @param int $newStatusId The status they're being changed to
@@ -258,15 +268,52 @@ function assetDispatchHoldsCheckOrFinish($assetIds, $projectId = null)
  */
 function assetDispatchHoldsForStatusChange($assignmentIds, $newStatusId, $projectId = null)
 {
-    global $DBLIB;
+    global $DBLIB, $AUTH, $bCMS;
     if (count($assignmentIds) < 1) return;
     $DBLIB->where("assetsAssignmentsStatus_id", $newStatusId);
-    if ($DBLIB->getValue("assetsAssignmentsStatus", "assetsAssignmentsStatus_effect") != "LEAVES_WAREHOUSE") return;
+    $new = $DBLIB->getOne("assetsAssignmentsStatus", ["assetsAssignmentsStatus_order", "assetsAssignmentsStatus_effect", "assetsAssignmentsStatus_name", "instances_id"]);
+    if (!$new) return;
+    $leaves = $new["assetsAssignmentsStatus_effect"] == "LEAVES_WAREHOUSE";
+    $leavesOrders = [];
+    if (!$leaves) {
+        $DBLIB->where("instances_id", $new["instances_id"]);
+        $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
+        $DBLIB->where("assetsAssignmentsStatus_effect", "LEAVES_WAREHOUSE");
+        $leavesOrders = array_column($DBLIB->get("assetsAssignmentsStatus", null, ["assetsAssignmentsStatus_order"]) ?: [], "assetsAssignmentsStatus_order");
+        if (count($leavesOrders) < 1) return; //Nothing the business has set up sends gear out
+    }
     $DBLIB->where("assetsAssignments.assetsAssignments_id", $assignmentIds, "IN");
     $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
-    $DBLIB->where("(assetsAssignmentsStatus.assetsAssignmentsStatus_effect IS NULL OR assetsAssignmentsStatus.assetsAssignmentsStatus_effect != 'LEAVES_WAREHOUSE')");
-    $assetIds = array_column($DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id"]) ?: [], "assets_id");
-    assetDispatchHoldsCheckOrFinish($assetIds, $projectId);
+    $DBLIB->join("assets", "assetsAssignments.assets_id=assets.assets_id", "LEFT");
+    $assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assets.assets_tag", "assetsAssignmentsStatus.assetsAssignmentsStatus_order AS oldOrder", "assetsAssignmentsStatus.assetsAssignmentsStatus_effect AS oldEffect"]) ?: [];
+    $sending = []; //Assets being sent out
+    $skipped = []; //Assets moved past a status that sends them out
+    foreach ($assignments as $assignment) {
+        if ($assignment["oldEffect"] == "LEAVES_WAREHOUSE") continue; //Already out
+        if ($leaves) {
+            $sending[] = $assignment["assets_id"];
+            continue;
+        }
+        $oldOrder = $assignment["oldOrder"] === null ? -1 : intval($assignment["oldOrder"]);
+        $passes = array_filter($leavesOrders, function ($order) use ($oldOrder, $new) { return $order > $oldOrder && $order <= $new["assetsAssignmentsStatus_order"]; });
+        if (count($passes) > 0) $skipped[$assignment["assets_id"]] = $assignment["assets_tag"];
+    }
+    if (count($skipped) > 0) {
+        if (!isset($_POST['wentOut']) or ($_POST['wentOut'] !== '1' and $_POST['wentOut'] !== '0')) {
+            finish(false, ["code" => "DISPATCH-SKIPPED", "message" => "Skipped sending out: " . implode(", ", array_map(function ($tag) use ($bCMS) { return $bCMS->aTag($tag); }, $skipped)) . " - say whether it went out or stayed in the warehouse", "assets" => array_map(function ($id, $tag) use ($bCMS) { return ["assets_id" => $id, "assets_tag" => $bCMS->aTag($tag)]; }, array_keys($skipped), array_values($skipped))]);
+        }
+        $wentOut = $_POST['wentOut'] === '1';
+        $tags = implode(", ", array_map(function ($tag) use ($bCMS) { return $bCMS->aTag($tag); }, $skipped));
+        $holdNotes = [];
+        foreach ($skipped as $assetId => $tag) {
+            $check = assetDispatchHolds($assetId);
+            if (count($check["holds"]) > 0) $holdNotes[] = $bCMS->aTag($tag) . " was held: " . implode("; ", array_map(function ($hold) { return $hold["title"] . ($hold["description"] ? " - " . strip_tags($hold["description"]) : ""); }, $check["holds"]));
+        }
+        $bCMS->auditLog($wentOut ? "WENT-OUT-SKIPPED-DISPATCH" : "STAYED-IN-SKIPPED-DISPATCH", "projects", $tags . " was moved straight to " . $new["assetsAssignmentsStatus_name"] . ", skipping being sent out - " . ($wentOut ? "it did go out" : "it stayed in the warehouse") . (($wentOut && count($holdNotes) > 0) ? ". " . implode(" | ", $holdNotes) : ""), $AUTH->data['users_userid'], null, $projectId);
+        //Still on a status that has the gear out, though they say it didn't go: the holds apply as for sending it out
+        if (!$wentOut and $new["assetsAssignmentsStatus_effect"] != "RETURNS_TO_WAREHOUSE") $sending = array_keys($skipped);
+    }
+    assetDispatchHoldsCheckOrFinish($sending, $projectId);
 }
 
 /**
