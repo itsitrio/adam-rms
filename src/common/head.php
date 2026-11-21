@@ -463,6 +463,15 @@ function buildAssetsAssignmentsBoard($instancesId, $assetsList)
                 }
             }
         }
+        foreach ($tempAssets as &$tempAsset) {
+            //The holds that warn about or block this asset, at either stage, for the badges on its card
+            $tempAsset['boardHolds'] = [];
+            foreach (assetHolds($tempAsset['assets_id']) as $hold) {
+                $mode = ($hold['assign'] == "BLOCK" or $hold['dispatch'] == "BLOCK") ? "BLOCK" : (($hold['assign'] == "WARN" or $hold['dispatch'] == "WARN") ? "WARN" : "ALLOW");
+                if ($mode != "ALLOW") $tempAsset['boardHolds'][] = $hold + ["mode" => $mode];
+            }
+        }
+        unset($tempAsset);
         $status['assets'] = $tempAssets;
         $board[$status['assetsAssignmentsStatus_id']] = $status;
     }

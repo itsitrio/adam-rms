@@ -336,4 +336,20 @@ test.describe("holds on assets", () => {
       expect(logged(project, "STAYED-IN-SKIPPED-DISPATCH")).toHaveLength(1);
     } finally { done(); }
   });
+
+  test("on the dispatch board, cards for held assets show a flag or block badge, and a card with no hold shows none", async ({ page, asA, tenants: { a, password } }) => {
+    await cacheCdn(page.context());
+    await login(page, a.users.full.email, password);
+    const blocked = await setUp(asA, a, { assign: "ALLOW", dispatch: "BLOCK", overridable: 1 });
+    const warned = await newAsset(asA, a);
+    await hold(asA, a, warned, { assign: "ALLOW", dispatch: "WARN", overridable: 1, reason: "Loose handle" });
+    const clean = await newAsset(asA, a);
+    for (const asset of [blocked.asset, warned, clean]) expect((await assign(asA, a, blocked.project, asset)).json).toMatchObject({ result: true });
+    await page.goto(`/project/?id=${blocked.project}`);
+    await page.locator('a[href="#assets-board"]').click();
+    const card = (asset: number) => page.locator(`#asset-board-thisinstance .assetDispatchAssetList-card[data-asset="${asset}"]`);
+    await expect(card(blocked.asset).locator('.assetDispatchAssetList-hold[data-holdmode="BLOCK"]')).toHaveCount(1);
+    await expect(card(warned).locator('.assetDispatchAssetList-hold[data-holdmode="WARN"]')).toHaveAttribute("title", /Loose handle/);
+    await expect(card(clean).locator(".assetDispatchAssetList-hold")).toHaveCount(0);
+  });
 });
