@@ -553,6 +553,15 @@ class bCMS
     }
     return $return;
   }
+  /**
+   * Where the version number in the footer links to: this fork's releases, unless the VERSION_RELEASES_URL environment variable says otherwise
+   */
+  function getReleasesUrl()
+  {
+    $url = getenv('VERSION_RELEASES_URL');
+    return ($url !== false and preg_match('#^https?://#i', $url)) ? $url : "https://github.com/itsitrio/adam-rms/releases";
+  }
+
   function getVersionNumber()
   {
     if (getenv('VERSION_NUMBER')) {

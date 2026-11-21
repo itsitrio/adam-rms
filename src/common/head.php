@@ -487,7 +487,7 @@ function stripBoardAssets($board)
 }
 
 // Setup the "PAGEDATA" array which is used by Twig
-$PAGEDATA = array('CONFIG' => $CONFIG, 'VERSION' => $bCMS->getVersionNumber());
+$PAGEDATA = array('CONFIG' => $CONFIG, 'VERSION' => $bCMS->getVersionNumber(), 'VERSIONURL' => $bCMS->getReleasesUrl());
 
 // Setup the "MAINTENANCEJOBPRIORITIES" array which is used by Twig
 $GLOBALS['MAINTENANCEJOBPRIORITIES'] = [
