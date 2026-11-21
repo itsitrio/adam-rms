@@ -3,10 +3,17 @@ require_once __DIR__ . '/../../apiHeadSecure.php';
 
 if (!$AUTH->instancePermissionCheck("BUSINESS:BUSINESS_SETTINGS:EDIT") or !isset($_POST['statusName']) or !isset($_POST['statusOrder'])) finish(false);
 
+$effect = null;
+if (isset($_POST['statusEffect']) and $_POST['statusEffect'] !== '') {
+    if (!array_key_exists($_POST['statusEffect'], ASSET_STATUS_EFFECTS)) finish(false, ["code" => "PARAM-ERROR", "message" => "Unknown status effect"]);
+    $effect = $_POST['statusEffect'];
+}
+
 $assignmentsStatus = $DBLIB->insert("assetsAssignmentsStatus", [
     "instances_id" => $AUTH->data['instance']['instances_id'],
     "assetsAssignmentsStatus_name" => $_POST['statusName'],
     "assetsAssignmentsStatus_order" => $_POST['statusOrder'],
+    "assetsAssignmentsStatus_effect" => $effect,
 ]);
 
 if (!$assignmentsStatus) finish(false, ["code" => "ADD-STATUS-FAIL", "message"=> "Could not create new assignment status"]);

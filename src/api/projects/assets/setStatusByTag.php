@@ -22,6 +22,8 @@ if (!$status or $status['assetsAssignmentsStatus_id'] == null) finish(false, ["m
 
 if ($assignment['assetsAssignmentsStatus_id'] == $_POST['assetsAssignments_status']) finish(true, null, ["assets_id" => $assignment['assets_id']]); // No change
 
+assetDispatchHoldsForStatusChange([$assignment['assetsAssignments_id']], $status['assetsAssignmentsStatus_id'], $_POST['projects_id']);
+
 $DBLIB->where("assetsAssignments_id", $assignment['assetsAssignments_id']);
 $update = $DBLIB->update("assetsAssignments", ["assetsAssignmentsStatus_id" => $status['assetsAssignmentsStatus_id']], 1);
 if (!$update) finish(false, ["message" => "Asset not assigned to project","code"=>"NOTASSIGNED"]);

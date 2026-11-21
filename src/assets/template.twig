@@ -118,6 +118,30 @@ ignoreURLs: ['searchUser.php'] // Ignore user searches
                 $(document).ajaxStart(function () {
                 Pace.restart();
                 });
+                /**
+                 * Holds on assets can stop them being sent out, or need someone to say they're happy to send them anyway.
+                 * Given the error from a request that was refused for a hold that can be signed off, ask whoever is
+                 * sending it - OK runs `retry` (which should send the request again with holdOverride), Cancel runs
+                 * `cancel`. Returns false, and does nothing, for any other error.
+                 */
+                function holdConfirm(error, retry, cancel) {
+                    if (!error || (error.code !== "HOLD-WARNING" && error.code !== "HOLD-BLOCKED-OVERRIDABLE")) return false;
+                    var blocked = error.code === "HOLD-BLOCKED-OVERRIDABLE";
+                    var list = $("<ul>");
+                    $.each(error.holds || [], function (i, asset) {
+                        $.each(asset.holds, function (j, hold) {
+                            $("<li>").append($("<b>").text(asset.assets_tag + ": ")).append(document.createTextNode(hold.title + (hold.description ? " - " + $("<div>").html(hold.description).text() : ""))).appendTo(list);
+                        });
+                    });
+                    var message = $("<div>").append($("<p>").text(blocked ? "These assets are on hold and shouldn't be sent out. Only send them if you're happy they're fine to go." : "These assets are on hold. Do you want to send them out anyway?")).append(list);
+                    bootbox.confirm({
+                        title: blocked ? "Sign off sending out held assets?" : "Send out held assets?",
+                        message: message.html(),
+                        buttons: { confirm: { label: "Send anyway", className: blocked ? "btn-danger" : "btn-warning" }, cancel: { label: "Cancel" } },
+                        callback: function (confirmed) { if (confirmed) retry(); else if (typeof cancel === "function") cancel(); }
+                    });
+                    return true;
+                }
                 function ajaxcall(path, data, callback, reloadIfError) {
                 if (data !== null) var senddata = data;
                 else var senddata = {};
@@ -135,6 +159,8 @@ ignoreURLs: ['searchUser.php'] // Ignore user searches
                         if (typeof callback === "function") {
                         callback(result);
                         }
+                    } else if (holdConfirm(result.error, function () { ajaxcall(path, $.extend({}, senddata, {"holdOverride": 1}), callback, reloadIfError); }, function () { if (reloadIfError) location.reload(); })) {
+                        return false;
                     } else {
                         if (result.error && result.error.message) {
                         var errorMessage = result.error.message; // Putting this inline breaks the function below

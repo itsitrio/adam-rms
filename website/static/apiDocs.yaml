@@ -1233,6 +1233,89 @@ paths:
                   result: { description: 'Whether the request was successful', type: boolean }
                   error: { description: 'An Array containing an error code and a message', type: array }
                 type: object
+  /assets/holds/delete.php:
+    post:
+      tags:
+        - assets
+      summary: 'Take an Asset off Hold'
+      description: "Remove a hold from an asset\nRequires Instance Permission MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS\n"
+      operationId: deleteAssetHold
+      parameters:
+        -
+          name: assetHolds_id
+          in: query
+          description: 'Hold ID'
+          required: 'true'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '404':
+          description: 'Permission Error'
+  /assets/holds/save.php:
+    post:
+      tags:
+        - assets
+      summary: 'Put an Asset on Hold, or Change a Hold'
+      description: "A hold on an asset has a rule, of allow, warn or block, for adding the asset to a project (assign) and for sending it out (dispatch). Send assets_id to put an asset on hold, or assetHolds_id to change one\nRequires Instance Permission MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS\n"
+      operationId: saveAssetHold
+      parameters:
+        -
+          name: assets_id
+          in: query
+          description: 'Asset ID, to put it on hold'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: assetHolds_id
+          in: query
+          description: 'Hold ID, to change it'
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: assetHolds_assignMode
+          in: query
+          description: 'ALLOW, WARN or BLOCK adding the asset to a project'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: assetHolds_dispatchMode
+          in: query
+          description: 'ALLOW, WARN or BLOCK sending the asset out'
+          required: 'false'
+          schema:
+            type: string
+        -
+          name: assetHolds_overridable
+          in: query
+          description: "1 if whoever is sending the asset out can sign off a block, 0 if it can't be overridden"
+          required: 'false'
+          schema:
+            type: number
+        -
+          name: assetHolds_reason
+          in: query
+          description: 'Why the asset is on hold'
+          required: 'false'
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '404':
+          description: 'Permission Error'
   /assets/import.php:
     post:
       summary: 'Bulk Asset Import'
@@ -4612,6 +4695,44 @@ paths:
                 properties:
                   result: { description: 'Whether the request was successful', type: boolean }
                 type: object
+  /maintenance/job/changeDispatchHold.php:
+    post:
+      tags:
+        - maintenance
+      summary: "Change a Job's Rule for Sending Out Assets"
+      description: "Whether the assets a maintenance job is on can be sent out (given a status that leaves the warehouse): allowed, allowed with a warning or blocked\nRequires Instance Permission MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS\n"
+      operationId: changeDispatchHold
+      parameters:
+        -
+          name: maintenanceJobs_id
+          in: query
+          description: 'Maintenance Job ID'
+          required: 'true'
+          schema:
+            type: number
+        -
+          name: maintenanceJobs_dispatchMode
+          in: query
+          description: 'ALLOW, WARN or BLOCK'
+          required: 'true'
+          schema:
+            type: string
+        -
+          name: maintenanceJobs_dispatchOverridable
+          in: query
+          description: "1 if whoever is sending the asset out can sign off a block, 0 if it can't be overridden"
+          required: 'false'
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '404':
+          description: 'Permission Error'
   /maintenance/job/changeDueDate.php:
     post:
       tags:

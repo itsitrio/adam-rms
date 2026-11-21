@@ -3,10 +3,15 @@ require_once __DIR__ . '/../../apiHeadSecure.php';
 
 if (!$AUTH->instancePermissionCheck("BUSINESS:BUSINESS_SETTINGS:EDIT") or !isset($_POST['statusName']) or !isset($_POST['statusId'])) finish(false);
 
+$update = ["assetsAssignmentsStatus_name" => $_POST['statusName']];
+if (isset($_POST['statusEffect'])) { //Left out, the status keeps the effect it has
+    if ($_POST['statusEffect'] !== '' and !array_key_exists($_POST['statusEffect'], ASSET_STATUS_EFFECTS)) finish(false, ["code" => "PARAM-ERROR", "message" => "Unknown status effect"]);
+    $update["assetsAssignmentsStatus_effect"] = $_POST['statusEffect'] === '' ? null : $_POST['statusEffect'];
+}
 $DBLIB->where("instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
 $DBLIB->where("assetsAssignmentsStatus_id", $_POST['statusId']);
-$updateQuery = $DBLIB->update("assetsAssignmentsStatus", ["assetsAssignmentsStatus_name" => $_POST['statusName']]);
+$updateQuery = $DBLIB->update("assetsAssignmentsStatus", $update);
 
 if (!$updateQuery) finish(false, ["code" => "UPDATE-STATUS-FAIL", "message"=> "Could not Update asset status"]);
 finish(true);

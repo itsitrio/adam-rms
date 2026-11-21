@@ -50,6 +50,7 @@ export type Tenant = {
   vacantRoleId: number;
   vacancyApplicationId: number;
   maintenanceJobId: number;
+  holdId: number;
   maintenanceMessageId: number;
   cmsPageId: number;
   cmsPageDraftId: number;

@@ -119,6 +119,9 @@ const writeCases: ApiCase[] = [
   // Maintenance
   { endpoint: "/api/maintenance/job/changeName.php", permission: "MAINTENANCE_JOBS:EDIT:NAME", params: (a) => ({ maintenanceJobs_id: a.maintenanceJobId, maintenanceJobs_title: "Renamed by e2e" }) },
   { endpoint: "/api/maintenance/job/changeCost.php", permission: "MAINTENANCE_JOBS:EDIT:COST", params: (a) => ({ maintenanceJobs_id: a.maintenanceJobId, maintenanceJobs_cost: "12.34" }) },
+  { endpoint: "/api/maintenance/job/changeDispatchHold.php", permission: "MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS", params: (a) => ({ maintenanceJobs_id: a.maintenanceJobId, maintenanceJobs_dispatchMode: "WARN" }) },
+  { endpoint: "/api/assets/holds/save.php", permission: "MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS", params: (a) => ({ assetHolds_id: a.holdId, assetHolds_dispatchMode: "WARN" }) },
+  { endpoint: "/api/assets/holds/delete.php", permission: "MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS", params: (a) => ({ assetHolds_id: a.holdId }) },
   // Reports
   { endpoint: "/api/reports/expenses/save.php", permission: "FINANCE:EXPENSES:EDIT", params: () => ({ expenses_date: "2024-02-01", expenses_category: "Added by e2e", expenses_amount: "1.00" }) },
   { endpoint: "/api/reports/liabilities/save.php", permission: "FINANCE:LIABILITIES:EDIT", params: () => ({ liabilities_name: "Added by e2e", liabilities_type: "LOAN", liabilities_amount: "5.00", liabilities_startDate: "2024-01-01" }) },

@@ -33,6 +33,9 @@ $validAssignmentIds = array_column(array_filter($matchedAssignments, function ($
 }), 'assetsAssignments_id');
 if (empty($validAssignmentIds)) finish(false, ["message" => "Status not found", "code" => "STATUSNOTFOUND"]);
 
+// Gear that's about to leave the warehouse can be held back, or need someone to sign it off
+assetDispatchHoldsForStatusChange($validAssignmentIds, $_POST['assetsAssignments_status'], $_POST['projects_id'] ?? null);
+
 // Re-apply the same scoping as the original match, in case any of these assignments were released/unassigned
 // in the time since the initial query above
 $DBLIB->where("assetsAssignments_id", $validAssignmentIds, "IN");

@@ -293,6 +293,11 @@ function tenant(string $letter): array {
         "maintenanceJobs_timestamp_due" => null, "maintenanceJobs_priority" => 5, "maintenanceJobs_deleted" => 0, "maintenanceJobsStatuses_id" => 1,
         "maintenanceJobs_flagAssets" => 0, "maintenanceJobs_blockAssets" => 0,
     ], $remembered['maintenanceJobId'] ?? null);
+    //A hold that does nothing (it allows everything) so tests can change and remove it without disturbing what else uses the asset
+    $t['holdId'] = upsert("assetHolds", "assetHolds_id", ["instances_id" => $instance, "assetHolds_reason" => "$marker hold"], [
+        "assets_id" => $t['assetId'], "assetHolds_assignMode" => "ALLOW", "assetHolds_dispatchMode" => "ALLOW", "assetHolds_overridable" => 1,
+        "users_userid" => $manager, "assetHolds_deleted" => 0,
+    ], $remembered['holdId'] ?? null);
     $t['maintenanceMessageId'] = upsert("maintenanceJobsMessages", "maintenanceJobsMessages_id", ["maintenanceJobs_id" => $t['maintenanceJobId'], "maintenanceJobsMessages_text" => "$marker message"], [
         "users_userid" => $manager, "maintenanceJobsMessages_deleted" => 0, "maintenanceJobsMessages_timestamp" => "2024-01-01 00:00:00",
     ], $remembered['maintenanceMessageId'] ?? null);

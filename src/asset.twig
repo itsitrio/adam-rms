@@ -170,18 +170,95 @@
             {% if assets|length == 1 %}
                 {% for flag in assets[0].flagsblocks.BLOCK %}
                     <div class="alert alert-danger">
-                        <a href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ flag.maintenanceJobs_id }}" type="button" style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
+                        <a href="{{ flag.maintenanceJobs_id ? CONFIG.ROOTURL ~ '/maintenance/job.php?id=' ~ flag.maintenanceJobs_id : '#assetHolds' }}" type="button" style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
                         <h5> <i class="fas fa-ban"></i> {{ flag.maintenanceJobs_title }}</h5>
                         {{ flag.maintenanceJobs_faultDescription }}
                     </div>
                 {% endfor %}
                 {% for flag in assets[0].flagsblocks.FLAG %}
                     <div class="alert alert-warning">
-                        <a href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ flag.maintenanceJobs_id }}" type="button"  style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
+                        <a href="{{ flag.maintenanceJobs_id ? CONFIG.ROOTURL ~ '/maintenance/job.php?id=' ~ flag.maintenanceJobs_id : '#assetHolds' }}" type="button"  style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
                         <h5><i class="far fa-flag"></i> {{ flag.maintenanceJobs_title }}</h5>
                         {{ flag.maintenanceJobs_faultDescription }}
                     </div>
                 {% endfor %}
+                {% set canEditHolds = "MAINTENANCE_JOBS:EDIT:ASSET_BLOCKS"|instancePermissions and ASSET_INSTANCE.instances_id == USERDATA.instance.instances_id %}
+                {% if assets[0].holds|length > 0 or canEditHolds %}
+                    {% set holdModes = {"ALLOW": "Allow", "WARN": "Warn", "BLOCK": "Block"} %}
+                    <div class="card" id="assetHolds">
+                        <div class="card-header">
+                            <h3 class="card-title">Holds</h3>
+                            {% if canEditHolds %}
+                                <div class="card-tools"><button type="button" class="btn btn-sm btn-default" id="assetHoldNew"><i class="fas fa-plus"></i> Put on hold</button></div>
+                            {% endif %}
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Hold</th>
+                                    <th>Adding to a project</th>
+                                    <th>Sending out</th>
+                                    <th title="Whether whoever is sending the asset out can sign off a block">Sign-off</th>
+                                    {% if canEditHolds %}<th></th>{% endif %}
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for hold in assets[0].holds %}
+                                    <tr class="assetHoldRow" data-hold="{{ hold.assetHolds_id }}">
+                                        <td>
+                                            {% if hold.source == "JOB" %}
+                                                <a href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ hold.maintenanceJobs_id }}"><i class="fas fa-wrench"></i> {{ hold.title }}</a>
+                                            {% else %}
+                                                <i class="fas fa-hand-paper"></i> {{ hold.description ?: "On hold" }}
+                                            {% endif %}
+                                        </td>
+                                        {% if hold.source == "HOLD" and canEditHolds %}
+                                            <td><select class="form-control form-control-sm assetHoldField" data-field="assetHolds_assignMode">{% for mode, name in holdModes %}<option value="{{ mode }}" {{ hold.assign == mode ? "selected" : "" }}>{{ name }}</option>{% endfor %}</select></td>
+                                            <td><select class="form-control form-control-sm assetHoldField" data-field="assetHolds_dispatchMode">{% for mode, name in holdModes %}<option value="{{ mode }}" {{ hold.dispatch == mode ? "selected" : "" }}>{{ name }}</option>{% endfor %}</select></td>
+                                            <td><input type="checkbox" class="assetHoldField" data-field="assetHolds_overridable" {{ hold.overridable ? "checked" : "" }}></td>
+                                            <td class="text-right"><button type="button" class="btn btn-xs btn-danger assetHoldRemove" title="Take off hold"><i class="fa fa-trash"></i></button></td>
+                                        {% else %}
+                                            <td>{{ holdModes[hold.assign] }}</td>
+                                            <td>{{ holdModes[hold.dispatch] }}</td>
+                                            <td>{{ hold.dispatch == "BLOCK" ? (hold.overridable ? "Yes" : "No") : "" }}</td>
+                                            {% if canEditHolds %}<td></td>{% endif %}
+                                        {% endif %}
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="5" class="text-muted">Nothing is holding this asset.</td></tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-footer text-muted small">Sending out only applies when the asset is given a status that means the gear leaves the warehouse - set that in the business's asset status settings.</div>
+                    </div>
+                    {% if canEditHolds %}
+                    <script>
+                        $(document).ready(function () {
+                            $("#assetHoldNew").on("click", function () {
+                                bootbox.prompt({
+                                    title: "Why is this asset on hold?",
+                                    inputType: "text",
+                                    callback: function (result) {
+                                        if (result === null) return;
+                                        //By default it can't be added to projects or sent out, but whoever is sending it can sign it off
+                                        ajaxcall("assets/holds/save.php", {"assets_id": {{ assets[0].assets_id }}, "assetHolds_reason": result, "assetHolds_assignMode": "BLOCK", "assetHolds_dispatchMode": "BLOCK", "assetHolds_overridable": 1}, function () { location.reload(); });
+                                    }
+                                });
+                            });
+                            $(".assetHoldField").on("change", function () {
+                                var data = {"assetHolds_id": $(this).closest("tr").data("hold")};
+                                data[$(this).data("field")] = $(this).is(":checkbox") ? ($(this).prop("checked") ? 1 : 0) : $(this).val();
+                                ajaxcall("assets/holds/save.php", data, function () { location.reload(); });
+                            });
+                            $(".assetHoldRemove").on("click", function () {
+                                ajaxcall("assets/holds/delete.php", {"assetHolds_id": $(this).closest("tr").data("hold")}, function () { location.reload(); });
+                            });
+                        });
+                    </script>
+                    {% endif %}
+                {% endif %}
                 {% if assets[0]['linkedToThis'] %}
                     <div class="card">
                         <div class="card-header">
@@ -788,14 +865,14 @@
                                             <div class="active tab-pane" style="padding: 1.25rem" id="maintenance-flags">
                                                 {% for flag in assets[0].flagsblocks.BLOCK %}
                                                     <div class="alert alert-danger">
-                                                        <a href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ flag.maintenanceJobs_id }}" type="button" style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
+                                                        <a href="{{ flag.maintenanceJobs_id ? CONFIG.ROOTURL ~ '/maintenance/job.php?id=' ~ flag.maintenanceJobs_id : '#assetHolds' }}" type="button" style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
                                                         <h5><i class="fas fa-ban"></i> {{ flag.maintenanceJobs_title }}</h5>
                                                         {{ flag.maintenanceJobs_faultDescription }}
                                                     </div>
                                                 {% endfor %}
                                                 {% for flag in assets[0].flagsblocks.FLAG %}
                                                     <div class="alert alert-warning">
-                                                        <a href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ flag.maintenanceJobs_id }}" type="button"  style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
+                                                        <a href="{{ flag.maintenanceJobs_id ? CONFIG.ROOTURL ~ '/maintenance/job.php?id=' ~ flag.maintenanceJobs_id : '#assetHolds' }}" type="button"  style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
                                                         <h5><i class="far fa-flag"></i> {{ flag.maintenanceJobs_title }}</h5>
                                                         {{ flag.maintenanceJobs_faultDescription }}
                                                     </div>
@@ -1377,14 +1454,14 @@
                                             <div class="active tab-pane" style="padding: 1.25rem" id="maintenance-flags">
                                                 {% for flag in assets[0].flagsblocks.BLOCK %}
                                                     <div class="alert alert-danger">
-                                                        <a href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ flag.maintenanceJobs_id }}" type="button" style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
+                                                        <a href="{{ flag.maintenanceJobs_id ? CONFIG.ROOTURL ~ '/maintenance/job.php?id=' ~ flag.maintenanceJobs_id : '#assetHolds' }}" type="button" style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
                                                         <h5><i class="fas fa-ban"></i> {{ flag.maintenanceJobs_title }}</h5>
                                                         {{ flag.maintenanceJobs_faultDescription }}
                                                     </div>
                                                 {% endfor %}
                                                 {% for flag in assets[0].flagsblocks.FLAG %}
                                                 <div class="alert alert-warning">
-                                                    <a href="{{ CONFIG.ROOTURL }}/maintenance/job.php?id={{ flag.maintenanceJobs_id }}" type="button"  style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
+                                                    <a href="{{ flag.maintenanceJobs_id ? CONFIG.ROOTURL ~ '/maintenance/job.php?id=' ~ flag.maintenanceJobs_id : '#assetHolds' }}" type="button"  style="text-decoration: none;" class="close"><i class="fas fa-info-circle"></i></a>
                                                     <h5><i class="far fa-flag"></i> {{ flag.maintenanceJobs_title }}</h5>
                                                     {{ flag.maintenanceJobs_faultDescription }}
                                                 </div>
