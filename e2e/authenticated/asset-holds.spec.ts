@@ -261,6 +261,10 @@ test.describe("holds on assets", () => {
       expect((await moveTo(asA, a, project, asset, ids.returns, { wentOut: 0 })).json).toMatchObject({ result: true });
       expect(assignmentOf(project, asset).status).toBe(ids.returns);
       expect(logged(project, "STAYED-IN-SKIPPED-DISPATCH")).toHaveLength(1);
+      // The answer shows in the project's activity log
+      const log = (await asA.page(`/project/?id=${project}`)).body;
+      expect(log).toContain("stayed in the warehouse");
+      expect(log).toContain("moved straight to Hold test returns");
       // Past the status that sends it out already: nothing to ask
       expect((await moveTo(asA, a, project, asset, ids.later)).json).toMatchObject({ result: true });
       // It did go out, and came back
@@ -286,6 +290,7 @@ test.describe("holds on assets", () => {
       // It went out already, so there's nothing to hold - but it's logged with what held it
       expect((await moveTo(asA, a, project, asset, ids.later, { wentOut: 1 })).json).toMatchObject({ result: true });
       expect(logged(project, "WENT-OUT-SKIPPED-DISPATCH")[0].d).toContain("Cracked case");
+      expect((await asA.page(`/project/?id=${project}`)).body).toContain("did go out");
       // It stayed, and ends on a status that returns it: nothing is going out
       resetTo(project, asset, ids.before);
       expect((await moveTo(asA, a, project, asset, ids.returns, { wentOut: 0 })).json).toMatchObject({ result: true });
@@ -298,6 +303,7 @@ test.describe("holds on assets", () => {
       dbQuery("UPDATE assetHolds SET assetHolds_overridable = 1 WHERE assets_id = ?", [asset]);
       expect((await moveTo(asA, a, project, asset, ids.later, { wentOut: 0 })).json).toMatchObject({ result: false, error: { code: "HOLD-BLOCKED-OVERRIDABLE" } });
       expect((await moveTo(asA, a, project, asset, ids.later, { wentOut: 0, holdOverride: 1 })).json).toMatchObject({ result: true });
+      expect((await asA.page(`/project/?id=${project}`)).body).toContain("signed off sending out gear that was on hold");
     } finally { done(); }
   });
 
