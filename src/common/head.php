@@ -123,8 +123,8 @@ function generateNewTag()
 const ASSET_HOLD_MODES = ["ALLOW" => "Allow", "WARN" => "Warn", "BLOCK" => "Block"];
 /** The stages a hold has a rule for: adding the asset to a project, and sending it out (a status that leaves the warehouse) */
 const ASSET_HOLD_STAGES = ["assign" => "Adding to a project", "dispatch" => "Sending out"];
-/** What a status can do to where the gear is - only one so far, which is what makes a hold's dispatch rule apply */
-const ASSET_STATUS_EFFECTS = ["LEAVES_WAREHOUSE" => "Gear leaves the warehouse"];
+/** What a status says about where the gear is. A hold's dispatch rule applies to anything that gets gear to a status that leaves the warehouse, or past one, unless it ends on one that returns it to the warehouse */
+const ASSET_STATUS_EFFECTS = ["LEAVES_WAREHOUSE" => "Gear leaves the warehouse", "RETURNS_TO_WAREHOUSE" => "Gear returns to the warehouse"];
 
 /**
  * Every active hold on an asset, from the maintenance jobs it's on and the holds put on it directly, each with the
@@ -249,8 +249,11 @@ function assetDispatchHoldsCheckOrFinish($assetIds, $projectId = null)
 }
 
 /**
- * Before assignments are given a status, check the holds on their assets if that status means the gear leaves the
- * warehouse - and the assignments aren't already on a status that does. Finishes the request if they can't be sent.
+ * Before assignments are given a status, check the holds on their assets if the change sends the gear out of the
+ * warehouse. That's when the new status leaves the warehouse, or when it's further along the business's statuses than
+ * one that does - so skipping straight past "Dispatched" can't get round a hold - unless it ends on a status that has
+ * the gear returning to the warehouse. Assignments already on a status that leaves the warehouse aren't checked again.
+ * Finishes the request if they can't be sent.
  *
  * @param int[] $assignmentIds The assignments being changed
  * @param int $newStatusId The status they're being changed to
@@ -261,11 +264,29 @@ function assetDispatchHoldsForStatusChange($assignmentIds, $newStatusId, $projec
     global $DBLIB;
     if (count($assignmentIds) < 1) return;
     $DBLIB->where("assetsAssignmentsStatus_id", $newStatusId);
-    if ($DBLIB->getValue("assetsAssignmentsStatus", "assetsAssignmentsStatus_effect") != "LEAVES_WAREHOUSE") return;
+    $new = $DBLIB->getOne("assetsAssignmentsStatus", ["assetsAssignmentsStatus_order", "assetsAssignmentsStatus_effect", "instances_id"]);
+    if (!$new or $new["assetsAssignmentsStatus_effect"] == "RETURNS_TO_WAREHOUSE") return;
+    $leavesOrders = [];
+    if ($new["assetsAssignmentsStatus_effect"] != "LEAVES_WAREHOUSE") {
+        $DBLIB->where("instances_id", $new["instances_id"]);
+        $DBLIB->where("assetsAssignmentsStatus_deleted", 0);
+        $DBLIB->where("assetsAssignmentsStatus_effect", "LEAVES_WAREHOUSE");
+        $leavesOrders = array_column($DBLIB->get("assetsAssignmentsStatus", null, ["assetsAssignmentsStatus_order"]) ?: [], "assetsAssignmentsStatus_order");
+        if (count($leavesOrders) < 1) return; //Nothing the business has set up sends gear out
+    }
     $DBLIB->where("assetsAssignments.assetsAssignments_id", $assignmentIds, "IN");
     $DBLIB->join("assetsAssignmentsStatus", "assetsAssignments.assetsAssignmentsStatus_id=assetsAssignmentsStatus.assetsAssignmentsStatus_id", "LEFT");
-    $DBLIB->where("(assetsAssignmentsStatus.assetsAssignmentsStatus_effect IS NULL OR assetsAssignmentsStatus.assetsAssignmentsStatus_effect != 'LEAVES_WAREHOUSE')");
-    $assetIds = array_column($DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id"]) ?: [], "assets_id");
+    $assignments = $DBLIB->get("assetsAssignments", null, ["assetsAssignments.assets_id", "assetsAssignmentsStatus.assetsAssignmentsStatus_order AS oldOrder", "assetsAssignmentsStatus.assetsAssignmentsStatus_effect AS oldEffect"]) ?: [];
+    $assetIds = [];
+    foreach ($assignments as $assignment) {
+        if ($assignment["oldEffect"] == "LEAVES_WAREHOUSE") continue; //Already out
+        if ($new["assetsAssignmentsStatus_effect"] != "LEAVES_WAREHOUSE") {
+            $oldOrder = $assignment["oldOrder"] === null ? -1 : intval($assignment["oldOrder"]);
+            $passes = array_filter($leavesOrders, function ($order) use ($oldOrder, $new) { return $order > $oldOrder && $order <= $new["assetsAssignmentsStatus_order"]; });
+            if (count($passes) < 1) continue; //Not going past a status that sends it out
+        }
+        $assetIds[] = $assignment["assets_id"];
+    }
     assetDispatchHoldsCheckOrFinish($assetIds, $projectId);
 }
 

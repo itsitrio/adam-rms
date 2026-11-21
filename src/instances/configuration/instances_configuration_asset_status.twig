@@ -59,9 +59,10 @@
                                         <input type="text" class="assetStatusName form-control" name="{{ status.assetsAssignmentsStatus_id }}" value="{{ status.assetsAssignmentsStatus_name }}" />
                                     </td>
                                     <td class="assetStatusEffectCell">
-                                        <select class="assetStatusEffect form-control" data-status="{{ status.assetsAssignmentsStatus_id }}" title="What setting this status means for where the gear is. Holds on an asset can stop it being given a status that sends it out." {% if not ("BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions) %}disabled{% endif %}>
+                                        <select class="assetStatusEffect form-control" data-status="{{ status.assetsAssignmentsStatus_id }}" title="What this status means for where the gear is. Holds on an asset can stop it reaching a status that leaves the warehouse, or going past one - unless it ends on a status marked as returning it to the warehouse." {% if not ("BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions) %}disabled{% endif %}>
                                             <option value="">No effect</option>
                                             <option value="LEAVES_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "LEAVES_WAREHOUSE" ? "selected" : "" }}>Leaves warehouse</option>
+                                            <option value="RETURNS_TO_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "RETURNS_TO_WAREHOUSE" ? "selected" : "" }}>Returns to warehouse</option>
                                         </select>
                                     </td>
                                     <td class="text-right border-left assetStatusDeleteCell">
