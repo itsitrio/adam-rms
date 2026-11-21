@@ -46,15 +46,46 @@ function projectLatestDateSql($table = "projects")
 }
 
 /**
- * The date a project's payment is due (Y-m-d): its own due date if it has one, otherwise the given number of days
- * after the latest date the project has. Null if it has neither.
+ * The date a project's payment is due (Y-m-d): its own due date if it has one, then the date locked in when its
+ * invoice was issued, otherwise the given number of days after the latest date the project has. Null if it has none.
  */
 function projectPaymentDueDate($project, $paymentDueDays)
 {
     if (!empty($project['projects_paymentDueDate'])) return date("Y-m-d", strtotime($project['projects_paymentDueDate']));
+    if (!empty($project['projects_invoiceDueDate'])) return date("Y-m-d", strtotime($project['projects_invoiceDueDate']));
+    return projectComputedDueDate($project, $paymentDueDays);
+}
+
+/** The due date worked out from the project's dates and the payment terms, whatever has been set or locked in */
+function projectComputedDueDate($project, $paymentDueDays)
+{
     $latest = projectLatestDate($project);
     if ($latest === null) return null;
     return date("Y-m-d", strtotime($latest . " +" . intval($paymentDueDays) . " days"));
+}
+
+/**
+ * Lock in the dates a project's invoice was issued and is due, so changes to the project's dates or the business's
+ * payment terms don't move what a client was told. Does nothing if it's already locked - it has to be unlocked first.
+ *
+ * @param array $project The project's row
+ * @param string|null $dueDate Y-m-d to lock in, or null for the date worked out from the project's dates
+ * @return array|string ["issueDate", "dueDate"] as locked, or a message saying why it couldn't be
+ */
+function projectLockInvoiceDueDate($project, $dueDate = null)
+{
+    global $DBLIB, $AUTH, $bCMS;
+    if ($project['projects_invoiceDueDate'] !== null) return ["issueDate" => $project['projects_invoiceIssueDate'], "dueDate" => $project['projects_invoiceDueDate']];
+    $terms = intval($AUTH->data['instance']['instances_config_paymentDueDays']);
+    if ($dueDate === null) {
+        $dueDate = projectPaymentDueDate(array_merge($project, ["projects_invoiceDueDate" => null]), $terms);
+        if ($dueDate === null) return "The project has no dates to work a due date from - choose one";
+    }
+    $lock = ["projects_invoiceIssueDate" => date("Y-m-d"), "projects_invoiceDueDate" => $dueDate, "projects_invoiceTermsDays" => $terms];
+    $DBLIB->where("projects.projects_id", $project['projects_id']);
+    if (!$DBLIB->update("projects", $lock)) return "The due date couldn't be locked in";
+    $bCMS->auditLog("LOCK-INVOICE-DUE-DATE", "projects", json_encode($lock), $AUTH->data['users_userid'], null, $project['projects_id']);
+    return ["issueDate" => $lock['projects_invoiceIssueDate'], "dueDate" => $dueDate];
 }
 
 /**

@@ -13,11 +13,11 @@ $DBLIB->where("projects.instances_id", $AUTH->data['instance']['instances_id']);
 $DBLIB->where("projects.projects_deleted", 0);
 $DBLIB->where("projectsStatuses.projectsStatuses_pipelineStage", "WON");
 $DBLIB->where("projectsTypes.projectsTypes_config_finance", 1);
-$DBLIB->where("(" . projectLatestDateSql() . " < '" . date("Y-m-d H:i:s") . "' OR projects.projects_paymentDueDate < '" . date("Y-m-d") . "')");
+$DBLIB->where("(" . projectLatestDateSql() . " < '" . date("Y-m-d H:i:s") . "' OR projects.projects_paymentDueDate < '" . date("Y-m-d") . "' OR projects.projects_invoiceDueDate < '" . date("Y-m-d") . "')");
 $DBLIB->join("projectsStatuses", "projects.projectsStatuses_id=projectsStatuses.projectsStatuses_id", "LEFT");
 $DBLIB->join("projectsTypes", "projects.projectsTypes_id=projectsTypes.projectsTypes_id", "LEFT");
 $DBLIB->join("clients", "projects.clients_id=clients.clients_id", "LEFT");
-$projects = $DBLIB->get("projects", null, ["projects.projects_id", "projects.projects_name", "projects.projects_dates_deliver_end", "projects.projects_dates_deliver_start", "projects.projects_dates_use_start", "projects.projects_dates_use_end", "projects.projects_paymentDueDate", "projects.projects_collectionStatus", "clients.clients_id", "clients.clients_name", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour"]);
+$projects = $DBLIB->get("projects", null, ["projects.projects_id", "projects.projects_name", "projects.projects_dates_deliver_end", "projects.projects_dates_deliver_start", "projects.projects_dates_use_start", "projects.projects_dates_use_end", "projects.projects_paymentDueDate", "projects.projects_invoiceDueDate", "projects.projects_collectionStatus", "clients.clients_id", "clients.clients_name", "projectsStatuses.projectsStatuses_name", "projectsStatuses.projectsStatuses_foregroundColour", "projectsStatuses.projectsStatuses_backgroundColour"]);
 
 usort($projects, function ($a, $b) { return strcmp(projectLatestDate($a) ?? "", projectLatestDate($b) ?? ""); }); //Oldest first, whichever date a project's latest is
 

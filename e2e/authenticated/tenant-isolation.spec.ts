@@ -132,6 +132,7 @@ const writeCases: WriteCase[] = [
   // Projects
   { endpoint: "/api/projects/changeName.php", params: (t) => ({ projects_id: t.projectId, projects_name: "Renamed by e2e" }) },
   { endpoint: "/api/projects/changePaymentCollection.php", params: (t) => ({ projects_id: t.projectId, projects_collectionStatus: "WRITTEN_OFF", projects_paymentDueDate: "2030-02-01" }) },
+  { endpoint: "/api/projects/changeInvoiceDueDate.php", params: (t) => ({ projects_id: t.projectId, action: "lock", projects_invoiceDueDate: "2030-02-01" }) },
   { endpoint: "/api/projects/changePublishedNames.php", params: (t) => ({ projects_id: t.projectId, projects_publishedNames: 1 }) },
   { endpoint: "/api/projects/changeDescription.php", params: (t) => ({ projects_id: t.projectId, projects_description: "Changed by e2e" }) },
   { endpoint: "/api/projects/changeDeliveryNotes.php", params: (t) => ({ projects_id: t.projectId, projects_deliveryNotes: "Changed by e2e" }) },
