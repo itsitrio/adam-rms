@@ -142,6 +142,29 @@ ignoreURLs: ['searchUser.php'] // Ignore user searches
                     });
                     return true;
                 }
+                /**
+                 * Moving an asset past a status that sends it out has to say whether it went out - it did, or it stayed
+                 * in the warehouse and this is tidying up. Given the error from a request that was refused for that, ask
+                 * whoever is doing it: either answer runs `retry` with 1 (went out) or 0 (stayed in the warehouse), and
+                 * Cancel runs `cancel`. Returns false, and does nothing, for any other error.
+                 */
+                function skipConfirm(error, retry, cancel) {
+                    if (!error || error.code !== "DISPATCH-SKIPPED") return false;
+                    var tags = $.map(error.assets || [], function (asset) { return asset.assets_tag; }).join(", ");
+                    var multiple = (error.assets || []).length > 1;
+                    var message = $("<div>").append($("<p>").text("This skips the status that sends " + (multiple ? "assets" : "an asset") + " out of the warehouse. Did " + (multiple ? "these" : "it") + " actually go out, or " + (multiple ? "are they" : "is it") + " still on the shelf and you're just tidying up the status?")).append($("<p>").append($("<b>").text(tags)));
+                    bootbox.dialog({
+                        title: "Did " + (multiple ? "they" : "it") + " go out?",
+                        message: message.html(),
+                        closeButton: false,
+                        buttons: {
+                            went: { label: "Yes, " + (multiple ? "they" : "it") + " went out", className: "btn-primary", callback: function () { retry(1); } },
+                            stayed: { label: "No, " + (multiple ? "they stayed" : "it stayed") + " in the warehouse", className: "btn-default", callback: function () { retry(0); } },
+                            cancel: { label: "Cancel", className: "btn-link", callback: function () { if (typeof cancel === "function") cancel(); } }
+                        }
+                    });
+                    return true;
+                }
                 function ajaxcall(path, data, callback, reloadIfError) {
                 if (data !== null) var senddata = data;
                 else var senddata = {};
@@ -159,6 +182,8 @@ ignoreURLs: ['searchUser.php'] // Ignore user searches
                         if (typeof callback === "function") {
                         callback(result);
                         }
+                    } else if (skipConfirm(result.error, function (wentOut) { ajaxcall(path, $.extend({}, senddata, {"wentOut": wentOut}), callback, reloadIfError); }, function () { if (reloadIfError) location.reload(); })) {
+                        return false;
                     } else if (holdConfirm(result.error, function () { ajaxcall(path, $.extend({}, senddata, {"holdOverride": 1}), callback, reloadIfError); }, function () { if (reloadIfError) location.reload(); })) {
                         return false;
                     } else {
