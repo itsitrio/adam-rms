@@ -25,7 +25,7 @@
     </div>
 </div>
 <div class="row">
-    <div class="col-12 col-md-6 offset-md-3">
+    <div class="col-12 col-lg-8 offset-lg-2">
         <div class="card">
             <form id="asstStatuses">
                 <div class="card-header">
@@ -35,7 +35,7 @@
                     <table class="table table-borderless" id="statusTable">
                         {% for status in USERDATA.instance['assetStatus'] %}
                             <tbody value="{{ status.assetsAssignmentsStatus_id }}">
-                                <tr class="row border">
+                                <tr class="row border align-items-center">
                                     {% if "BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions %}
                                     <td class="border-right">
                                         <span class="handle">
@@ -44,13 +44,13 @@
                                         </span>
                                     </td>
                                     {% endif %}
-                                    <td class="w-75">
+                                    <td style="flex: 1 1 12rem; min-width: 0;">
                                         <input type="text" class="assetStatusName form-control" name="{{ status.assetsAssignmentsStatus_id }}" value="{{ status.assetsAssignmentsStatus_name }}" />
                                     </td>
-                                    <td class="w-25">
+                                    <td style="flex: 0 0 12rem;">
                                         <select class="assetStatusEffect form-control" data-status="{{ status.assetsAssignmentsStatus_id }}" title="What setting this status means for where the gear is. Holds on an asset can stop it being given a status that sends it out." {% if not ("BUSINESS:BUSINESS_SETTINGS:EDIT"|instancePermissions) %}disabled{% endif %}>
-                                            <option value="">No change to where it is</option>
-                                            <option value="LEAVES_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "LEAVES_WAREHOUSE" ? "selected" : "" }}>Gear leaves the warehouse</option>
+                                            <option value="">No effect</option>
+                                            <option value="LEAVES_WAREHOUSE" {{ status.assetsAssignmentsStatus_effect == "LEAVES_WAREHOUSE" ? "selected" : "" }}>Leaves warehouse</option>
                                         </select>
                                     </td>
                                     <td class="text-right border-left">
