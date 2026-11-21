@@ -4,7 +4,7 @@ use Money\Currency;
 use Money\Money;
 
 /**
- * Whether won work has been paid for. A project's payment falls due a number of days after it ends (the business's
+ * Whether won work has been paid for. A project's payment falls due a number of days after the latest of its dates (the business's
  * payment terms, instances_config_paymentDueDays) unless it has its own due date (projects_paymentDueDate), and a
  * project can be marked as in collections or written off (projects_collectionStatus).
  */
@@ -22,15 +22,39 @@ const PROJECT_COLLECTION_STATES = [
     "NOT_CALCULATED" => "Not calculated yet",
 ];
 
+/** The project date columns a payment's due date can be worked from - the latest one a project has wins */
+const PROJECT_DUE_DATE_COLUMNS = ["projects_dates_deliver_end", "projects_dates_use_end", "projects_dates_deliver_start", "projects_dates_use_start"];
+
+/**
+ * The latest of a project's dates (Y-m-d H:i:s), or null if it has none. Projects without assets only have their own
+ * use dates, so the delivery dates alone aren't enough.
+ */
+function projectLatestDate($project)
+{
+    $latest = null;
+    foreach (PROJECT_DUE_DATE_COLUMNS as $column) {
+        if (empty($project[$column])) continue;
+        if ($latest === null or strtotime($project[$column]) > strtotime($latest)) $latest = $project[$column];
+    }
+    return $latest;
+}
+
+/** SQL for the latest of a project's dates, for filtering - NULL if it has none */
+function projectLatestDateSql($table = "projects")
+{
+    return "NULLIF(GREATEST(" . implode(", ", array_map(function ($column) use ($table) { return "COALESCE(" . $table . "." . $column . ", '1000-01-01')"; }, PROJECT_DUE_DATE_COLUMNS)) . "), '1000-01-01')";
+}
+
 /**
  * The date a project's payment is due (Y-m-d): its own due date if it has one, otherwise the given number of days
- * after its delivery ends. Null if it has neither.
+ * after the latest date the project has. Null if it has neither.
  */
 function projectPaymentDueDate($project, $paymentDueDays)
 {
     if (!empty($project['projects_paymentDueDate'])) return date("Y-m-d", strtotime($project['projects_paymentDueDate']));
-    if (empty($project['projects_dates_deliver_end'])) return null;
-    return date("Y-m-d", strtotime($project['projects_dates_deliver_end'] . " +" . intval($paymentDueDays) . " days"));
+    $latest = projectLatestDate($project);
+    if ($latest === null) return null;
+    return date("Y-m-d", strtotime($latest . " +" . intval($paymentDueDays) . " days"));
 }
 
 /**

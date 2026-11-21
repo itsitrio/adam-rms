@@ -120,7 +120,7 @@
 						<td style="width: 50%;">Payment due</td>
 						<td style="text-align: right;" id="paymentCollectionDueDate">
 							{{ COLLECTION.dueDate ? COLLECTION.dueDate|date("d M Y") : "No date" }}
-							<br/><small class="text-muted">{{ project.projects_paymentDueDate ? "Set for this project" : USERDATA.instance.instances_config_paymentDueDays ~ " days after the project ends" }}</small>
+							<br/><small class="text-muted">{{ project.projects_paymentDueDate ? "Set for this project" : USERDATA.instance.instances_config_paymentDueDays ~ " days after the project's latest date" }}</small>
 						</td>
 					</tr>
 					{% if project.projects_collectionStatus %}

@@ -159,3 +159,24 @@ test("the Finance tab says which permission marks a project as in collections, t
   expect(full).toContain('id="paymentCollectionForm"');
   expect(full).not.toContain('id="paymentCollectionNoPermission"');
 });
+
+test("a payment falls due after the latest date a project has, so projects without assets get a due date too", async ({ asA, tenants: { a } }) => {
+  const dueShown = async (project: number) => (await asA.page(`/project/?id=${project}`)).body.match(/id="paymentCollectionDueDate">\s*([^<]*?)\s*</)?.[1];
+  // A project that only has use dates (as one whose type has no assets does) - its terms run from the end of its use
+  const created = await asA.api("/api/projects/new.php", {
+    instances_id: a.instanceId, projects_name: "Use dates only", projects_manager: a.users.full.id, projectsType_id: a.projectTypeId,
+    projects_dates_use_start: "2020-05-01 09:00:00", projects_dates_use_end: "2020-05-03 18:00:00",
+  });
+  expect(created.json, "creating the project").toMatchObject({ result: true });
+  const useOnly: number = created.json.response.projects_id;
+  expect(dbQuery("SELECT projects_dates_deliver_end e FROM projects WHERE projects_id = ?", [useOnly])[0]).toMatchObject({ e: null });
+  expect(await dueShown(useOnly)).toBe("02 Jun 2020"); // 3 May + 30 days
+
+  // Whichever of its dates is latest wins
+  const both = await newProject(asA, a, a.users.full.id, { start: "2020-06-01 09:00:00", end: "2020-06-03 18:00:00" });
+  dbQuery("UPDATE projects SET projects_dates_use_start = '2020-06-10 09:00:00', projects_dates_use_end = '2020-06-12 18:00:00' WHERE projects_id = ?", [both]);
+  expect(await dueShown(both)).toBe("12 Jul 2020"); // 12 June + 30 days, not 3 June
+  dbQuery("UPDATE projects SET projects_dates_use_end = '2020-06-02 18:00:00', projects_dates_use_start = '2020-06-01 09:00:00' WHERE projects_id = ?", [both]);
+  expect(await dueShown(both)).toBe("03 Jul 2020"); // 3 June + 30 days
+
+});
